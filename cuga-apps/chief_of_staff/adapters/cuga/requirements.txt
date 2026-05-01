@@ -1,0 +1,6 @@
+# Adapter assumes the cuga-apps environment (cuga.sdk, langchain, langchain-mcp-adapters)
+# is already installed in the active Python interpreter. These are the only
+# additional deps the HTTP wrapper needs.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7

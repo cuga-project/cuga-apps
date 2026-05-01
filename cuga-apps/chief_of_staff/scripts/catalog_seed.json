@@ -1,0 +1,133 @@
+{
+  "$comment": "Diverse acquisition-targeted prompts for catalog growth. Each prompt names a SPECIFIC public API or website so cuga emits a gap and Toolsmith builds a wrapper. Spans 20+ capability areas to keep the catalog diverse. Modeled on the autoresearch keep/discard probe loop — we generate many candidates and keep the ones whose probes pass. Same shape as seed_prompts.json so the same runner can consume both.",
+  "prompts": [
+    {"category": "weather",          "intent": "open-meteo (city)",                      "prompt": "Use open-meteo.com to get current weather for Reykjavik. Return temperature and conditions."},
+    {"category": "weather",          "intent": "open-meteo (lat/lon)",                  "prompt": "Use open-meteo.com forecast API for latitude=35.6, longitude=139.6. Return current temperature."},
+    {"category": "weather",          "intent": "wttr.in plain",                          "prompt": "Use wttr.in to get current weather for Berlin in JSON format."},
+    {"category": "weather",          "intent": "weather.gov forecast",                   "prompt": "Use api.weather.gov to look up current forecast for latitude=38.89, longitude=-77.03."},
+    {"category": "weather",          "intent": "openmeteo air quality",                  "prompt": "Use air-quality-api.open-meteo.com to fetch PM2.5 for latitude=51.5, longitude=-0.12."},
+
+    {"category": "geography",        "intent": "REST Countries",                          "prompt": "Use REST Countries API (restcountries.com) to look up the capital of Mongolia."},
+    {"category": "geography",        "intent": "REST Countries currency",                  "prompt": "Use REST Countries API to find the currency of Brazil."},
+    {"category": "geography",        "intent": "REST Countries languages",                 "prompt": "Use REST Countries API to list the official languages of Switzerland."},
+    {"category": "geography",        "intent": "Open-Meteo geocoding",                     "prompt": "Use geocoding-api.open-meteo.com to look up coordinates for Marrakech."},
+    {"category": "geography",        "intent": "OSM Nominatim",                            "prompt": "Use nominatim.openstreetmap.org to geocode the address \"1600 Amphitheatre Parkway, Mountain View, CA\"."},
+    {"category": "geography",        "intent": "ipapi.co",                                 "prompt": "Use ipapi.co to look up geolocation for IP address 8.8.8.8."},
+    {"category": "geography",        "intent": "ip-api.com",                               "prompt": "Use ip-api.com to look up geolocation for IP 1.1.1.1."},
+    {"category": "geography",        "intent": "worldtime API",                            "prompt": "Use worldtimeapi.org to get the current time in timezone America/New_York."},
+    {"category": "geography",        "intent": "open-elevation",                           "prompt": "Use api.open-elevation.com to look up elevation for latitude=27.99, longitude=86.92."},
+
+    {"category": "jokes_humor",       "intent": "chucknorris.io",                          "prompt": "Tell me a random Chuck Norris joke from chucknorris.io."},
+    {"category": "jokes_humor",       "intent": "official-joke-api",                       "prompt": "Use official-joke-api.appspot.com to fetch a random joke."},
+    {"category": "jokes_humor",       "intent": "icanhazdadjoke.com",                      "prompt": "Use icanhazdadjoke.com to fetch a random dad joke."},
+    {"category": "jokes_humor",       "intent": "jokeapi.dev",                             "prompt": "Use v2.jokeapi.dev to fetch a random programming joke."},
+    {"category": "jokes_humor",       "intent": "yo-momma joke",                           "prompt": "Use api.yomomma.info to fetch a yo momma joke."},
+
+    {"category": "facts_trivia",      "intent": "catfact.ninja",                           "prompt": "Use catfact.ninja to fetch a random cat fact."},
+    {"category": "facts_trivia",      "intent": "uselessfacts.jsph.pl",                     "prompt": "Use uselessfacts.jsph.pl to fetch a random useless fact."},
+    {"category": "facts_trivia",      "intent": "numbersapi date",                          "prompt": "Use numbersapi.com to fetch a date fact for 7/22."},
+    {"category": "facts_trivia",      "intent": "numbersapi math",                          "prompt": "Use numbersapi.com to fetch a math fact for the number 42."},
+    {"category": "facts_trivia",      "intent": "boredapi activity",                        "prompt": "Use boredapi.com to suggest a random activity."},
+    {"category": "facts_trivia",      "intent": "advice slip",                             "prompt": "Use api.adviceslip.com to fetch a piece of advice."},
+    {"category": "facts_trivia",      "intent": "type.fit quotes",                         "prompt": "Use type.fit/api/quotes to fetch a random inspirational quote."},
+    {"category": "facts_trivia",      "intent": "kanye.rest",                              "prompt": "Use api.kanye.rest to fetch a Kanye West quote."},
+
+    {"category": "animals",           "intent": "dogapi breeds",                           "prompt": "Use dog.ceo/api to fetch a random dog image URL."},
+    {"category": "animals",           "intent": "cataas.com",                              "prompt": "Use cataas.com to fetch a random cat image URL."},
+    {"category": "animals",           "intent": "pokeapi pikachu",                         "prompt": "Use pokeapi.co to look up Pokemon \"pikachu\"."},
+    {"category": "animals",           "intent": "pokeapi charizard",                       "prompt": "Use pokeapi.co to look up Pokemon \"charizard\"."},
+    {"category": "animals",           "intent": "pokeapi by id",                            "prompt": "Use pokeapi.co to look up Pokemon by id 25."},
+    {"category": "animals",           "intent": "fishwatch",                                "prompt": "Use fishwatch.gov/api/species to list available fish species."},
+
+    {"category": "reference_lookup",  "intent": "Wikipedia REST",                          "prompt": "Use en.wikipedia.org/api/rest_v1/page/summary to look up the article on Alan Turing."},
+    {"category": "reference_lookup",  "intent": "Wikipedia search",                        "prompt": "Use en.wikipedia.org/w/api.php to search for articles about \"quantum entanglement\"."},
+    {"category": "reference_lookup",  "intent": "Free Dictionary",                         "prompt": "Use api.dictionaryapi.dev to look up the definition of \"serendipity\"."},
+    {"category": "reference_lookup",  "intent": "Datamuse rhymes",                          "prompt": "Use api.datamuse.com to find words that rhyme with \"orange\"."},
+    {"category": "reference_lookup",  "intent": "Datamuse synonyms",                        "prompt": "Use api.datamuse.com to find synonyms for \"happy\"."},
+    {"category": "reference_lookup",  "intent": "open library book",                       "prompt": "Use openlibrary.org/api to look up the book with ISBN 9780132350884."},
+    {"category": "reference_lookup",  "intent": "open library author",                      "prompt": "Use openlibrary.org/search/authors.json to look up author \"Ursula K. Le Guin\"."},
+
+    {"category": "finance_crypto",    "intent": "coingecko btc",                           "prompt": "Use api.coingecko.com to fetch the current price of bitcoin in USD."},
+    {"category": "finance_crypto",    "intent": "coingecko eth",                           "prompt": "Use api.coingecko.com to fetch the current price of ethereum in USD."},
+    {"category": "finance_crypto",    "intent": "coingecko trending",                       "prompt": "Use api.coingecko.com/api/v3/search/trending to fetch trending coins."},
+    {"category": "finance_crypto",    "intent": "exchange-rates frankfurter",                "prompt": "Use api.frankfurter.app to fetch current exchange rates with USD as base."},
+    {"category": "finance_crypto",    "intent": "exchange-rates open.er-api",                "prompt": "Use open.er-api.com to fetch current exchange rates with EUR as base."},
+
+    {"category": "movies_tv",          "intent": "TVMaze show",                             "prompt": "Use api.tvmaze.com/singlesearch/shows to look up the TV show \"Severance\"."},
+    {"category": "movies_tv",          "intent": "TVMaze schedule",                         "prompt": "Use api.tvmaze.com/schedule to get tonight's TV schedule for the US."},
+    {"category": "movies_tv",          "intent": "OMDB",                                    "prompt": "Use omdbapi.com to look up the movie \"Inception\"."},
+    {"category": "movies_tv",          "intent": "Studio Ghibli",                           "prompt": "Use ghibliapi.vercel.app/films to list Studio Ghibli films."},
+
+    {"category": "music",              "intent": "lyrics.ovh",                              "prompt": "Use api.lyrics.ovh to fetch lyrics for artist \"Coldplay\", title \"Yellow\"."},
+    {"category": "music",              "intent": "musicbrainz",                              "prompt": "Use musicbrainz.org/ws/2 to search for artist \"Radiohead\"."},
+
+    {"category": "sports",             "intent": "balldontlie nba",                          "prompt": "Use balldontlie.io/api/v1/teams to list NBA teams."},
+    {"category": "sports",             "intent": "balldontlie player",                       "prompt": "Use balldontlie.io to search NBA players for \"LeBron James\"."},
+    {"category": "sports",             "intent": "ergast f1 schedule",                       "prompt": "Use ergast.com/api/f1/2024.json to fetch the 2024 F1 schedule."},
+    {"category": "sports",             "intent": "TheSportsDB",                              "prompt": "Use thesportsdb.com/api to look up team \"Manchester United\"."},
+
+    {"category": "tech_dev",            "intent": "GitHub repo about",                       "prompt": "Use api.github.com/repos to fetch the about + stars for facebook/react."},
+    {"category": "tech_dev",            "intent": "GitHub user info",                        "prompt": "Use api.github.com/users to fetch info for user \"torvalds\"."},
+    {"category": "tech_dev",            "intent": "PyPI package info",                       "prompt": "Use pypi.org/pypi to look up the package \"requests\" and return version + summary."},
+    {"category": "tech_dev",            "intent": "PyPI fastapi",                            "prompt": "Use pypi.org/pypi to look up the package \"fastapi\" and return version + summary."},
+    {"category": "tech_dev",            "intent": "npm registry",                             "prompt": "Use registry.npmjs.org to look up the package \"react\" and return latest version."},
+    {"category": "tech_dev",            "intent": "npm lodash",                              "prompt": "Use registry.npmjs.org to look up the package \"lodash\" and return latest version."},
+    {"category": "tech_dev",            "intent": "Hacker News top",                         "prompt": "Use Hacker News public API at hn.algolia.com to fetch top stories from the past 24 hours."},
+    {"category": "tech_dev",            "intent": "GitHub search repos",                     "prompt": "Use api.github.com/search/repositories to search for top Python ML libraries."},
+
+    {"category": "government_data",    "intent": "datausa state",                            "prompt": "Use datausa.io/api to look up information for the state \"California\"."},
+    {"category": "government_data",    "intent": "openFDA recall",                           "prompt": "Use api.fda.gov/food/enforcement.json to fetch recent food recalls."},
+    {"category": "government_data",    "intent": "USAJobs",                                  "prompt": "Use data.usajobs.gov/api/search to find jobs with title containing \"data scientist\"."},
+    {"category": "government_data",    "intent": "weather.gov alerts",                        "prompt": "Use api.weather.gov/alerts/active to list active US weather alerts."},
+
+    {"category": "science_space",      "intent": "NASA APOD",                               "prompt": "Use api.nasa.gov/planetary/apod to fetch the Astronomy Picture of the Day."},
+    {"category": "science_space",      "intent": "NASA Mars rover",                          "prompt": "Use api.nasa.gov/mars-photos/api/v1/rovers/curiosity to fetch latest Mars rover photos."},
+    {"category": "science_space",      "intent": "ISS location",                             "prompt": "Use api.open-notify.org/iss-now.json to fetch the ISS's current latitude/longitude."},
+    {"category": "science_space",      "intent": "people in space",                           "prompt": "Use api.open-notify.org/astros.json to list people currently in space."},
+    {"category": "science_space",      "intent": "SpaceX launches",                           "prompt": "Use api.spacexdata.com/v5/launches/latest to fetch the most recent SpaceX launch."},
+
+    {"category": "health_food",        "intent": "openfoodfacts product",                    "prompt": "Use world.openfoodfacts.org/api to look up product with barcode \"737628064502\"."},
+    {"category": "health_food",        "intent": "TheMealDB random",                         "prompt": "Use themealdb.com/api/json/v1/1/random.php to fetch a random meal recipe."},
+    {"category": "health_food",        "intent": "TheMealDB by ingredient",                  "prompt": "Use themealdb.com/api/json/v1/1/filter.php to find meals with ingredient \"chicken\"."},
+    {"category": "health_food",        "intent": "thecocktaildb",                            "prompt": "Use thecocktaildb.com/api/json/v1/1/random.php to fetch a random cocktail recipe."},
+    {"category": "health_food",        "intent": "fruityvice",                                "prompt": "Use fruityvice.com/api/fruit to look up nutritional info for \"banana\"."},
+    {"category": "health_food",        "intent": "openfoodfacts categories",                  "prompt": "Use world.openfoodfacts.org to list categories (top 20)."},
+
+    {"category": "language",           "intent": "libretranslate",                            "prompt": "Use libretranslate.com to translate \"hello world\" from English to French."},
+    {"category": "language",           "intent": "Datamuse triggers",                          "prompt": "Use api.datamuse.com to find words that often appear with \"ocean\"."},
+    {"category": "language",           "intent": "Free Dictionary plural",                     "prompt": "Use api.dictionaryapi.dev to look up the word \"ephemeral\"."},
+
+    {"category": "random_data",        "intent": "random user",                              "prompt": "Use randomuser.me/api to generate a random user profile."},
+    {"category": "random_data",        "intent": "random word",                              "prompt": "Use random-word-api.herokuapp.com to fetch one random English word."},
+    {"category": "random_data",        "intent": "uuid",                                     "prompt": "Use httpbin.org/uuid to fetch a random UUID."},
+    {"category": "random_data",        "intent": "lorem picsum",                              "prompt": "Use picsum.photos/200 to fetch a random photo URL of size 200x200."},
+
+    {"category": "browser_tier",       "intent": "HN top stories",                            "prompt": "Get the top 5 stories from Hacker News right now."},
+    {"category": "browser_tier",       "intent": "HN best",                                   "prompt": "Show me what's hot on Hacker News right now."},
+    {"category": "browser_tier",       "intent": "Wikipedia article browser",                "prompt": "Search Wikipedia for the article on Alan Turing using the website."},
+    {"category": "browser_tier",       "intent": "GitHub repo about browser",                "prompt": "Get the GitHub About text for the openai/whisper repo via the website."},
+
+    {"category": "needs_creds",        "intent": "school portal",                             "prompt": "Check my kid's school portal for grades."},
+    {"category": "needs_creds",        "intent": "utility bill",                              "prompt": "Get my outstanding utility bill from my account."},
+
+    {"category": "documents",          "intent": "OpenLibrary covers",                        "prompt": "Use covers.openlibrary.org/b/isbn to fetch the cover URL for ISBN 9780132350884."},
+    {"category": "documents",          "intent": "Wikipedia summary multiple",                "prompt": "Use en.wikipedia.org/api/rest_v1/page/summary to look up the article on \"Marie Curie\"."},
+    {"category": "documents",          "intent": "Wikipedia search articles",                "prompt": "Use en.wikipedia.org/w/api.php to search for articles about \"machine learning\"."},
+
+    {"category": "shopping_commerce",  "intent": "fakestoreapi product",                      "prompt": "Use fakestoreapi.com/products/1 to fetch a product."},
+    {"category": "shopping_commerce",  "intent": "dummyjson products",                        "prompt": "Use dummyjson.com/products to list 5 products."},
+
+    {"category": "tech_data",          "intent": "user-agent parser",                          "prompt": "Use httpbin.org/user-agent to echo my user-agent string."},
+    {"category": "tech_data",          "intent": "httpbin headers",                           "prompt": "Use httpbin.org/headers to echo back HTTP headers."},
+    {"category": "tech_data",          "intent": "httpbin ip",                                "prompt": "Use httpbin.org/ip to echo back my IP."},
+    {"category": "tech_data",          "intent": "is.gd shortener",                            "prompt": "Use is.gd/create.php to shorten the URL https://example.com."},
+
+    {"category": "weather",            "intent": "wttr.in lite",                              "prompt": "Use wttr.in to fetch a one-line summary for Tokyo."},
+    {"category": "weather",            "intent": "open-meteo marine",                          "prompt": "Use marine-api.open-meteo.com to fetch wave height for latitude=54.5, longitude=-2.5."},
+    {"category": "weather",            "intent": "open-meteo elevation",                       "prompt": "Use api.open-meteo.com elevation endpoint for latitude=46.5, longitude=8.0."},
+
+    {"category": "humor_extra",        "intent": "joke api types",                            "prompt": "Use jokeapi.dev/joke/Programming to fetch a programming-category joke."},
+    {"category": "humor_extra",        "intent": "joke api Misc",                             "prompt": "Use jokeapi.dev/joke/Misc to fetch a miscellaneous joke."},
+    {"category": "humor_extra",        "intent": "shibe.online",                              "prompt": "Use shibe.online/api/shibes to fetch a Shiba Inu image URL."}
+  ]
+}

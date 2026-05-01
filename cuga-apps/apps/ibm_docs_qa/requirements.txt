@@ -1,0 +1,8 @@
+# ibm_docs_qa — dependencies
+# All packages below are already in the repo-level requirements.apps.txt
+fastapi
+uvicorn[standard]
+pydantic
+httpx
+beautifulsoup4
+tavily-python   # required — for search_ibm_docs tool

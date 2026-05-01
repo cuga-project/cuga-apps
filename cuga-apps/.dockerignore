@@ -1,0 +1,21 @@
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.launch_pids
+**/.*.log
+**/node_modules/
+**/dist/
+.git/
+.idea/
+.vscode/
+**/.cuga/
+**/*.egg-info/
+
+# Secrets must never be baked into images. Mounted at runtime
+# via docker-compose volumes (-> /run/secrets/app.env) instead.
+apps/.env
+apps/.env.example
+**/.env
+**/.env.*
+!**/.env.template

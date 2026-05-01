@@ -1,0 +1,4 @@
+# brief_budget — research brief on a hard tool-call budget
+#
+# Standard apps deps (FastAPI / pydantic / langchain) are inherited from the
+# apps Docker image; nothing app-specific here.

@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+# =====================================================================
+# chief_of_staff/Dockerfile.backend
+#
+# The lightweight FastAPI shell — chat surface, registry, /tools.
+# Build context is chief_of_staff/.
+# =====================================================================
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+ENV PYTHONUNBUFFERED=1
+
+COPY backend/ ./backend/
+
+# Default to the compose-internal adapter URL. Override via env if needed.
+ENV CUGA_URL=http://chief-of-staff-adapter:8000
+
+EXPOSE 8765
+
+WORKDIR /app/backend
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8765"]

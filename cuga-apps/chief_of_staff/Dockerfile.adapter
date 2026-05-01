@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1
+# =====================================================================
+# chief_of_staff/Dockerfile.adapter
+#
+# The cuga adapter — wraps an in-process CugaAgent and exposes /chat
+# over HTTP. Build context must be cuga-apps/ (one level up) so we can
+# read-only consume apps/_mcp_bridge.py, apps/_llm.py, apps/_ports.py.
+# =====================================================================
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Reuse the parent stack's deps file. cuga + langchain + langchain-mcp-adapters
+# all come from here. We don't modify it — read-only.
+COPY requirements.apps.txt ./
+RUN pip install --no-cache-dir -r requirements.apps.txt
+
+# Mark the container so apps/_mcp_bridge.py resolves MCP service DNS via
+# the compose network (mcp-web, mcp-knowledge, …) instead of localhost.
+ENV CUGA_IN_DOCKER=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app:/app/apps
+
+# Read-only: shared bridge/LLM/ports files used by every cuga-apps service.
+COPY apps/_mcp_bridge.py apps/_llm.py apps/_ports.py ./apps/
+COPY apps/__init__.py ./apps/
+
+# Our adapter code.
+COPY chief_of_staff/adapters/cuga/ ./chief_of_staff/adapters/cuga/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "chief_of_staff.adapters.cuga.server:app", "--host", "0.0.0.0", "--port", "8000"]

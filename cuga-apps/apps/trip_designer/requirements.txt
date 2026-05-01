@@ -1,0 +1,3 @@
+# trip_designer — light-prompt itinerary planner
+#
+# Standard apps deps inherited from the apps Docker image.

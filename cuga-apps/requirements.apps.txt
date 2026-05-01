@@ -1,0 +1,58 @@
+# Dependencies for the cuga-apps FastAPI apps (stage 2: all 23 apps).
+# The apps mostly delegate tool primitives to the 6 MCP servers, but some
+# still carry heavy deps for app-state logic that can't move to MCP
+# (Box auth, OpenAPI parsers, chromadb embeddings, etc.).
+
+# ── cuga framework ───────────────────────────────────────────────────────
+cuga
+
+# ── MCP client (for _mcp_bridge.py) ──────────────────────────────────────
+mcp>=1.0
+langchain-mcp-adapters
+
+# ── Web framework ────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+python-dotenv
+
+# ── LangChain providers ──────────────────────────────────────────────────
+langchain-core
+langchain-anthropic
+langchain-openai
+langchain-ibm
+langchain-ollama
+langchain-community
+langgraph
+httpx
+requests
+
+# ── Stage-2 app-specific deps (app-state tools that stayed inline) ──────
+# drop_summarizer + box_qa — extraction now delegated to mcp-text. Docling
+# only needs to be on the MCP image, not here. Kept removed.
+
+# server_monitor           — psutil metrics queries
+psutil
+
+# video_qa / deck_forge    — local RAG + slide generation
+chromadb
+sentence-transformers
+python-pptx
+pdfplumber
+
+# webpage_summarizer / ibm apps — already covered by httpx; keep bs4 for any
+# inline HTML parsing in apps that didn't fully move to mcp-web
+beautifulsoup4
+
+# box_qa                   — Box SDK JWT auth
+boxsdk[jwt]
+
+# api_doc_gen              — OpenAPI parser
+pyyaml
+
+# youtube_research         — transcript fetches (the agent handles search via mcp-web)
+youtube-transcript-api
+
+# newsletter               — feedparser still used by the inline scheduler paths
+feedparser

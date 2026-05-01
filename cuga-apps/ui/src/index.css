@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Warm theme (default) ─────────────────────────────────────────────────── */
+
+:root,
+[data-theme="warm"] {
+  --t-bg:      #faf8f4;
+  --t-surface: #ffffff;
+  --t-s2:      #f5ede0;
+  --t-border:  #ddd0bc;
+  --t-b2:      #ede5d8;
+  --t-1:       #1c1917;
+  --t-2:       #57534e;
+  --t-3:       #a8a29e;
+  --t-4:       #c8bfb4;
+
+  --badge-enterprise:   #1d4ed8;
+  --badge-productivity: #047857;
+  --badge-developer:    #6d28d9;
+  --badge-researcher:   #b45309;
+
+  --scrollbar-track: #f5ede0;
+  --scrollbar-thumb: #d6c9b5;
+  --scrollbar-hover: #a8a29e;
+}
+
+/* ── Dark theme ───────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  --t-bg:      #111318;
+  --t-surface: #1a1d24;
+  --t-s2:      #21252f;
+  --t-border:  #2d3341;
+  --t-b2:      #1a1d24;
+  --t-1:       #e4e7ed;
+  --t-2:       #9aa0b0;
+  --t-3:       #5a6172;
+  --t-4:       #363d4e;
+
+  --badge-enterprise:   #7eb8f7;
+  --badge-productivity: #5dd9a4;
+  --badge-developer:    #b8a8f5;
+  --badge-researcher:   #f5c97a;
+
+  --scrollbar-track: #1a1d24;
+  --scrollbar-thumb: #2d3341;
+  --scrollbar-hover: #3d4558;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--t-bg);
+  color: var(--t-1);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── Code ─────────────────────────────────────────────────────────────────── */
+
+pre {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}

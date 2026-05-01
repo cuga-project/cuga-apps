@@ -1,0 +1,262 @@
+# Phase 3 v1 — curated index of public, no-auth APIs the OpenAPI source
+# can generate tools from. Each entry has:
+#   id            stable string
+#   name          display name
+#   description   what it does, used by the Toolsmith for matching
+#   capabilities  short phrases used by the matcher
+#   spec_url      OpenAPI / synthesized spec endpoint
+#   probe_path    path that's safe to call with no params (probe harness uses this)
+#   probe_params  optional extra params for the probe call
+#
+# Phase 3.5 will replace this with a Smithery / OpenAPI-directory search.
+# Phase 4 will add auth-required APIs (Stripe, GitHub, etc.) once the vault
+# UX is ready.
+
+apis:
+  - id: countries
+    name: Country Info API
+    description: Look up countries by name, capital, region, currency, language, etc.
+    capabilities:
+      - country information
+      - capital city
+      - country lookup
+      - country currency
+      - country population
+      - country region
+    spec_url: https://restcountries.com/v3.1/all?fields=name,capital,region,population,currencies,languages
+    base_url: https://restcountries.com/v3.1
+    endpoints:
+      - tool_name: get_country_by_name
+        description: Get details about a country by its common name (e.g. "France").
+        method: GET
+        path: /name/{name}
+        params:
+          name:
+            type: string
+            description: Country name (case-insensitive).
+            required: true
+        probe_input:
+          name: France
+
+  - id: open_meteo
+    name: Open-Meteo Weather API
+    description: Free weather forecast and historical data, no auth required.
+    capabilities:
+      - weather forecast
+      - temperature lookup
+      - precipitation
+      - hourly weather
+    base_url: https://api.open-meteo.com/v1
+    endpoints:
+      - tool_name: get_open_meteo_forecast
+        description: Current and forecast weather for a latitude/longitude pair.
+        method: GET
+        path: /forecast
+        params:
+          latitude:
+            type: number
+            description: Latitude.
+            required: true
+          longitude:
+            type: number
+            description: Longitude.
+            required: true
+          current_weather:
+            type: boolean
+            description: Include current weather snapshot.
+            required: false
+            default: true
+        probe_input:
+          latitude: 35.6762
+          longitude: 139.6503
+          current_weather: true
+
+  - id: jokes
+    name: Official Joke API
+    description: Random jokes for testing — useful as a sanity probe target.
+    capabilities:
+      - random joke
+      - dad joke
+      - tell me a joke
+    base_url: https://official-joke-api.appspot.com
+    endpoints:
+      - tool_name: get_random_joke
+        description: Return a random joke with setup and punchline.
+        method: GET
+        path: /random_joke
+        params: {}
+        probe_input: {}
+
+  # ─── Auth-aware entries (phase 3.6) ─────────────────────────────────
+  # Each declares its auth scheme. Toolsmith bakes the secret name into
+  # the generated tool's parameter list (hidden from cuga's schema, fetched
+  # from the vault at call time).
+
+  - id: github_search
+    name: GitHub Search API
+    description: Search public GitHub repositories. Requires a personal
+      access token (any scope works for search).
+    capabilities:
+      - github search
+      - search github repositories
+      - find repository
+      - source code search
+    base_url: https://api.github.com
+    auth:
+      type: bearer_token
+      header: Authorization
+      prefix: "Bearer "
+      secret_key: github_token
+      help: |
+        Generate at https://github.com/settings/tokens (classic) — no scopes
+        needed for public search. The token is stored in your local vault
+        and never logged.
+    endpoints:
+      - tool_name: github_search_repos
+        description: Search GitHub repositories by query string.
+        method: GET
+        path: /search/repositories
+        params:
+          q:
+            type: string
+            description: Search query (e.g. "language:python stars:>1000").
+            required: true
+          per_page:
+            type: integer
+            description: Results per page (max 100).
+            required: false
+            default: 5
+        probe_input:
+          q: language:python stars:>10000
+          per_page: 1
+
+  - id: gmail_send
+    name: Gmail Send
+    description: Send email through your Google Gmail account.
+    capabilities:
+      - send email
+      - send mail
+      - email someone
+      - gmail send
+      - compose email
+    base_url: https://gmail.googleapis.com/gmail/v1
+    auth:
+      type: oauth2_token
+      header: Authorization
+      prefix: "Bearer "
+      secret_key: gmail_access_token
+      refresh_secret_key: gmail_refresh_token
+      token_url: https://oauth2.googleapis.com/token
+      client_id_key: google_oauth_client_id
+      client_secret_key: google_oauth_client_secret
+      help: |
+        Phase 3.7 uses bring-your-own-token OAuth2:
+        1. Create OAuth2 credentials at https://console.cloud.google.com
+           (web client, redirect to https://developers.google.com/oauthplayground)
+        2. At https://developers.google.com/oauthplayground, select
+           Gmail API → https://www.googleapis.com/auth/gmail.send → Authorize
+        3. Exchange the code for tokens — copy access_token AND refresh_token
+        4. Paste them below along with your client_id and client_secret.
+        Toolsmith will refresh access tokens automatically when they expire.
+    endpoints:
+      - tool_name: gmail_send_message
+        description: Send an email. The body is a base64url-encoded RFC 2822 message.
+        method: POST
+        path: /users/me/messages/send
+        params:
+          raw:
+            type: string
+            description: |
+              Base64url-encoded RFC 2822 message. The agent must construct
+              this — typically: From, To, Subject headers + blank line + body,
+              then base64url-encoded.
+            required: true
+        probe_input:
+          raw: VG86IHlvdUBleGFtcGxlLmNvbQpTdWJqZWN0OiBwcm9iZQoKaGVsbG8=
+
+  - id: gcal_events
+    name: Google Calendar Events
+    description: List and create events on your Google Calendar.
+    capabilities:
+      - calendar events
+      - list calendar
+      - create event
+      - schedule meeting
+      - google calendar
+    base_url: https://www.googleapis.com/calendar/v3
+    auth:
+      type: oauth2_token
+      header: Authorization
+      prefix: "Bearer "
+      secret_key: gcal_access_token
+      refresh_secret_key: gcal_refresh_token
+      token_url: https://oauth2.googleapis.com/token
+      client_id_key: google_oauth_client_id
+      client_secret_key: google_oauth_client_secret
+      help: |
+        Same OAuth playground flow as Gmail (above), but pick the scope
+        https://www.googleapis.com/auth/calendar.events instead.
+        Reuses the same google_oauth_client_id and google_oauth_client_secret.
+    endpoints:
+      - tool_name: gcal_list_events
+        description: List events on a calendar within a time window.
+        method: GET
+        path: /calendars/{calendarId}/events
+        params:
+          calendarId:
+            type: string
+            description: Calendar ID — "primary" for the user's main calendar.
+            required: true
+            default: primary
+          timeMin:
+            type: string
+            description: ISO8601 lower bound for event start time.
+            required: false
+          timeMax:
+            type: string
+            description: ISO8601 upper bound.
+            required: false
+          maxResults:
+            type: integer
+            description: How many events to return (max 250).
+            required: false
+            default: 10
+        probe_input:
+          calendarId: primary
+          maxResults: 1
+
+  - id: openweather
+    name: OpenWeather Current API
+    description: Real-time weather + 5-day forecast via OpenWeather. Free
+      tier requires an API key.
+    capabilities:
+      - weather right now
+      - current temperature
+      - openweather forecast
+      - weather api with key
+    base_url: https://api.openweathermap.org/data/2.5
+    auth:
+      type: api_key_query
+      param: appid
+      secret_key: openweather_api_key
+      help: |
+        Free key at https://openweathermap.org/api — sign up, then copy the
+        API key from your account dashboard.
+    endpoints:
+      - tool_name: openweather_current
+        description: Current weather for a city by name.
+        method: GET
+        path: /weather
+        params:
+          q:
+            type: string
+            description: City name (e.g. "Tokyo,JP").
+            required: true
+          units:
+            type: string
+            description: Temperature units — metric, imperial, or standard.
+            required: false
+            default: metric
+        probe_input:
+          q: London,UK
+          units: metric

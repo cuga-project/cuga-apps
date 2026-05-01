@@ -1,0 +1,6 @@
+# Test-only deps. Run `pip install -r requirements.test.txt` once before
+# `make test`.
+pytest>=7
+pytest-xdist>=3
+httpx>=0.27
+mcp>=1.0

@@ -1,0 +1,2784 @@
+{
+  "db": "california_schools",
+  "tools": [
+    {
+      "name": "avg_enrollment_by_county_for_charter_flag",
+      "description": "Average K\u201112 enrollment per county for schools where the `Charter` column matches the supplied flag. Returns only counties that have at least `min_charter_schools` matching schools.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "charter_flag": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "Value of the `Charter` column (1 = charter school, 0 = non\u2011charter)."
+          },
+          "min_charter_schools": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Minimum number of matching schools required for a county to be included."
+          }
+        },
+        "required": [
+          "charter_flag",
+          "min_charter_schools"
+        ]
+      },
+      "return_description": "{'averages': [{'county_name': str, 'avg_enrollment': float|None}, ...]}",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "avg_enrollment_difference_by_funding_type",
+      "description": "Average of (Enrollment (K-12) \u2212 Enrollment (Ages 5-17)) for schools with a specified FundingType.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "funding_type": {
+            "type": "string",
+            "description": "Exact value of the `FundingType` column in the schools table (e.g., 'Locally funded')."
+          }
+        },
+        "required": [
+          "funding_type"
+        ]
+      },
+      "return_description": "{avg_difference: number|null} \u2013 the average difference, or null if no matching rows.",
+      "used_by_question_ids": [
+        28
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "avg_free_meal_ratio_by_county_with_high_ratio",
+      "description": "For each county that contains at least one school whose free\u2011meal ratio (Free Meal Count (K\u201112) \u00f7 Enrollment (K\u201112)) exceeds a given threshold, return the county name and the average free\u2011meal ratio across all its schools, ordered descending by the average.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "ratio_threshold": {
+            "type": "number",
+            "description": "Minimum free\u2011meal ratio to qualify a county (e.g., 0.5)."
+          }
+        },
+        "required": [
+          "ratio_threshold"
+        ]
+      },
+      "return_description": "List of objects each with `county_name` (string) and `avg_ratio` (number). Empty list if no county meets the condition.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "avg_monthly_school_openings_by_doc_county_year",
+      "description": "Average number of schools opened per month in a given year for a specific DOC and county.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "doc": {
+            "type": "integer",
+            "description": "DOC code identifying the school district (e.g., 52 for Elementary School District)."
+          },
+          "county_name": {
+            "type": "string",
+            "description": "Exact county name as stored in the `County` column (e.g., 'Alameda')."
+          },
+          "year": {
+            "type": "string",
+            "description": "Four\u2011digit year to filter `OpenDate` (e.g., '1980')."
+          }
+        },
+        "required": [
+          "doc",
+          "county_name",
+          "year"
+        ]
+      },
+      "return_description": "{monthly_average: float|null} \u2013 average openings per month, or null if none.",
+      "used_by_question_ids": [
+        47
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_active_schools_by_city_state",
+      "description": "Count schools whose mailing address is in a given city and state, and whose StatusType matches the specified value.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `City` column in the schools table (e.g., 'San Joaquin')."
+          },
+          "mail_state": {
+            "type": "string",
+            "description": "Two\u2011letter mailing state abbreviation (e.g., 'CA')."
+          },
+          "status_type": {
+            "type": "string",
+            "description": "Exact value of the `StatusType` column (e.g., 'Active')."
+          }
+        },
+        "required": [
+          "city_name",
+          "mail_state",
+          "status_type"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 the matching school count.",
+      "used_by_question_ids": [
+        56
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_charter_schools_in_city_by_doc",
+      "description": "Count charter schools (Charter = 1) located in a specific city and owned by a given DOC district.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `City` column (e.g., 'Hickman')."
+          },
+          "doc_code": {
+            "type": "string",
+            "description": "Value of the `DOC` column identifying the owning district (e.g., '52')."
+          }
+        },
+        "required": [
+          "city_name",
+          "doc_code"
+        ]
+      },
+      "return_description": "{count: integer|null} \u2014 number of matching schools, or null if none.",
+      "used_by_question_ids": [
+        61
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_closures_by_year_city_doc_type",
+      "description": "Count schools that closed in a specific year, within a given city, and of a particular DOC type.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "string",
+            "description": "Four\u2011digit year (e.g., '1989') matching the year part of ClosedDate."
+          },
+          "city": {
+            "type": "string",
+            "description": "Exact value of the `City` column (e.g., 'San Francisco')."
+          },
+          "doc_type": {
+            "type": "string",
+            "description": "Exact value of the `DOCType` column (e.g., 'Community College District')."
+          }
+        },
+        "required": [
+          "year",
+          "city",
+          "doc_type"
+        ]
+      },
+      "return_description": "{closure_count: integer|null} \u2013 number of matching schools.",
+      "used_by_question_ids": [
+        67
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_merged_schools_by_county_with_test_takers_below",
+      "description": "Count schools whose StatusType is 'Merged', located in a specified county, and whose number of SAT test takers is less than a given threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table."
+          },
+          "max_test_takers": {
+            "type": "integer",
+            "description": "Upper exclusive bound for `NumTstTakr` in the satscores table."
+          }
+        },
+        "required": [
+          "county_name",
+          "max_test_takers"
+        ]
+      },
+      "return_description": "{'school_count': integer|null} \u2013 the matching school count.",
+      "used_by_question_ids": [
+        16
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_non_charter_schools_by_county_with_free_meal_percent_below",
+      "description": "Count non\u2011charter schools in a specified county where the K\u201112 eligible free\u2011meal percent (Free Meal Count (K\u201112) * 100 / Enrollment (K\u201112)) is less than a given threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., \"Los Angeles\")."
+          },
+          "max_percent": {
+            "type": "number",
+            "description": "Exclusive upper bound for the free\u2011meal percent (e.g., 0.18 for 0.18%)."
+          }
+        },
+        "required": [
+          "county_name",
+          "max_percent"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools.",
+      "used_by_question_ids": [
+        62
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_charter_number_and_mailing_city",
+      "description": "Count schools whose CharterNum and mailing city match the supplied values.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "charter_number": {
+            "type": "string",
+            "description": "Exact value of the `CharterNum` column (e.g., '00D4')."
+          },
+          "mail_city": {
+            "type": "string",
+            "description": "Exact value of the `MailCity` column (e.g., 'Hickman')."
+          }
+        },
+        "required": [
+          "charter_number",
+          "mail_city"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools.",
+      "used_by_question_ids": [
+        64
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_city_and_sat_total_ge",
+      "description": "Count schools whose mailing city matches the supplied name and whose total SAT score (AvgScrRead + AvgScrMath + AvgScrWrite) is greater than or equal to a given threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `MailCity` column in the schools table (e.g., \"Lakeport\")."
+          },
+          "min_total_sat": {
+            "type": "number",
+            "description": "Minimum total SAT score (AvgScrRead + AvgScrMath + AvgScrWrite) required, inclusive."
+          }
+        },
+        "required": [
+          "city_name",
+          "min_total_sat"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools.",
+      "used_by_question_ids": [
+        52
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_city_state_and_status",
+      "description": "Count schools whose mailing city, mailing state, and StatusType match the provided values.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `City` column in the schools table (e.g., 'San Joaquin')."
+          },
+          "mail_state": {
+            "type": "string",
+            "enum": [
+              "CA"
+            ],
+            "description": "Two\u2011letter mailing state abbreviation (e.g., 'CA')."
+          },
+          "status_type": {
+            "type": "string",
+            "description": "Exact value of the `StatusType` column (e.g., 'Active')."
+          }
+        },
+        "required": [
+          "city_name",
+          "mail_state",
+          "status_type"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools, or null if none.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "count_schools_by_county_and_free_meal_frpm_range",
+      "description": "Count schools in a given county where the K\u201112 free\u2011meal count exceeds a minimum and the K\u201112 FRPM count is below a maximum.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County Name` column in the `frpm` table."
+          },
+          "min_free_meal": {
+            "type": "integer",
+            "description": "Exclusive lower bound for `Free Meal Count (K-12)`."
+          },
+          "max_frpm": {
+            "type": "integer",
+            "description": "Exclusive upper bound for `FRPM Count (K-12)`."
+          }
+        },
+        "required": [
+          "county_name",
+          "min_free_meal",
+          "max_frpm"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools.",
+      "used_by_question_ids": [
+        21
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_county_and_grade_range",
+      "description": "Count schools located in a specified county whose Low Grade and High Grade match given values.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table (e.g., 'Amador')."
+          },
+          "low_grade": {
+            "type": "integer",
+            "description": "Value of the `Low Grade` column in the frpm table."
+          },
+          "high_grade": {
+            "type": "integer",
+            "description": "Value of the `High Grade` column in the frpm table."
+          }
+        },
+        "required": [
+          "county_name",
+          "low_grade",
+          "high_grade"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools, or null if none.",
+      "used_by_question_ids": [
+        20
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_county_free_meal_and_frpm_range",
+      "description": "Count schools in a specified county whose K\u201112 free\u2011meal count exceeds a minimum and whose K\u201112 FRPM count is below a maximum.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County Name` column in the frpm table."
+          },
+          "min_free_meals": {
+            "type": "integer",
+            "description": "Exclusive lower bound for `Free Meal Count (K-12)`."
+          },
+          "max_frpm": {
+            "type": "integer",
+            "description": "Exclusive upper bound for `FRPM Count (K-12)`."
+          }
+        },
+        "required": [
+          "county_name",
+          "min_free_meals",
+          "max_frpm"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools, or null if none.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "count_schools_by_county_funding_and_max_test_takers",
+      "description": "Count schools in a specified county and Charter Funding Type where the number of test takers (satscores.NumTstTakr) is at most a given maximum.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County Name` column in the frpm table."
+          },
+          "funding_type": {
+            "type": "string",
+            "description": "Exact value of the `Charter Funding Type` column in the frpm table."
+          },
+          "max_test_takers": {
+            "type": "integer",
+            "description": "Inclusive upper bound for `NumTstTakr` in the satscores table."
+          }
+        },
+        "required": [
+          "county_name",
+          "funding_type",
+          "max_test_takers"
+        ]
+      },
+      "return_description": "{count: integer|null} \u2014 number of matching schools, or null if none.",
+      "used_by_question_ids": [
+        18
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_county_funding_and_open_year_range",
+      "description": "Count schools in a given county whose FundingType matches the supplied value and whose opening year (extracted from OpenDate) falls between start_year and end_year inclusive.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table (e.g., 'Stanislaus')."
+          },
+          "funding_type": {
+            "type": "string",
+            "description": "Exact value of the `FundingType` column in the schools table (e.g., 'Directly funded')."
+          },
+          "start_year": {
+            "type": "integer",
+            "description": "Four\u2011digit start year (inclusive) for the OpenDate filter."
+          },
+          "end_year": {
+            "type": "integer",
+            "description": "Four\u2011digit end year (inclusive) for the OpenDate filter."
+          }
+        },
+        "required": [
+          "county_name",
+          "funding_type",
+          "start_year",
+          "end_year"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools (0 if none).",
+      "used_by_question_ids": [
+        66
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_funding_county_and_test_takers_below",
+      "description": "Count schools in a specified county that have the given Charter Funding Type and whose number of SAT test takers is less than a provided maximum.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County Name` column in the frpm table (e.g., 'Fresno')."
+          },
+          "charter_funding_type": {
+            "type": "string",
+            "description": "Exact value of the `Charter Funding Type` column in the frpm table (e.g., 'Directly funded')."
+          },
+          "max_test_takers": {
+            "type": "integer",
+            "description": "Upper exclusive bound for `NumTstTakr` in the satscores table."
+          }
+        },
+        "required": [
+          "county_name",
+          "charter_funding_type",
+          "max_test_takers"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools (0 if none).",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "count_schools_by_math_score_and_charter_funding",
+      "description": "Count distinct schools whose average SAT Math score exceeds a given threshold and whose Charter Funding Type matches the specified value.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_math_score": {
+            "type": "number",
+            "description": "Minimum average SAT Math score (exclusive)."
+          },
+          "charter_funding_type": {
+            "type": "string",
+            "description": "Exact value of the `Charter Funding Type` column in the frpm table, e.g., 'Directly funded'."
+          }
+        },
+        "required": [
+          "min_math_score",
+          "charter_funding_type"
+        ]
+      },
+      "return_description": "{count: integer} \u2013 number of matching schools (0 if none).",
+      "used_by_question_ids": [
+        9
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_math_score_and_virtual",
+      "description": "Count distinct schools whose average SAT Math score is greater than a given threshold and whose Virtual flag matches the specified value.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_math_score": {
+            "type": "number",
+            "description": "Minimum average SAT Math score (exclusive)."
+          },
+          "virtual_flag": {
+            "type": "string",
+            "enum": [
+              "F",
+              "T"
+            ],
+            "description": "Value of the `Virtual` column; 'F' denotes exclusively virtual as defined in the dataset."
+          }
+        },
+        "required": [
+          "min_math_score",
+          "virtual_flag"
+        ]
+      },
+      "return_description": "{count: integer} \u2013 the number of matching schools (0 if none).",
+      "used_by_question_ids": [
+        5
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_schools_by_soc_county_and_statuses",
+      "description": "Count schools with a given School Ownership Code (SOC), located in a specified county, whose StatusType matches either of two provided values.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "soc_code": {
+            "type": "integer",
+            "description": "School Ownership Code (SOC) to filter schools, e.g., 69 for District Community Day Schools."
+          },
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table (e.g., 'Alpine')."
+          },
+          "status_type_1": {
+            "type": "string",
+            "description": "First status value to include (e.g., 'Active')."
+          },
+          "status_type_2": {
+            "type": "string",
+            "description": "Second status value to include (e.g., 'Closed')."
+          }
+        },
+        "required": [
+          "soc_code",
+          "county_name",
+          "status_type_1",
+          "status_type_2"
+        ]
+      },
+      "return_description": "{school_count: integer|null} \u2013 number of matching schools.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "count_schools_by_virtual_and_math_score",
+      "description": "Count distinct schools that have the specified virtual status and an average Math SAT score greater than a given threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "virtual_status": {
+            "type": "string",
+            "enum": [
+              "F",
+              "T"
+            ],
+            "description": "Value of the `Virtual` column in the schools table; 'F' denotes exclusively virtual."
+          },
+          "math_score_threshold": {
+            "type": "number",
+            "description": "Minimum average Math SAT score (exclusive, i.e., > this value)."
+          }
+        },
+        "required": [
+          "virtual_status",
+          "math_score_threshold"
+        ]
+      },
+      "return_description": "{count: integer} \u2014 number of matching schools (0 if none).",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "extract_school_rows",
+      "description": "Extract the list of school rows from the dict returned by the previous tool.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "schools_dict": {
+            "type": "object",
+            "description": "Dictionary returned by schools_with_enrollment_difference_above_funding (key 'schools')."
+          }
+        },
+        "required": [
+          "schools_dict"
+        ]
+      },
+      "return_description": "{rows: list of [school, doc] tuples}",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "format_city_list_to_rows",
+      "description": "Convert a list of city strings into a list of single\u2011column rows matching the gold\u2011SQL shape.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "cities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of city names to format as rows."
+          }
+        },
+        "required": [
+          "cities"
+        ]
+      },
+      "return_description": "{rows: list of [city] rows}",
+      "used_by_question_ids": [
+        76
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "format_lowest_latitude_school",
+      "description": "Reformat the output of get_school_with_lowest_latitude_by_state into a rows list matching the gold\u2011SQL shape.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City of the school."
+          },
+          "low_grade": {
+            "type": "string",
+            "description": "Low Grade value."
+          },
+          "school_name": {
+            "type": "string",
+            "description": "School name."
+          }
+        },
+        "required": [
+          "city",
+          "low_grade",
+          "school_name"
+        ]
+      },
+      "return_description": "{'rows': [[city, low_grade, school_name]]}",
+      "used_by_question_ids": [
+        81
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_active_district_with_highest_reading_sat_score",
+      "description": "District name of the active school that has the highest average SAT Reading score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{district: string|null} \u2013 the district name, or null if no matching school.",
+      "used_by_question_ids": [
+        15
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_address_of_school_with_lowest_excellence_rate",
+      "description": "Returns the complete address (Street, City, State, Zip) of the school that has the lowest excellence rate (NumGE1500 / NumTstTakr) in the California schools dataset.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{\"address\": {\"street\": str, \"city\": str, \"state\": str, \"zip\": str}} \u2013 address of the lowest\u2011excellence\u2011rate school, or null fields if no data.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_admin_email_and_school_of_top_sat_ge1500",
+      "description": "Administrator email (AdmEmail1) and school name of the school with the highest NumGE1500.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{rows: list of [admin_email, school_name] rows}",
+      "used_by_question_ids": [
+        88
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_admin_email_of_charter_school_with_fewest_k12_enrollment",
+      "description": "Administrator email (AdmEmail1) of the charter school (Charter School (Y/N)=1) that has the fewest K\u201112 students (minimum `Enrollment (K-12)`). Returns null if no charter schools exist.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{admin_email: string|null} \u2013 the email address or null.",
+      "used_by_question_ids": [
+        35
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_admin_emails_by_location_and_year",
+      "description": "Administrator email addresses (AdmEmail1, AdmEmail2) of schools that match the given county, city, DOC code, SOC code, and whose OpenDate year falls between start_year and end_year (inclusive). Returns a list of [email1, email2] rows.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table."
+          },
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `City` column in the schools table."
+          },
+          "doc": {
+            "type": "integer",
+            "description": "DOC code identifying the school district (e.g., 54 for Unified Schools)."
+          },
+          "soc": {
+            "type": "integer",
+            "description": "School Ownership Code (SOC) identifying school type (e.g., 62 for Intermediate/Middle Schools)."
+          },
+          "start_year": {
+            "type": "string",
+            "description": "Four\u2011digit start year for OpenDate filter (e.g., \"2009\")."
+          },
+          "end_year": {
+            "type": "string",
+            "description": "Four\u2011digit end year for OpenDate filter (e.g., \"2010\")."
+          }
+        },
+        "required": [
+          "county_name",
+          "city_name",
+          "doc",
+          "soc",
+          "start_year",
+          "end_year"
+        ]
+      },
+      "return_description": "{admin_emails: list of [email1, email2] rows}",
+      "used_by_question_ids": [
+        87
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_admin_first_names_by_top_count",
+      "description": "Return distinct administrator first name (AdmFName1) and the district they administer for the N most frequent first names across all schools.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "top_n": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of most common administrator first names to return (e.g., 2)."
+          }
+        },
+        "required": [
+          "top_n"
+        ]
+      },
+      "return_description": "{rows: list of [first_name, district] rows}",
+      "used_by_question_ids": [
+        84
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_admin_last_name_district_county_school_by_charter_number",
+      "description": "Returns a single row [admin_last_name, district, county, school] for the school identified by a Charter number.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "charter_number": {
+            "type": "string",
+            "description": "Exact value of the `CharterNum` column (e.g., '0040')."
+          }
+        },
+        "required": [
+          "charter_number"
+        ]
+      },
+      "return_description": "List containing one row [[admin_last_name, district, county, school]]",
+      "used_by_question_ids": [
+        86
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_administrators_by_charter_number",
+      "description": "Return first\u2011name, last\u2011name, school name, and city for all administrators of a chartered school identified by its CharterNum.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "charter_number": {
+            "type": "string",
+            "description": "Charter school number as stored in the `CharterNum` column (e.g., '00D2')."
+          }
+        },
+        "required": [
+          "charter_number"
+        ]
+      },
+      "return_description": "List of rows matching the gold SQL result, each row is [first_name, last_name, school, city].",
+      "used_by_question_ids": [
+        63
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_average_test_takers_by_county_and_open_year",
+      "description": "Average number of SAT test takers (NumTstTakr) for schools in a specified county that opened in a given year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Fresno')."
+          },
+          "open_year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 1980) extracted from the `OpenDate` column."
+          }
+        },
+        "required": [
+          "county_name",
+          "open_year"
+        ]
+      },
+      "return_description": "{average_test_takers: number|null} \u2013 the average NumTstTakr, or null if no rows match.",
+      "used_by_question_ids": [
+        39
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_average_writing_score_by_admin",
+      "description": "Returns a list of schools managed by the specified administrator and each school's average SAT writing score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "admin_first_name": {
+            "type": "string",
+            "description": "Exact value of the `AdmFName1` column in the `schools` table."
+          },
+          "admin_last_name": {
+            "type": "string",
+            "description": "Exact value of the `AdmLName1` column in the `schools` table."
+          }
+        },
+        "required": [
+          "admin_first_name",
+          "admin_last_name"
+        ]
+      },
+      "return_description": "{schools: list of [school_name, avg_writing_score] tuples}",
+      "used_by_question_ids": [
+        45
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_avg_math_and_county_of_school_with_lowest_total_average",
+      "description": "Returns the average Math SAT score and county of the school whose sum of average Math, Reading, and Writing scores is minimal, formatted as a list of rows.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{result: list of [avg_math_score, county] rows}",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_avg_writing_score_and_city_of_top_ge1500_school",
+      "description": "Returns the average writing SAT score and the city of the school that has the highest count of test\u2011takers with total SAT scores \u2265\u202f1500.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{'result': [[avg_writing_score:int, city:str], ...]}",
+      "used_by_question_ids": [
+        44
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_cds_of_highest_frpm_count",
+      "description": "Return the CDSCode of the school with the highest FRPM Count (K-12) in the frpm table.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{'cds': integer|null} \u2013 the CDSCode of the top FRPM school, or null if none.",
+      "used_by_question_ids": [
+        8
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_cities_of_schools_by_criteria",
+      "description": "Return the city name(s) of schools that match the specified county, NSLP provision status, lowest grade, highest grade, and school level (EILCode).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Merced')."
+          },
+          "provision_status": {
+            "type": "string",
+            "description": "Value of the `NSLP Provision Status` column in the `frpm` table (e.g., 'Lunch Provision 2')."
+          },
+          "low_grade": {
+            "type": "integer",
+            "description": "The lowest grade offered by the school (matches `Low Grade` in `frpm`)."
+          },
+          "high_grade": {
+            "type": "integer",
+            "description": "The highest grade offered by the school (matches `High Grade` in `frpm`)."
+          },
+          "school_level_code": {
+            "type": "string",
+            "description": "EILCode representing the school level (e.g., 'HS' for high school)."
+          }
+        },
+        "required": [
+          "county_name",
+          "provision_status",
+          "low_grade",
+          "high_grade",
+          "school_level_code"
+        ]
+      },
+      "return_description": "{cities: list of city strings (empty list if no match)}",
+      "used_by_question_ids": [
+        76
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_cities_with_lowest_k12_enrollment",
+      "description": "Cities with the smallest total K\u201112 enrollment across all schools.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of cities to return (e.g., 5 for the top\u20115 lowest)."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "return_description": "{cities: list of [city] rows}",
+      "used_by_question_ids": [
+        30
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_city_counts_for_magnet_and_provision",
+      "description": "Counts schools per city that (1) have a magnet program (Magnet flag), (2) serve the specified grade span (GSoffered), and (3) have the given NSLP provision status. Returns a list of objects with city name and school count.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "magnet_flag": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "Value of the `Magnet` column (1 = offers a magnet program)."
+          },
+          "grade_span": {
+            "type": "string",
+            "examples": [
+              "K-6",
+              "9-12",
+              "K-12"
+            ],
+            "description": "Exact value of the `GSoffered` column indicating the grade span offered."
+          },
+          "provision_status": {
+            "type": "string",
+            "examples": [
+              "Multiple Provision Types",
+              "Breakfast Provision 2"
+            ],
+            "description": "Exact value of the `NSLP Provision Status` column in the `frpm` table."
+          }
+        },
+        "required": [
+          "magnet_flag",
+          "grade_span",
+          "provision_status"
+        ]
+      },
+      "return_description": "{'city_counts': [{'city': str, 'school_count': int}, ...]} \u2013 list of cities with matching school counts.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_county_with_most_closures_1980s_by_soc",
+      "description": "County that had the highest number of school closures during the 1980s for a given school\u2011ownership code (SOC).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "soc_code": {
+            "type": "string",
+            "examples": [
+              "08",
+              "09",
+              "10",
+              "13"
+            ],
+            "description": "School ownership code (SOC) as stored in the `SOC` column."
+          }
+        },
+        "required": [
+          "soc_code"
+        ]
+      },
+      "return_description": "{\"county\": string|null} \u2013 the county name with the most closures, or null if none match.",
+      "used_by_question_ids": [
+        68
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_county_with_most_closures_by_soc_and_year_range",
+      "description": "County that has the highest number of schools closed in a given year range for a specific SOC ownership code.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "soc_code": {
+            "type": "integer",
+            "description": "Ownership code (SOC) identifying the type of school ownership (e.g., 11 for Youth Authority Facilities)."
+          },
+          "start_year": {
+            "type": "string",
+            "description": "Four\u2011digit start year (inclusive) for the ClosedDate filter, e.g., '1980'."
+          },
+          "end_year": {
+            "type": "string",
+            "description": "Four\u2011digit end year (inclusive) for the ClosedDate filter, e.g., '1989'."
+          }
+        },
+        "required": [
+          "soc_code",
+          "start_year",
+          "end_year"
+        ]
+      },
+      "return_description": "{county: string|null} \u2013 the county name with the most closures, or null if none match.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_county_with_most_schools_without_physical_building",
+      "description": "Among the two specified counties, return the county that has the most schools where `Virtual` = 'F' (does not offer a physical building) and the count of such schools. The output shape matches the gold SQL: a list of rows [[County, count]].",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_a": {
+            "type": "string",
+            "description": "First county name (exact value of the `County` column)."
+          },
+          "county_b": {
+            "type": "string",
+            "description": "Second county name (exact value of the `County` column)."
+          }
+        },
+        "required": [
+          "county_a",
+          "county_b"
+        ]
+      },
+      "return_description": "List of rows [[County, count]] \u2013 exactly the shape of the gold result.",
+      "used_by_question_ids": [
+        79
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_district_codes_by_city_and_magnet",
+      "description": "District codes of schools located in a specified city that have the given magnet flag.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `City` column in the `schools` table (e.g., 'Fresno')."
+          },
+          "magnet_flag": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "Value of the `Magnet` column: 0 = no magnet program, 1 = magnet program."
+          }
+        },
+        "required": [
+          "city_name",
+          "magnet_flag"
+        ]
+      },
+      "return_description": "{district_codes: list of integer} \u2013 list of matching District Code values (empty if none).",
+      "used_by_question_ids": [
+        71
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_education_type_of_school_with_highest_average_score",
+      "description": "Return the EdOpsName (type of education) of the school that achieved the highest average SAT score for a given subject.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "enum": [
+              "Math",
+              "Reading",
+              "Science"
+            ],
+            "description": "Subject for which to consider the average SAT score column."
+          }
+        },
+        "required": [
+          "subject"
+        ]
+      },
+      "return_description": "{education_type: string|null} \u2013 the EdOpsName of the top\u2011scoring school, or null if no rows.",
+      "used_by_question_ids": [
+        42
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_eligible_free_rate_by_enrollment_rank",
+      "description": "Returns the eligible free\u2011meal rate (Free Meal Count (K-12) / Enrollment (K-12)) for schools sorted by descending K\u201112 enrollment, skipping a given number of top schools (offset) and returning a specified number of rows (limit).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of highest\u2011enrollment schools to skip."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many schools to return after the offset."
+          }
+        },
+        "required": [
+          "offset",
+          "limit"
+        ]
+      },
+      "return_description": "{'rates': list of float|null \u2013 the free\u2011meal rates in order}",
+      "used_by_question_ids": [
+        31
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_enrollment_5_17_by_edops_city_year_range",
+      "description": "Return `Enrollment (Ages 5-17)` values from frpm for schools matching a given EdOpsCode, city, and academic year range.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "edops_code": {
+            "type": "string",
+            "description": "Value of the `EdOpsCode` column in the schools table (e.g., 'SSS' for State Special School)."
+          },
+          "city": {
+            "type": "string",
+            "description": "Exact city name as stored in the `City` column of the schools table."
+          },
+          "start_year": {
+            "type": "integer",
+            "description": "First academic year (inclusive) to filter the `Academic Year` column."
+          },
+          "end_year": {
+            "type": "integer",
+            "description": "Last academic year (inclusive) to filter the `Academic Year` column."
+          }
+        },
+        "required": [
+          "edops_code",
+          "city",
+          "start_year",
+          "end_year"
+        ]
+      },
+      "return_description": "{enrollments: list of numbers} \u2013 enrollment figures for each matching row.",
+      "used_by_question_ids": [
+        72
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_free_meal_rate_by_admin_name",
+      "description": "Eligible free\u2011meal rate (Free Meal Count (Ages 5\u201117) / Enrollment (Ages 5\u201117)) for the school administered by the specified first and last name.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "admin_first_name": {
+            "type": "string",
+            "description": "Exact value of the `AdmFName1` column in the `schools` table."
+          },
+          "admin_last_name": {
+            "type": "string",
+            "description": "Exact value of the `AdmLName1` column in the `schools` table."
+          }
+        },
+        "required": [
+          "admin_first_name",
+          "admin_last_name"
+        ]
+      },
+      "return_description": "{free_rate: number|null} \u2013 the free\u2011meal rate, or null if no matching school.",
+      "used_by_question_ids": [
+        34
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_frpm_count_ages_5_17_for_highest_reading_sat_school",
+      "description": "FRPM count (Ages 5-17) for the school that has the highest average SAT Reading score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{frpm_count_5_17: number|null} \u2013 the FRPM count for ages 5\u201117, or null if no matching school.",
+      "used_by_question_ids": [
+        10
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_frpm_count_by_mailstreet_and_soc_type",
+      "description": "Return the free or reduced price meal count for ages 5\u201117 (`FRPM Count (Ages 5-17)`) for the school matching a given mailing street address and SOC type.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "mail_street": {
+            "type": "string",
+            "description": "Exact value of the `MailStreet` column in the `schools` table."
+          },
+          "soc_type": {
+            "type": "string",
+            "description": "Exact value of the `SOCType` column in the `schools` table (e.g., 'Youth Authority Facilities')."
+          }
+        },
+        "required": [
+          "mail_street",
+          "soc_type"
+        ]
+      },
+      "return_description": "{frpm_count: number|null} \u2013 the count value or null if no matching school.",
+      "used_by_question_ids": [
+        73
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_frpm_percent_by_county_and_grade_span",
+      "description": "List schools in a given county that serve the specified grade span (GSserved) and their Percent (%) Eligible FRPM for ages 5\u201117.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Los Angeles')."
+          },
+          "grade_span": {
+            "type": "string",
+            "description": "Exact value of the `GSserved` column in the `schools` table (e.g., 'K-9')."
+          }
+        },
+        "required": [
+          "county_name",
+          "grade_span"
+        ]
+      },
+      "return_description": "{results: list of [school_name, percent] rows}",
+      "used_by_question_ids": [
+        77
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_grade_span_of_school_with_highest_longitude",
+      "description": "Returns the grade span (GSoffered) of the school that has the highest absolute longitude value.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{grade_span: string|null} \u2013 the grade span offered by the school, or null if no rows.",
+      "used_by_question_ids": [
+        82
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_high_schools_in_county_with_free_meal_and_type",
+      "description": "Return rows of high schools in a county with free\u2011meal count > threshold, matching the gold\u2011SQL shape.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Monterey')."
+          },
+          "min_free_meal": {
+            "type": "integer",
+            "description": "Exclusive lower bound for `Free Meal Count (Ages 5-17)` in the `frpm` table."
+          },
+          "school_type": {
+            "type": "string",
+            "description": "Exact value of the `School Type` column in the `frpm` table (e.g., 'High Schools (Public)')."
+          }
+        },
+        "required": [
+          "county_name",
+          "min_free_meal",
+          "school_type"
+        ]
+      },
+      "return_description": "List of rows [[School Name, Street, City, State, Zip], ...].",
+      "used_by_question_ids": [
+        26
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_highest_free_meal_rate_by_sat_excellence",
+      "description": "Highest eligible free\u2011meal rate (Free Meal Count Ages\u202f5\u201117 / Enrollment Ages\u202f5\u201117) among schools with SAT excellence rate > min_excellence_rate.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_excellence_rate": {
+            "type": "number",
+            "description": "Minimum SAT excellence rate (NumGE1500 / NumTstTakr)."
+          }
+        },
+        "required": [
+          "min_excellence_rate"
+        ]
+      },
+      "return_description": "{max_free_meal_rate: number|null} \u2014 the maximum rate, or null if no school meets the criterion.",
+      "used_by_question_ids": [
+        12
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_highest_free_meal_ratio_by_county",
+      "description": "Maximum K\u201112 free\u2011meal ratio (Free Meal Count (K\u201112) / Enrollment (K\u201112)) among schools in a specified California county.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County Name` column in the `frpm` table (e.g., 'Alameda')."
+          }
+        },
+        "required": [
+          "county_name"
+        ]
+      },
+      "return_description": "{ratio: float|null} \u2013 the highest ratio, or null if the county has no rows.",
+      "used_by_question_ids": [
+        0
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_locally_funded_charter_ratio_by_county",
+      "description": "Percentage ratio of charter schools that are locally funded to charter schools with any other funding type within a given county.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Santa Clara')."
+          }
+        },
+        "required": [
+          "county_name"
+        ]
+      },
+      "return_description": "{ratio_percent: number|null} \u2013 the computed percentage, or null if no matching schools.",
+      "used_by_question_ids": [
+        65
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_locally_funded_charter_ratio_percent",
+      "description": "Compute the percentage ratio of locally funded charter schools to all other charter school funding types within a specified county.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Santa Clara')."
+          }
+        },
+        "required": [
+          "county_name"
+        ]
+      },
+      "return_description": "{ratio_percent: number|null} \u2014 the percentage (locally funded / non\u2011locally funded * 100) for charter schools in the county, or null if no matching rows.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_lowest_free_meal_rates_by_school_type",
+      "description": "Return the lowest N eligible free\u2011meal rates for students aged 5\u201117 in schools of a specified Educational Option Type. The rate is `Free Meal Count (Ages 5-17)`\u202f/\u202f`Enrollment (Ages 5-17)`.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "school_type": {
+            "type": "string",
+            "description": "Exact value of the `Educational Option Type` column, e.g. 'Continuation School'."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of lowest rates to return."
+          }
+        },
+        "required": [
+          "school_type",
+          "limit"
+        ]
+      },
+      "return_description": "{'rates': [float, ...]} \u2013 list of the lowest N ratios (empty if none).",
+      "used_by_question_ids": [
+        1
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_lowest_low_grade_by_ncesdist_and_edopscode",
+      "description": "Minimum `Low Grade` among schools whose NCES district ID (NCESDist) and Education Operations Code (EdOpsCode) match the given values.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "nces_dist": {
+            "type": "string",
+            "description": "Exact value of the `NCESDist` column in the schools table (e.g., '0613360')."
+          },
+          "edops_code": {
+            "type": "string",
+            "description": "Exact value of the `EdOpsCode` column in the schools table (e.g., 'SPECON')."
+          }
+        },
+        "required": [
+          "nces_dist",
+          "edops_code"
+        ]
+      },
+      "return_description": "{lowest_low_grade: integer|null} \u2013 the smallest Low Grade, or null if no match.",
+      "used_by_question_ids": [
+        74
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_mailing_street_of_school_with_highest_frpm_k12",
+      "description": "Unabbreviated mailing street address of the school that has the highest FRPM Count (K\u201112) in the dataset.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{mail_street: string|null} \u2013 the street address, or null if no rows.",
+      "used_by_question_ids": [
+        3
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_math_score_and_county_of_school_with_lowest_total_average_score",
+      "description": "Returns the average Math SAT score and the county of the school whose combined average scores (Math\u202f+\u202fReading\u202f+\u202fWriting) are the lowest among all schools.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{result: list of [avg_math_score, county] rows}",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_merged_district_ratio_by_county",
+      "description": "Compute the ratio of the number of merged schools with a specified numerator DOC code to the number with a specified denominator DOC code in a given county.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column (e.g., 'Orange')."
+          },
+          "numerator_doc": {
+            "type": "integer",
+            "enum": [
+              54
+            ],
+            "description": "DOC code for the numerator district type (Unified School District = 54)."
+          },
+          "denominator_doc": {
+            "type": "integer",
+            "enum": [
+              52
+            ],
+            "description": "DOC code for the denominator district type (Elementary School District = 52)."
+          },
+          "status_type": {
+            "type": "string",
+            "default": "Merged",
+            "description": "Value of the `StatusType` column to filter schools (e.g., 'Merged')."
+          }
+        },
+        "required": [
+          "county_name",
+          "numerator_doc",
+          "denominator_doc"
+        ]
+      },
+      "return_description": "{'ratio': float|null} \u2013 the computed ratio, or null if denominator is zero.",
+      "used_by_question_ids": [
+        48
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_most_common_grade_span_by_city",
+      "description": "Most common grade span (GSserved) served by schools in a specified city.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `City` column in the `schools` table (e.g., 'Adelanto')."
+          }
+        },
+        "required": [
+          "city_name"
+        ]
+      },
+      "return_description": "{grade_span: string|null} \u2013 the grade span with highest count, or null if none.",
+      "used_by_question_ids": [
+        78
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_nces_district_ids_by_school_ownership_code",
+      "description": "Return the NCES district identification numbers (NCESDist) for all schools with a specified School Ownership Code (SOC).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "soc_code": {
+            "type": "integer",
+            "enum": [
+              31
+            ],
+            "description": "School Ownership Code for State Special Schools (value 31)."
+          }
+        },
+        "required": [
+          "soc_code"
+        ]
+      },
+      "return_description": "{nces_district_ids: list of integer} \u2013 list of NCESDist values (empty if none).",
+      "used_by_question_ids": [
+        69
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_open_date_of_school_with_largest_k12_enrollment",
+      "description": "OpenDate of the first\u2011through\u2011twelfth\u2011grade school that has the largest K\u201112 enrollment.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{open_date: string|null} \u2013 the opening date of the school with the largest K\u201112 enrollment, or null if none.",
+      "used_by_question_ids": [
+        29
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_partially_virtual_charter_school_websites_by_county",
+      "description": "Website URLs of schools that are charter (Charter=1) and partially virtual (Virtual='P') in the specified county.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'San Joaquin')."
+          }
+        },
+        "required": [
+          "county_name"
+        ]
+      },
+      "return_description": "{websites: list of string} \u2013 list of matching website URLs (empty if none).",
+      "used_by_question_ids": [
+        60
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_percent_eligible_free_by_admin_first_name",
+      "description": "Returns a single row [percent, district_code] for the school administered by the given administrator first name.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "admin_first_name": {
+            "type": "string",
+            "description": "Exact value of the `AdmFName1` column in the `schools` table."
+          }
+        },
+        "required": [
+          "admin_first_name"
+        ]
+      },
+      "return_description": "List of one row [[percent, district_code]] \u2013 matches gold SQL output.",
+      "used_by_question_ids": [
+        85
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_and_ext_by_writing_rank",
+      "description": "Phone number and extension of the school that ranks at the given 1\u2011based position when ordered by average SAT writing score (highest first). Returns a list of rows [[phone, ext]] to match the gold SQL output.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1\u2011based rank (e.g., 333 for the 333rd highest writing score)."
+          }
+        },
+        "required": [
+          "rank"
+        ]
+      },
+      "return_description": "List of rows [[phone, ext]] \u2013 matches the gold\u2011SQL output format.",
+      "used_by_question_ids": [
+        57
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_and_ext_by_zip",
+      "description": "Return a single row (phone, extension, school) for the school with the given ZIP code.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "zip_code": {
+            "type": "string",
+            "description": "Exact ZIP code as stored in the `Zip` column (e.g., '95203-3704')."
+          }
+        },
+        "required": [
+          "zip_code"
+        ]
+      },
+      "return_description": "{rows: list of [phone, ext, school] tuples}",
+      "used_by_question_ids": [
+        58
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_numbers_of_charter_schools",
+      "description": "Phone numbers of schools that are charter schools with a specified Charter Funding Type and opened after a given date.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "funding_type": {
+            "type": "string",
+            "description": "Value of the `Charter Funding Type` column in frpm (e.g., 'Directly funded')."
+          },
+          "charter_flag": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "1 = charter school, 0 = non\u2011charter (matches `Charter School (Y/N)` column)."
+          },
+          "open_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Upper bound for `schools.OpenDate` (exclusive)."
+          }
+        },
+        "required": [
+          "funding_type",
+          "charter_flag",
+          "open_date"
+        ]
+      },
+      "return_description": "{phones: list of phone strings (may include null).}",
+      "used_by_question_ids": [
+        4
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_numbers_of_top_schools_by_sat_excellence_rate",
+      "description": "Phone numbers of the schools with the highest SAT excellence rate (NumGE1500 / NumTstTakr).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of top schools to return, ordered by excellence rate descending."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "return_description": "{phones: list of phone strings (may include null)} \u2013 the phone numbers of the top\u2011N schools.",
+      "used_by_question_ids": [
+        13
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_of_lowest_reading_score_school_in_district",
+      "description": "Return the telephone number of the school with the lowest average reading score (AvgScrRead) in the specified district, considering only non\u2011NULL scores.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "district_name": {
+            "type": "string",
+            "description": "Exact value of the `District` column in the `schools` table (e.g., 'Fresno Unified')."
+          }
+        },
+        "required": [
+          "district_name"
+        ]
+      },
+      "return_description": "{phone: string|null} \u2013 the school's phone number, or null if no matching school exists.",
+      "used_by_question_ids": [
+        40
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_of_school_with_highest_math_sat_score",
+      "description": "Return the phone number of the school that has the highest average Math SAT score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{phone: string|null} \u2013 the phone number, or null if no matching school.",
+      "used_by_question_ids": [
+        19
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_phone_of_school_with_highest_math_score",
+      "description": "Phone number of the school that has the highest average SAT Math score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{phone: string|null} \u2013 the phone number, or null if no matching school.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_phone_of_school_with_highest_sat_ge1500",
+      "description": "Phone number of the school that has the highest number of SAT test takers with scores over 1500.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{phone: string|null} \u2013 the phone number, or null if no rows.",
+      "used_by_question_ids": [
+        7
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_sat_test_takers_by_cds",
+      "description": "Return the number of SAT test takers (NumTstTakr) for a given school identified by its CDSCode.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "cds": {
+            "type": "integer",
+            "description": "CDSCode identifying a school in the satscores table."
+          }
+        },
+        "required": [
+          "cds"
+        ]
+      },
+      "return_description": "{'num_test_takers': integer|null} \u2013 the NumTstTakr value, or null if the CDSCode is not found.",
+      "used_by_question_ids": [
+        8
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_sat_test_takers_of_school_with_highest_frpm_k12",
+      "description": "Number of SAT test takers (NumTstTakr) for the school that has the highest FRPM Count (K\u201112) in the dataset.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{sat_test_takers: integer|null} \u2013 the number of SAT test takers for the highest\u2011FRPM school, or null if not found.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_school_address_by_math_rank",
+      "description": "Returns the MailStreet (postal street address) and School name of the school that ranks `rank`\u2011th highest in average Math SAT score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1\u2011based rank (1 = highest Math average, 2 = second highest, \u2026)."
+          }
+        },
+        "required": [
+          "rank"
+        ]
+      },
+      "return_description": "{rows: [[string, string]]}",
+      "used_by_question_ids": [
+        50
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_codes_by_min_total_enrollment",
+      "description": "Return CDSCode identifiers of schools whose total enrollment (K\u201112 + Ages\u202f5\u201117) exceeds the given threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_total_enrollment": {
+            "type": "integer",
+            "description": "Minimum total enrollment (K\u201112 plus Ages\u202f5\u201117)."
+          }
+        },
+        "required": [
+          "min_total_enrollment"
+        ]
+      },
+      "return_description": "{\"cds_codes\": [...]} list of matching CDSCode strings.",
+      "used_by_question_ids": [
+        11
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_codes_with_total_enrollment_over",
+      "description": "Return CDS codes of schools where total enrollment (K-12 plus Ages 5-17) is greater than a specified threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_total_enrollment": {
+            "type": "integer",
+            "description": "Minimum total enrollment (exclusive). Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`."
+          }
+        },
+        "required": [
+          "min_total_enrollment"
+        ]
+      },
+      "return_description": "{school_codes: list of string} \u2014 list of CDSCode values meeting the criterion.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_school_count_ratio_by_state_and_two_counties",
+      "description": "Computes the ratio of the number of schools in `county_a` to the number in `county_b` among schools whose mailing address state equals `state`.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "description": "Two\u2011letter mailing state abbreviation (e.g., 'CA')."
+          },
+          "county_a": {
+            "type": "string",
+            "description": "Name of the numerator county (e.g., 'Colusa')."
+          },
+          "county_b": {
+            "type": "string",
+            "description": "Name of the denominator county (e.g., 'Humboldt')."
+          }
+        },
+        "required": [
+          "state",
+          "county_a",
+          "county_b"
+        ]
+      },
+      "return_description": "{'ratio': float|null} \u2013 the computed ratio, or null if denominator is zero.",
+      "used_by_question_ids": [
+        55
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_percent_frpm_by_county_and_grade_span",
+      "description": "List schools in a specified county that serve the given grade span, along with the percent of students eligible for FRPM (Ages 5\u201117). Percent = FRPM Count (Ages 5\u201117) * 100 / Enrollment (Ages 5\u201117).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table (e.g., 'Los Angeles')."
+          },
+          "grade_span": {
+            "type": "string",
+            "description": "Exact value of the `GSserved` column indicating the grade span (e.g., 'K-9')."
+          }
+        },
+        "required": [
+          "county_name",
+          "grade_span"
+        ]
+      },
+      "return_description": "{schools_percent: list of [school_name, percent] rows}",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_school_websites_by_county_and_test_takers",
+      "description": "Return the website URLs of schools in a specified county whose SAT test taker count falls within a given inclusive range.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the `schools` table (e.g., 'Los Angeles')."
+          },
+          "min_test_takers": {
+            "type": "integer",
+            "description": "Inclusive lower bound for `NumTstTakr` in the `satscores` table."
+          },
+          "max_test_takers": {
+            "type": "integer",
+            "description": "Inclusive upper bound for `NumTstTakr` in the `satscores` table."
+          }
+        },
+        "required": [
+          "county_name",
+          "min_test_takers",
+          "max_test_takers"
+        ]
+      },
+      "return_description": "{websites: list of strings} \u2013 list of matching school website URLs (empty if none).",
+      "used_by_question_ids": [
+        38
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_websites_by_county_virtual_charter",
+      "description": "Retrieve the list of website URLs for schools in a specified county that match a given virtual status and charter flag.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table."
+          },
+          "virtual_status": {
+            "type": "string",
+            "enum": [
+              "P",
+              "F",
+              "T"
+            ],
+            "description": "`Virtual` column value: 'P' = partially virtual, 'F' = not virtual, 'T' = fully virtual."
+          },
+          "charter": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "`Charter` column flag: 1 = charter school, 0 = non\u2011charter."
+          }
+        },
+        "required": [
+          "county_name",
+          "virtual_status",
+          "charter"
+        ]
+      },
+      "return_description": "{'websites': list of website strings (or empty list if none)}",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_school_websites_by_free_meal_range_ages_5_17",
+      "description": "Website URLs and school names for schools where `Free Meal Count (Ages 5-17)` is between the given inclusive bounds. Excludes rows with NULL website.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_free_meal": {
+            "type": "integer",
+            "description": "Inclusive lower bound for `Free Meal Count (Ages 5-17)`."
+          },
+          "max_free_meal": {
+            "type": "integer",
+            "description": "Inclusive upper bound for `Free Meal Count (Ages 5-17)`."
+          }
+        },
+        "required": [
+          "min_free_meal",
+          "max_free_meal"
+        ]
+      },
+      "return_description": "{websites: list of [website, school_name] tuples \u2013 empty list if no matches.}",
+      "used_by_question_ids": [
+        33
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_with_highest_k12_enrollment_by_doc",
+      "description": "School name with the highest K\u201112 enrollment among schools having the specified DOC code.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "doc": {
+            "type": "integer",
+            "description": "DOC code identifying the school type (e.g., 31 for State Special Schools)."
+          }
+        },
+        "required": [
+          "doc"
+        ]
+      },
+      "return_description": "{school: string|null} \u2013 the school name with the highest K\u201112 enrollment for the given DOC.",
+      "used_by_question_ids": [
+        46
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_with_highest_latitude",
+      "description": "Return a single row containing the school type, school name, and latitude of the school with the maximum latitude.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "List of one row: [[school_type, school_name, latitude]]",
+      "used_by_question_ids": [
+        80
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_with_highest_test_takers_by_county",
+      "description": "Name of the school in the specified county that has the highest number of SAT test takers.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `cname` column in the `satscores` table (e.g., 'Contra Costa')."
+          }
+        },
+        "required": [
+          "county_name"
+        ]
+      },
+      "return_description": "{school_name: string|null} \u2013 the school name with the most test takers, or null if none.",
+      "used_by_question_ids": [
+        22
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_with_lowest_latitude_by_state",
+      "description": "Find the school in a specified state that has the lowest latitude (southernmost). Returns its city, low grade, and school name.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "description": "Two\u2011letter state abbreviation, e.g. 'CA' for California."
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "return_description": "{city: str|null, low_grade: str|null, school_name: str|null}",
+      "used_by_question_ids": [
+        81
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_with_lowest_reading_score",
+      "description": "Returns the mailing street address and school name of the school with the lowest non\u2011null average reading score (AvgScrRead).",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{result: list of [mailing_street, school] rows}",
+      "used_by_question_ids": [
+        51
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_school_writing_score_and_phone_by_date_criteria",
+      "description": "Return each school's name, its average SAT writing score, and phone number for schools opened after a given year OR closed before a given year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "open_year_min": {
+            "type": "integer",
+            "description": "Minimum opening year (exclusive)."
+          },
+          "closed_year_max": {
+            "type": "integer",
+            "description": "Maximum closing year (exclusive)."
+          }
+        },
+        "required": [
+          "open_year_min",
+          "closed_year_max"
+        ]
+      },
+      "return_description": "{rows: list of {school: string, avg_writing_score: number|null, phone: string|null}}",
+      "used_by_question_ids": [
+        27
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_schools_and_mailing_zip_by_admin",
+      "description": "List schools and their mailing zip codes for which the primary administrator\u2019s first and last names match the given values.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "admin_first_name": {
+            "type": "string",
+            "description": "First name of the primary administrator (column `AdmFName1`)."
+          },
+          "admin_last_name": {
+            "type": "string",
+            "description": "Last name of the primary administrator (column `AdmLName1`)."
+          }
+        },
+        "required": [
+          "admin_first_name",
+          "admin_last_name"
+        ]
+      },
+      "return_description": "{'schools': [[school, mail_zip], ...]} \u2013 empty list if no matches.",
+      "used_by_question_ids": [
+        54
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_schools_by_free_meal_ratio_and_sat_ge1500",
+      "description": "List school names whose K\u201112 free\u2011meal eligibility ratio (Free Meal Count (K\u201112) / Enrollment (K\u201112)) is greater than a given threshold and that have more than a given number of SAT test\u2011takers scoring \u22651500.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_free_meal_ratio": {
+            "type": "number",
+            "description": "Exclusive lower bound for the free\u2011meal ratio (Free Meal Count (K\u201112) / Enrollment (K\u201112))."
+          },
+          "min_sat_ge1500": {
+            "type": "integer",
+            "description": "Exclusive lower bound for the count of SAT test\u2011takers with scores \u22651500 (NumGE1500)."
+          }
+        },
+        "required": [
+          "min_free_meal_ratio",
+          "min_sat_ge1500"
+        ]
+      },
+      "return_description": "{school_names: list of string} \u2013 matching school names (empty list if none).",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_schools_by_free_meal_ratio_and_test_score",
+      "description": "Return the names of schools whose K\u201112 free\u2011meal eligibility ratio is greater than a given threshold and that have more than a given number of SAT test\u2011takers scoring \u22651500.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "ratio_threshold": {
+            "type": "number",
+            "description": "Exclusive lower bound for free\u2011meal ratio (Free Meal Count (K\u201112) / Enrollment (K\u201112))."
+          },
+          "min_test_score": {
+            "type": "integer",
+            "description": "Exclusive lower bound for NumGE1500 (number of test\u2011takers with SAT \u22651500)."
+          }
+        },
+        "required": [
+          "ratio_threshold",
+          "min_test_score"
+        ]
+      },
+      "return_description": "{school_names: [str, ...]} \u2013 list of matching school names.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_schools_by_nslp_provision_and_county",
+      "description": "Return educational level name (EILName) and school name for schools matching a given NSLP provision status and county code.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "provision_status": {
+            "type": "string",
+            "enum": [
+              "Breakfast Provision 2",
+              "Provision 2",
+              "CEP",
+              "Lunch Provision 2",
+              "Provision 1",
+              "Multiple Provision Types",
+              "Provision 3"
+            ],
+            "description": "Value of the `NSLP Provision Status` column in the frpm table."
+          },
+          "county_code": {
+            "type": "integer",
+            "description": "Numeric county code as stored in the `County Code` column of the frpm table."
+          }
+        },
+        "required": [
+          "provision_status",
+          "county_code"
+        ]
+      },
+      "return_description": "Dict with key \"rows\" containing a list of [EILName, School] rows.",
+      "used_by_question_ids": [
+        75
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_schools_by_sat_takers_and_magnet",
+      "description": "List school names that have a specified magnet flag and more than a given number of SAT test takers.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_sat_takers": {
+            "type": "integer",
+            "description": "Minimum number of SAT test takers (exclusive)."
+          },
+          "magnet": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "1 = magnet school, 0 = not a magnet school."
+          }
+        },
+        "required": [
+          "min_sat_takers",
+          "magnet"
+        ]
+      },
+      "return_description": "{schools: list of school name strings}",
+      "used_by_question_ids": [
+        6
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_schools_in_district_with_avg_math_above",
+      "description": "List schools in a specified district whose average SAT Math score is greater than a given threshold, returning each school's name and Charter Funding Type.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "district_name": {
+            "type": "string",
+            "description": "Exact district name prefix (e.g., 'Riverside' matches districts starting with 'Riverside')."
+          },
+          "min_avg_math": {
+            "type": "number",
+            "description": "Exclusive lower bound for the average SAT Math score."
+          }
+        },
+        "required": [
+          "district_name",
+          "min_avg_math"
+        ]
+      },
+      "return_description": "{rows: list of [school_name, charter_funding_type] tuples}",
+      "used_by_question_ids": [
+        25
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_schools_with_enrollment_difference_above",
+      "description": "List schools (name and street) where the K\u201112 enrollment minus the Ages\u202f5\u201117 enrollment is greater than a specified threshold.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "threshold": {
+            "type": "integer",
+            "description": "Minimum positive difference (Enrollment K\u201112 \u2013 Enrollment Ages\u202f5\u201117)."
+          }
+        },
+        "required": [
+          "threshold"
+        ]
+      },
+      "return_description": "{'schools': [{'school': str, 'street': str}, ...]} \u2013 empty list if no matches.",
+      "used_by_question_ids": [
+        23
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_test_takers_by_mailing_city",
+      "description": "List of SAT test taker counts (NumTstTakr) for each school whose mailing city address equals the specified city.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "Exact value of the `MailCity` column in the `schools` table (e.g., 'Fresno')."
+          }
+        },
+        "required": [
+          "city_name"
+        ]
+      },
+      "return_description": "{test_takers: list of integer} \u2013 list of NumTstTakr values for matching schools (empty if none).",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_top_admin_first_names_with_districts",
+      "description": "Return the most frequent administrator first names (AdmFName1) from the schools table, limited to a given count, along with each administrator's district.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of top first\u2011name values to return (e.g., 2)."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "return_description": "{admin_names: [[first_name, district], ...]} \u2013 list of rows for the top N first names.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_top_n_free_meal_rates_by_frpm_and_soc",
+      "description": "Eligible free\u2011meal rate (FRPM Count (K\u201112) / Enrollment (K\u201112)) for the top N schools with the highest FRPM Count (K\u201112), filtered by a given ownership code (SOC).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "soc_code": {
+            "type": "integer",
+            "description": "Ownership code (SOC) to filter schools, e.g., 66."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of top schools to return (e.g., 5)."
+          }
+        },
+        "required": [
+          "soc_code",
+          "limit"
+        ]
+      },
+      "return_description": "{rates: list of float} \u2013 eligible free\u2011meal rates for the selected schools.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_top_n_free_meal_rates_by_ownership",
+      "description": "Returns the eligible free\u2011or\u2011reduced\u2011price meal rate (FRPM Count (K\u201112) / Enrollment (K\u201112)) for the top N schools with a given ownership code, ordered by FRPM Count (K\u201112) descending.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "ownership_code": {
+            "type": "integer",
+            "description": "Value of the `SOC` column in the `schools` table (ownership code)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of top schools to return, ordered by FRPM Count (K\u201112) descending."
+          }
+        },
+        "required": [
+          "ownership_code",
+          "limit"
+        ]
+      },
+      "return_description": "{rates: list of float} \u2013 the computed ratios for the selected schools, in rank order.",
+      "used_by_question_ids": [
+        32
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_top_n_phone_numbers_by_sat_excellence_rate",
+      "description": "Phone numbers of the top N schools ordered by SAT excellence rate (NumGE1500 / NumTstTakr).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of top schools to return (e.g., 3 for the top\u20113)."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "return_description": "{phones: list of phone strings (may include null)} \u2013 ordered from highest to lowest excellence rate.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_top_n_schools_by_enrollment_ages_5_17",
+      "description": "NCES school IDs of the top N schools ordered by descending Enrollment (Ages\u202f5\u201117).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of schools to return (e.g., 5)."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "return_description": "{schools: [string, \u2026]} \u2013 list of NCES school IDs in rank order.",
+      "used_by_question_ids": [
+        14
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_top_sat_ge1500_admins",
+      "description": "Full first and last names of up to three administrators for the school with the highest NumGE1500 (students scoring 1500+ on the SAT). Returns null for missing administrators.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{rows: list of [AdmFName1, AdmLName1, AdmFName2, AdmLName2, AdmFName3, AdmLName3] rows}",
+      "used_by_question_ids": [
+        36
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_websites_by_admins",
+      "description": "Return the website URLs of schools whose primary administrator matches either of two given first/last name pairs.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "admin1_first": {
+            "type": "string",
+            "description": "First name of the first administrator (AdmFName1)."
+          },
+          "admin1_last": {
+            "type": "string",
+            "description": "Last name of the first administrator (AdmLName1)."
+          },
+          "admin2_first": {
+            "type": "string",
+            "description": "First name of the second administrator (AdmFName1)."
+          },
+          "admin2_last": {
+            "type": "string",
+            "description": "Last name of the second administrator (AdmLName1)."
+          }
+        },
+        "required": [
+          "admin1_first",
+          "admin1_last",
+          "admin2_first",
+          "admin2_last"
+        ]
+      },
+      "return_description": "{'websites': list of website strings (empty if no matches)}",
+      "used_by_question_ids": [
+        59
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_websites_by_county_and_test_takers",
+      "description": "Retrieve website URLs for schools in a specified county whose SAT test\u2011taker count is between the given bounds.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "county_name": {
+            "type": "string",
+            "description": "Exact value of the `County` column in the schools table (e.g., 'Los Angeles')."
+          },
+          "min_test_takers": {
+            "type": "integer",
+            "description": "Inclusive lower bound for `NumTstTakr` in the satscores table."
+          },
+          "max_test_takers": {
+            "type": "integer",
+            "description": "Inclusive upper bound for `NumTstTakr` in the satscores table."
+          }
+        },
+        "required": [
+          "county_name",
+          "min_test_takers",
+          "max_test_takers"
+        ]
+      },
+      "return_description": "{websites: list of strings} \u2013 each string is a school website URL.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_writing_score_ranking",
+      "description": "List of [CharterNum, AvgScrWrite, rank] for schools with AvgScrWrite > min_writing_score and a non\u2011null CharterNum, ordered by descending AvgScrWrite.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_writing_score": {
+            "type": "number",
+            "description": "Minimum average writing SAT score (exclusive)."
+          }
+        },
+        "required": [
+          "min_writing_score"
+        ]
+      },
+      "return_description": "List of rows [[charter_number, avg_writing_score, rank], ...]",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "get_zip_codes_of_charter_schools_by_district",
+      "description": "ZIP codes of charter schools located in a specified district (based on the `District Name` column in the frpm table).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "district_name": {
+            "type": "string",
+            "description": "Exact value of the `District Name` column in the frpm table, e.g., 'Fresno County Office of Education'."
+          }
+        },
+        "required": [
+          "district_name"
+        ]
+      },
+      "return_description": "{zip_codes: list of string} \u2013 list of ZIP codes (may be empty).",
+      "used_by_question_ids": [
+        2
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "list_address_of_school_with_lowest_excellence_rate",
+      "description": "Returns the address of the school with the lowest excellence rate as a nested list [[Street, City, State, Zip]] to match the gold\u2011SQL output format.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "Nested list containing one row: [[Street, City, State, Zip]].",
+      "used_by_question_ids": [
+        37
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "list_virtual_schools_top5_by_county_reading",
+      "description": "Names of exclusively virtual schools that rank in the top\u202f5 within their county by average SAT reading score.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{rows: list of [school_name] rows}",
+      "used_by_question_ids": [
+        41
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "question_0_wrapper",
+      "description": "Execute the gold SQL for question 0 and return its rows.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "dict with key 'rows' holding list of result rows",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    },
+    {
+      "name": "rank_schools_by_writing_score",
+      "description": "Ranks schools (by Charter number) according to their average Writing SAT score. Only schools with a non\u2011null Charter number and a Writing score greater than a provided threshold are included. Returns the Charter number, the average Writing score, and the rank (1 = highest score).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_writing_score": {
+            "type": "number",
+            "description": "Inclusive lower bound for AvgScrWrite (e.g., 499)."
+          }
+        },
+        "required": [
+          "min_writing_score"
+        ]
+      },
+      "return_description": "List of objects each with `charter_number` (string), `avg_writing_score` (number), and `writing_score_rank` (integer). Ordered by rank ascending.",
+      "used_by_question_ids": [
+        17
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "schools_with_enrollment_difference_above_funding",
+      "description": "List schools (name and DOC) whose K\u201112 enrollment minus Ages\u202f5\u201117 enrollment exceeds a threshold, filtered by FundingType, ordered by school name.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "funding_type": {
+            "type": "string",
+            "description": "Exact value of the `FundingType` column in the schools table (e.g., 'Locally funded')."
+          },
+          "threshold": {
+            "type": "number",
+            "description": "Minimum enrollment difference (Enrollment (K-12) \u2212 Enrollment (Ages 5-17)) that a school must exceed."
+          }
+        },
+        "required": [
+          "funding_type",
+          "threshold"
+        ]
+      },
+      "return_description": "{schools: list of [school, doc] tuples}",
+      "used_by_question_ids": [
+        28
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "top_charter_schools_by_enrollment",
+      "description": "Return the top charter schools (Charter = 1) whose K\u201112 enrollment exceeds a given threshold, ordered by enrollment descending.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "min_enrollment": {
+            "type": "integer",
+            "description": "Minimum K\u201112 enrollment (exclusive)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of schools to return."
+          }
+        },
+        "required": [
+          "min_enrollment",
+          "limit"
+        ]
+      },
+      "return_description": "Dict with key `schools` \u2192 list of objects {school_name, county_name}.",
+      "used_by_question_ids": [],
+      "reuse_count": 0
+    }
+  ]
+}

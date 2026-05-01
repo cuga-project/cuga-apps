@@ -1,0 +1,14 @@
+*.env
+apps/.env
+cuga-apps/apps/smart_todo/storage/todos.db
+*/.venv_cuga_deploy*
+cuga-apps/.venv_cuga_deployer/*
+*.pyc
+cuga-apps/apps/__pycache__/_llm.cpython-311.pyc
+cuga-apps/apps/__pycache__/_ports.cpython-311.pyc
+apps/.env
+*.env
+apps/.env
+cuga-apps/apps/__pycache__/_llm.cpython-311.pyc
+cuga-apps/apps/__pycache__/_ports.cpython-311.pyc
+*.venv/

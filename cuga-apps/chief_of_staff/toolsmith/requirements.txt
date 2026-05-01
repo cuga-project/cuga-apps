@@ -1,0 +1,13 @@
+# Toolsmith service deps. Assumes the cuga-apps base image (cuga, langchain,
+# langchain-mcp-adapters) is already installed — that's how the parent stack
+# works. These are the additional packages Toolsmith needs.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+httpx>=0.27
+PyYAML>=6.0
+langgraph>=0.6.0
+langchain-core>=0.3.0
+anthropic>=0.50.0
+# Phase 3.6 — OS keyring (optional; vault falls back to SQLite if unavailable).
+keyring>=24.0

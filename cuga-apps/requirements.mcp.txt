@@ -1,0 +1,23 @@
+# Dependencies for the 6 MCP servers.
+# Kept separate from requirements.apps.txt so the MCP image stays lean.
+
+# ── MCP framework (FastMCP provides both the server and client helpers) ──
+mcp>=1.0
+httpx
+pydantic
+
+# ── mcp-web ─────────────────────────────────────────────────────────────
+tavily-python
+beautifulsoup4
+feedparser
+youtube-transcript-api
+
+# ── mcp-local (psutil for metrics + faster-whisper for transcribe_audio) ─
+psutil
+faster-whisper
+
+# ── mcp-text (docling for extract_text + tiktoken for count_tokens) ─────
+docling
+tiktoken
+
+# ── knowledge/geo/finance/code have no extra deps (stdlib + httpx) ──────

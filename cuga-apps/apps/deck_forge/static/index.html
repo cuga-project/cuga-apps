@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeckForge — AI Presentation Builder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0f2d52;
+      --navy2:  #1a3d6b;
+      --blue:   #0089ff;
+      --green:  #00c48c;
+      --yellow: #f5a623;
+      --red:    #e84141;
+      --bg:     #0d1117;
+      --surface:#161b22;
+      --border: #30363d;
+      --text:   #e6edf3;
+      --muted:  #8b949e;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+
+    /* ── Header ── */
+    .header {
+      background: var(--navy);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-logo { font-size: 1.5rem; }
+    .header-title { font-size: 1.25rem; font-weight: 700; }
+    .header-subtitle { color: var(--muted); font-size: 0.85rem; }
+    .llm-badge {
+      margin-left: auto;
+      background: var(--navy2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .llm-badge.connected { color: var(--green); border-color: var(--green); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 0;
+      height: calc(100vh - 64px);
+    }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; height: auto; }
+    }
+
+    /* ── Left panel ── */
+    .panel-left {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      overflow-y: auto;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+
+    input[type=text], textarea, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.55rem 0.75rem;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type=text]:focus, textarea:focus, select:focus {
+      border-color: var(--blue);
+    }
+    textarea { resize: vertical; min-height: 60px; }
+
+    .agent-selector { display: flex; gap: 0.5rem; }
+    .agent-btn {
+      flex: 1;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .agent-btn:hover { border-color: var(--blue); }
+    .agent-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .agent-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+    .coming-soon { font-size: 0.7rem; color: var(--yellow); display: block; margin-top: 2px; }
+
+    .btn-generate {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: none;
+      background: var(--blue);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-generate:hover { opacity: 0.85; }
+    .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Right panel ── */
+    .panel-right {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .progress-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .progress-header h2 { font-size: 0.95rem; font-weight: 600; }
+    .slide-counter {
+      margin-left: auto;
+      background: var(--navy2);
+      border-radius: 20px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border-left: 3px solid transparent;
+      line-height: 1.45;
+    }
+    .log-entry .icon { flex-shrink: 0; width: 20px; text-align: center; }
+    .log-entry .body { flex: 1; word-break: break-word; }
+    .log-entry .meta { color: var(--muted); font-size: 0.75rem; }
+
+    .log-start       { background: rgba(0,137,255,0.08); border-color: var(--blue); }
+    .log-directory   { background: rgba(0,137,255,0.06); border-color: #4080c0; }
+    .log-extracting  { background: rgba(245,166,35,0.06); border-color: var(--yellow); }
+    .log-indexed     { background: rgba(0,196,140,0.06); border-color: var(--green); }
+    .log-search      { background: rgba(180,140,255,0.06); border-color: #a08fff; }
+    .log-tool_call   { background: rgba(0,137,255,0.05); border-color: #4080c0; }
+    .log-thought     { background: rgba(255,255,255,0.03); border-color: var(--border); color: var(--muted); }
+    .log-slide       { background: rgba(0,196,140,0.08); border-color: var(--green); }
+    .log-done        { background: rgba(0,196,140,0.12); border-color: var(--green); font-weight: 600; }
+    .log-error       { background: rgba(232,65,65,0.1); border-color: var(--red); color: #ff8080; }
+    .log-ping        { display: none; }
+
+    /* ── Download section ── */
+    .downloads {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      display: none;
+      gap: 0.75rem;
+    }
+    .downloads.visible { display: flex; }
+    .btn-dl {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-dl:hover { border-color: var(--blue); color: var(--blue); }
+    .btn-dl.pptx { border-color: var(--green); color: var(--green); }
+    .btn-dl.pptx:hover { background: rgba(0,196,140,0.1); }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      color: var(--muted);
+    }
+    .empty-state .big { font-size: 3rem; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="header">
+  <span class="header-logo">🗂️</span>
+  <div>
+    <div class="header-title">DeckForge</div>
+    <div class="header-subtitle">AI Presentation Builder · LangGraph ReAct Agent</div>
+  </div>
+  <div class="llm-badge" id="llm-badge">
+    <span class="dot"></span>
+    <span id="llm-label">detecting…</span>
+  </div>
+</header>
+
+<!-- ── Body ── -->
+<div class="layout">
+
+  <!-- Left: inputs -->
+  <aside class="panel-left">
+
+    <div>
+      <div class="section-label">Source</div>
+      <label for="inp-dir">Directory path</label>
+      <input type="text" id="inp-dir" placeholder="Loading…" value="" />
+      <div style="margin-top:6px; font-size:0.82rem; color:var(--text); opacity:0.75; line-height:1.6">
+        Drop your files into the <code style="font-size:0.8rem; background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:3px">data/</code> folder above, then click Generate.<br>
+        <span style="color:#60a5fa">Supported:</span> PDF · PPTX · MD · TXT · MP3 · WAV · M4A · MP4 · MOV · WEBM · AVI
+      </div>
+    </div>
+
+    <div>
+      <label for="inp-topic">Presentation topic</label>
+      <input type="text" id="inp-topic"
+        placeholder="e.g. Transformer Architecture and Self-Attention" />
+    </div>
+
+    <div>
+      <div class="section-label">Agent</div>
+      <div class="agent-selector">
+        <button class="agent-btn active" data-agent="langgraph" onclick="selectAgent(this)">
+          LangGraph
+        </button>
+        <button class="agent-btn disabled" id="btn-cuga" data-agent="cuga" onclick="selectAgent(this)">
+          CugaAgent
+          <span class="coming-soon" id="cuga-status">checking…</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="btn-generate" onclick="generate()">
+      Generate Deck
+    </button>
+
+    <!-- Previous sessions -->
+    <div id="history-section" style="display:none">
+      <div class="section-label">Last session</div>
+      <div id="history-info" style="font-size:0.8rem; color:var(--muted);"></div>
+    </div>
+
+  </aside>
+
+  <!-- Right: progress -->
+  <div class="panel-right">
+
+    <div class="progress-header">
+      <h2 id="progress-title">Progress</h2>
+      <div class="slide-counter" id="slide-counter" style="display:none">
+        🖼️ <span id="slide-count">0</span> slides
+      </div>
+      <div id="spinner" style="display:none"><span class="spinner"></span></div>
+    </div>
+
+    <div class="log" id="log">
+      <div class="empty-state" id="empty-state">
+        <span class="big">🗂️</span>
+        <p>Point DeckForge at a folder and give it a topic.</p>
+        <p>The agent will read every document, build a knowledge base, and craft your deck.</p>
+      </div>
+    </div>
+
+    <div class="downloads" id="downloads">
+      <span style="font-size:0.82rem; color:var(--muted); margin-right:0.5rem;">Download:</span>
+      <a class="btn-dl pptx" id="dl-pptx" href="#" download>
+        📊 deck.pptx
+      </a>
+      <a class="btn-dl" id="dl-md" href="#" download>
+        📄 deck.md
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  let _sessionId   = null;
+  let _agent       = 'langgraph';
+  let _slideCount  = 0;
+  let _es          = null;
+
+  // ── LLM badge + CugaAgent availability ────────────────────────────────
+  (async () => {
+    try {
+      const r = await fetch('/api/config/status').then(r => r.json());
+      const badge = document.getElementById('llm-badge');
+      const label = document.getElementById('llm-label');
+      if (r.configured) {
+        badge.classList.add('connected');
+        label.textContent = r.provider || 'connected';
+      } else {
+        label.textContent = 'no LLM detected';
+      }
+      // Set the directory input to the real sample_data path on this machine
+      if (r.sample_data_path) {
+        const dirInput = document.getElementById('inp-dir');
+        dirInput.value = r.sample_data_path;
+        dirInput.placeholder = r.sample_data_path;
+      }
+      // Enable CugaAgent button if the SDK is installed
+      const cugaBtn    = document.getElementById('btn-cuga');
+      const cugaStatus = document.getElementById('cuga-status');
+      if (r.cuga_available) {
+        cugaBtn.classList.remove('disabled');
+        cugaStatus.textContent = '';
+        cugaStatus.style.display = 'none';
+      } else {
+        cugaStatus.textContent = 'not installed';
+      }
+    } catch (_) {
+      document.getElementById('llm-label').textContent = 'offline';
+    }
+  })();
+
+  // ── Agent selector ─────────────────────────────────────────────────────
+  function selectAgent(btn) {
+    if (btn.classList.contains('disabled')) return;  // still disabled (e.g. not installed)
+    document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _agent = btn.dataset.agent;
+  }
+
+  // ── Log helpers ────────────────────────────────────────────────────────
+  function clearLog() {
+    const log = document.getElementById('log');
+    log.innerHTML = '';
+    _slideCount = 0;
+    document.getElementById('slide-counter').style.display = 'none';
+    document.getElementById('downloads').classList.remove('visible');
+  }
+
+  function addLog(cls, icon, html) {
+    const log = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${cls}`;
+    entry.innerHTML = `<span class="icon">${icon}</span><span class="body">${html}</span>`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function handleEvent(evt) {
+    const d = JSON.parse(evt.data);
+
+    if (d.type === 'ping') return;
+
+    if (d.type === 'start') {
+      addLog('start', '🚀', `Starting DeckForge for topic: <b>${esc(d.topic)}</b><br>
+        <span class="meta">📁 ${esc(d.directory)}</span>`);
+      return;
+    }
+
+    if (d.type === 'directory_scanned') {
+      if (d.file_count === 0) {
+        addLog('error', '❌', `No supported files found in that directory.${d.skipped ? ` (${d.skipped} unsupported file(s) ignored)` : ''}<br>
+          <span class="meta">Supported formats: PDF · PPTX · MD · TXT · MP3 · WAV · M4A · MP4 · MOV · WEBM · AVI<br>
+          Drop your files into <code>apps/deck_forge/data/</code> in the repo and try again.</span>`);
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('btn-generate').disabled = false;
+        if (_es) { _es.close(); _es = null; }
+        return;
+      }
+      const files = (d.files || []).map(f =>
+        `<span style="color:var(--muted)">[${f.type}]</span> ${esc(f.name)}`
+      ).join(' &nbsp;·&nbsp; ');
+      addLog('directory', '📂', `Found <b>${d.file_count}</b> supported file(s)${d.skipped ? ` (${d.skipped} skipped)` : ''}<br>
+        <span class="meta">${files}</span>`);
+      return;
+    }
+
+    if (d.type === 'extracting') {
+      addLog('extracting', '📄', `Extracting <b>${esc(d.file)}</b> <span class="meta">[${d.file_type}]</span>…`);
+      return;
+    }
+
+    if (d.type === 'extract_error') {
+      addLog('error', '⚠️', `Failed to extract <b>${esc(d.file)}</b>: ${esc(d.error)}`);
+      return;
+    }
+
+    if (d.type === 'indexed') {
+      addLog('indexed', '🧩', `Indexed <b>${esc(d.file)}</b> → ${d.chunks} chunks
+        <span class="meta">(${d.total_chunks} total in knowledge base)</span>`);
+      return;
+    }
+
+    if (d.type === 'search') {
+      addLog('search', '🔍', `Searching: <em>"${esc(d.query)}"</em>
+        <span class="meta">→ ${d.hits} result(s)</span>`);
+      return;
+    }
+
+    if (d.type === 'tool_call') {
+      // Only show non-redundant tool calls (slide/finalize shown separately)
+      if (['add_slide','finalize'].includes(d.tool)) return;
+      addLog('tool_call', '⚙️', `<b>${esc(d.tool)}</b>
+        <span class="meta">${esc(d.args_preview || '')}</span>`);
+      return;
+    }
+
+    if (d.type === 'thought') {
+      // Only show substantive thoughts (skip very short ones)
+      const text = (d.content || '').trim();
+      if (text.length > 30) {
+        addLog('thought', '💭', esc(text));
+      }
+      return;
+    }
+
+    if (d.type === 'slide_added') {
+      _slideCount = d.num;
+      document.getElementById('slide-count').textContent = _slideCount;
+      document.getElementById('slide-counter').style.display = '';
+      addLog('slide', '🖼️', `Slide ${d.num}: <b>${esc(d.title)}</b>
+        <span class="meta">(${d.bullet_count} bullets)</span>`);
+      return;
+    }
+
+    if (d.type === 'done') {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('btn-generate').disabled = false;
+      addLog('done', '✅', `<b>Done!</b> ${d.slide_count} slides generated.
+        Download your deck below.`);
+
+      // Show download links
+      document.getElementById('dl-pptx').href = `/api/download/${_sessionId}/${d.pptx_filename}`;
+      document.getElementById('dl-md').href   = `/api/download/${_sessionId}/${d.md_filename}`;
+      document.getElementById('downloads').classList.add('visible');
+
+      // Update history
+      document.getElementById('history-section').style.display = '';
+      document.getElementById('history-info').textContent =
+        `Session ${_sessionId} · ${d.slide_count} slides`;
+
+      if (_es) { _es.close(); _es = null; }
+      return;
+    }
+
+    if (d.type === 'error') {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('btn-generate').disabled = false;
+      addLog('error', '❌', `<b>Error:</b> ${esc(d.message)}`);
+      if (_es) { _es.close(); _es = null; }
+      return;
+    }
+  }
+
+  // ── Generate ───────────────────────────────────────────────────────────
+  async function generate() {
+    const dir   = document.getElementById('inp-dir').value.trim();
+    const topic = document.getElementById('inp-topic').value.trim();
+    if (!dir)   { alert('Please enter a source directory path.'); return; }
+    if (!topic) { alert('Please enter a presentation topic.'); return; }
+
+    clearLog();
+    document.getElementById('empty-state')?.remove();
+    document.getElementById('btn-generate').disabled = true;
+    document.getElementById('spinner').style.display = '';
+    document.getElementById('progress-title').textContent = 'Generating…';
+
+    // Close any previous SSE connection
+    if (_es) { _es.close(); _es = null; }
+
+    // Start generation
+    let sid;
+    try {
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ directory: dir, topic, agent_type: _agent }),
+      });
+      const data = await resp.json();
+      sid = data.session_id;
+    } catch (err) {
+      addLog('error', '❌', `Request failed: ${err}`);
+      document.getElementById('btn-generate').disabled = false;
+      document.getElementById('spinner').style.display = 'none';
+      return;
+    }
+
+    _sessionId = sid;
+
+    // Open SSE stream
+    _es = new EventSource(`/api/stream/${sid}`);
+    _es.onmessage = handleEvent;
+    _es.onerror = () => {
+      if (_es.readyState === EventSource.CLOSED) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('btn-generate').disabled = false;
+      }
+    };
+  }
+
+  // ── Escape HTML ────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

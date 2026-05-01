@@ -1,0 +1,10 @@
+# server_monitor — app dependencies
+git+ssh://git@github.com/cuga-project/cuga-agent.git@main
+langchain-core
+
+# System metrics (cross-platform CPU / RAM / disk / process info)
+psutil
+
+# Web UI
+fastapi
+uvicorn

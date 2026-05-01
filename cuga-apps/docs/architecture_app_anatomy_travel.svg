@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowL" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1200" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">Anatomy of a cuga-app  —  travel_planner</text>
+  <text x="800" y="72" text-anchor="middle" font-size="15" fill="#64748b">Multi-server orchestration: one agent fans out across 3 MCP servers (web · knowledge · geo) to research a destination, then synthesizes a day-by-day plan.</text>
+
+  <!-- ===== TOP ZONE ===== -->
+
+  <g transform="translate(40, 110)" filter="url(#shadow)">
+    <rect width="380" height="220" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="380" height="38" rx="12" fill="#0f172a"/>
+    <rect y="26" width="380" height="12" fill="#0f172a"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">File layout</text>
+
+    <text x="20" y="68" font-size="12.5" fill="#0f172a" font-family="monospace">apps/travel_planner/</text>
+    <text x="36" y="90" font-size="12" fill="#475569" font-family="monospace">├── main.py</text>
+    <text x="280" y="90" font-size="11" fill="#94a3b8" font-style="italic">FastAPI + 2 agents</text>
+    <text x="36" y="110" font-size="12" fill="#475569" font-family="monospace">├── llm.py</text>
+    <text x="280" y="110" font-size="11" fill="#94a3b8" font-style="italic">local LLM factory</text>
+    <text x="36" y="130" font-size="12" fill="#475569" font-family="monospace">├── README.md</text>
+    <text x="36" y="150" font-size="12" fill="#475569" font-family="monospace">└── static/index.html</text>
+    <text x="280" y="150" font-size="11" fill="#94a3b8" font-style="italic">richer UI</text>
+
+    <line x1="20" y1="170" x2="360" y2="170" stroke="#e2e8f0"/>
+    <text x="20" y="190" font-size="11.5" font-weight="700" fill="#475569">Endpoints</text>
+    <text x="20" y="207" font-size="11" fill="#64748b" font-family="monospace">/plan · /chat · /configure · /health</text>
+  </g>
+
+  <g transform="translate(440, 110)" filter="url(#shadow)">
+    <rect width="700" height="220" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="700" height="38" rx="12" fill="#312e81"/>
+    <rect y="26" width="700" height="12" fill="#312e81"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">Agent factory  —  TWO agents share the same tools (A/B comparison)</text>
+
+    <rect x="20" y="58" width="660" height="146" rx="8" fill="#0f172a"/>
+    <text x="32" y="80" font-size="12" fill="#cbd5e1" font-family="monospace">@app.on_event("startup")</text>
+    <text x="32" y="98" font-size="12" fill="#cbd5e1" font-family="monospace">async def startup():</text>
+    <text x="48" y="116" font-size="12" fill="#cbd5e1" font-family="monospace">TOOLS = </text>
+    <text x="116" y="116" font-size="12" fill="#a5b4fc" font-family="monospace">load_tools</text>
+    <text x="194" y="116" font-size="12" fill="#cbd5e1" font-family="monospace">([</text>
+    <text x="206" y="116" font-size="12" fill="#86efac" font-family="monospace">"web", "knowledge", "geo"</text>
+    <text x="412" y="116" font-size="12" fill="#cbd5e1" font-family="monospace">])</text>
+    <text x="48" y="136" font-size="12" font-family="monospace" fill="#fde68a">cuga_agent  </text>
+    <text x="148" y="136" font-size="12" fill="#cbd5e1" font-family="monospace">= </text>
+    <text x="166" y="136" font-size="12" fill="#a5b4fc" font-family="monospace">CugaAgent</text>
+    <text x="240" y="136" font-size="12" fill="#cbd5e1" font-family="monospace">(model=llm, tools=TOOLS, special_instructions=…)</text>
+    <text x="48" y="156" font-size="12" font-family="monospace" fill="#fde68a">react_agent </text>
+    <text x="148" y="156" font-size="12" fill="#cbd5e1" font-family="monospace">= </text>
+    <text x="166" y="156" font-size="12" fill="#a5b4fc" font-family="monospace">ReactAgentWrapper</text>
+    <text x="294" y="156" font-size="12" fill="#cbd5e1" font-family="monospace">(model=llm, tools=TOOLS, ...)</text>
+    <text x="32" y="180" font-size="11" fill="#94a3b8" font-family="monospace" font-style="italic"># /plan accepts agent_type ∈ {"cuga", "react"} → same tools, two reasoning loops</text>
+  </g>
+
+  <g transform="translate(1160, 110)" filter="url(#shadow)">
+    <rect width="400" height="220" rx="12" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <rect width="400" height="38" rx="12" fill="#0ea5e9"/>
+    <rect y="26" width="400" height="12" fill="#0ea5e9"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">Tools bound  —  3 servers, 6 tools</text>
+
+    <text x="20" y="62" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-knowledge (29101)</text>
+    <g transform="translate(20, 70)">
+      <rect width="360" height="22" rx="6" fill="#ecfeff"/>
+      <text x="14" y="16" font-size="11" font-family="monospace" font-weight="600" fill="#0c4a6e">get_wikipedia_article(title)</text>
+    </g>
+
+    <text x="20" y="112" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-geo (29102)</text>
+    <g transform="translate(20, 120)">
+      <rect width="360" height="22" rx="6" fill="#ecfeff"/>
+      <text x="14" y="16" font-size="11" font-family="monospace" font-weight="600" fill="#0c4a6e">geocode(place)</text>
+    </g>
+    <g transform="translate(20, 144)">
+      <rect width="360" height="22" rx="6" fill="#ecfeff"/>
+      <text x="14" y="16" font-size="11" font-family="monospace" font-weight="600" fill="#0c4a6e">search_attractions(lat, lon, category)</text>
+    </g>
+    <g transform="translate(20, 168)">
+      <rect width="360" height="22" rx="6" fill="#ecfeff"/>
+      <text x="14" y="16" font-size="11" font-family="monospace" font-weight="600" fill="#0c4a6e">get_weather(city, month)</text>
+    </g>
+
+    <text x="20" y="208" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-web (29100)</text>
+    <text x="120" y="208" font-size="11" font-family="monospace" font-weight="600" fill="#0c4a6e">web_search(query)</text>
+  </g>
+
+  <line x1="40" y1="365" x2="1560" y2="365" stroke="#cbd5e1" stroke-dasharray="4,4"/>
+  <text x="800" y="395" text-anchor="middle" font-size="13" font-weight="700" fill="#475569" letter-spacing="0.05em">REQUEST FLOW  —  POST /plan {destination: "Kyoto", days: 5, travel_month: "October", interests: ["historic","food"], agent_type: "cuga"}</text>
+
+  <!-- Lane headers -->
+  <g transform="translate(40, 420)">
+    <g transform="translate(0, 0)">
+      <rect width="280" height="48" rx="10" fill="#0f172a"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">User browser</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#cbd5e1">form: destination · days · interests</text>
+    </g>
+    <g transform="translate(304, 0)">
+      <rect width="280" height="48" rx="10" fill="#10b981"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">FastAPI shell  ·  main.py</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#d1fae5">/plan · /chat · /configure</text>
+    </g>
+    <g transform="translate(608, 0)">
+      <rect width="280" height="48" rx="10" fill="#6366f1"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">CugaAgent  (or ReAct)</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#e0e7ff">workflow enforced by system prompt</text>
+    </g>
+    <g transform="translate(912, 0)">
+      <rect width="280" height="48" rx="10" fill="#0ea5e9"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">3 MCP servers</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#e0f2fe">knowledge · geo · web</text>
+    </g>
+    <g transform="translate(1216, 0)">
+      <rect width="304" height="48" rx="10" fill="#f59e0b"/>
+      <text x="152" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">External APIs</text>
+      <text x="152" y="38" text-anchor="middle" font-size="11" fill="#fef3c7">Wikipedia · OSM · OpenTripMap · wttr.in · Tavily</text>
+    </g>
+  </g>
+
+  <g stroke="#e2e8f0" stroke-dasharray="2,4">
+    <line x1="332" y1="478" x2="332" y2="1090"/>
+    <line x1="636" y1="478" x2="636" y2="1090"/>
+    <line x1="940" y1="478" x2="940" y2="1090"/>
+    <line x1="1244" y1="478" x2="1244" y2="1090"/>
+  </g>
+
+  <!-- Step 1 -->
+  <g transform="translate(50, 500)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0f172a" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#0f172a"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">1</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#0f172a">User submits trip form</text>
+    <text x="46" y="42" font-size="11" fill="#475569">"Plan 5 days in Kyoto, October"</text>
+  </g>
+  <line x1="312" y1="528" x2="354" y2="528" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <text x="333" y="520" text-anchor="middle" font-size="9.5" fill="#475569" font-style="italic">POST /plan</text>
+
+  <!-- Step 2 -->
+  <g transform="translate(354, 500)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#10b981"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">2</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#064e3b">build prompt + thread_id</text>
+    <text x="46" y="42" font-size="11" fill="#475569" font-family="monospace">"cuga-plan-kyoto"</text>
+  </g>
+  <line x1="616" y1="528" x2="658" y2="528" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <text x="637" y="520" text-anchor="middle" font-size="9.5" fill="#475569" font-style="italic">agent.invoke()</text>
+
+  <!-- Step 3 -->
+  <g transform="translate(658, 500)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">3</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">Read system prompt</text>
+    <text x="46" y="42" font-size="11" fill="#475569">workflow: 6 ordered steps</text>
+  </g>
+
+  <!-- Step 4 — wikipedia -->
+  <g transform="translate(658, 580)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">4</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">get_wikipedia_article</text>
+    <text x="46" y="42" font-size="11" fill="#475569">title: "Kyoto"</text>
+  </g>
+  <line x1="920" y1="608" x2="962" y2="608" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 580)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-knowledge</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ destination overview</text>
+  </g>
+  <line x1="1224" y1="608" x2="1266" y2="608" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 580)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">Wikipedia REST API</text>
+    <text x="20" y="42" font-size="11" fill="#475569">en.wikipedia.org/api/rest_v1/page/summary</text>
+  </g>
+
+  <!-- Step 5 — weather -->
+  <g transform="translate(658, 660)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">5</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">get_weather</text>
+    <text x="46" y="42" font-size="11" fill="#475569">city: "Kyoto", month: October</text>
+  </g>
+  <line x1="920" y1="688" x2="962" y2="688" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 660)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-geo</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ climate snapshot</text>
+  </g>
+  <line x1="1224" y1="688" x2="1266" y2="688" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 660)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">wttr.in</text>
+    <text x="20" y="42" font-size="11" fill="#475569">no key required</text>
+  </g>
+
+  <!-- Step 6 — geocode -->
+  <g transform="translate(658, 740)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">6</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">geocode</text>
+    <text x="46" y="42" font-size="11" fill="#475569">place: "Kyoto"  →  35.0116, 135.7681</text>
+  </g>
+  <line x1="920" y1="768" x2="962" y2="768" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 740)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-geo</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ lat/lon for downstream</text>
+  </g>
+  <line x1="1224" y1="768" x2="1266" y2="768" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 740)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">Nominatim (OpenStreetMap)</text>
+    <text x="20" y="42" font-size="11" fill="#475569">free · open data</text>
+  </g>
+
+  <!-- Step 7 — attractions x2 -->
+  <g transform="translate(658, 820)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">7</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">search_attractions  ×2</text>
+    <text x="46" y="42" font-size="11" fill="#475569">categories: "historic", "cultural"</text>
+  </g>
+  <line x1="920" y1="848" x2="962" y2="848" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 820)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-geo</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ POI lists (8 per category)</text>
+  </g>
+  <line x1="1224" y1="848" x2="1266" y2="848" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 820)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">OpenTripMap</text>
+    <text x="20" y="42" font-size="11" fill="#475569">OPENTRIPMAP_API_KEY (free tier)</text>
+  </g>
+
+  <!-- Step 8 — web_search x2 -->
+  <g transform="translate(658, 900)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">8</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">web_search  ×2</text>
+    <text x="46" y="42" font-size="11" fill="#475569">"visa Japan", "Kyoto October festival"</text>
+  </g>
+  <line x1="920" y1="928" x2="962" y2="928" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 900)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">mcp-web</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ ranked results, 5/query</text>
+  </g>
+  <line x1="1224" y1="928" x2="1266" y2="928" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 900)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">Tavily</text>
+    <text x="20" y="42" font-size="11" fill="#475569">TAVILY_API_KEY required</text>
+  </g>
+
+  <!-- Step 9 — synthesize -->
+  <g transform="translate(658, 980)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">9</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">Synthesize 5-day itinerary</text>
+    <text x="46" y="42" font-size="11" fill="#475569">format dictated by system prompt</text>
+  </g>
+  <line x1="658" y1="1008" x2="616" y2="1008" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowL)"/>
+  <text x="637" y="1000" text-anchor="middle" font-size="9.5" fill="#475569" font-style="italic">result.answer</text>
+
+  <!-- Step 10 -->
+  <g transform="translate(354, 980)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#10b981"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">10</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#064e3b">JSON response</text>
+    <text x="46" y="42" font-size="11" fill="#475569" font-family="monospace">{itinerary, agent_type}</text>
+  </g>
+  <line x1="354" y1="1008" x2="312" y2="1008" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowL)"/>
+
+  <!-- Step 11 -->
+  <g transform="translate(50, 980)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0f172a" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#0f172a"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#0f172a">UI renders day-by-day plan</text>
+    <text x="46" y="42" font-size="11" fill="#475569">/chat for follow-ups (same thread_id)</text>
+  </g>
+
+  <!-- ============== KEY TAKEAWAYS ============== -->
+  <g transform="translate(40, 1064)" filter="url(#shadow)">
+    <rect width="1520" height="120" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="30" font-size="14" font-weight="700" fill="#0f172a">Why this matters  —  multi-server orchestration without per-app glue</text>
+
+    <g transform="translate(20, 46)">
+      <rect width="365" height="60" rx="10" fill="#eef2ff"/>
+      <text x="14" y="20" font-size="11.5" font-weight="700" fill="#312e81">3 servers, one agent, zero glue</text>
+      <text x="14" y="36" font-size="11" fill="#475569">load_tools(["web", "knowledge", "geo"])</text>
+      <text x="14" y="50" font-size="11" fill="#475569">→ LLM picks the right tool per step.</text>
+    </g>
+    <g transform="translate(405, 46)">
+      <rect width="365" height="60" rx="10" fill="#ecfdf5"/>
+      <text x="14" y="20" font-size="11.5" font-weight="700" fill="#065f46">Workflow enforced by prompt</text>
+      <text x="14" y="36" font-size="11" fill="#475569">"Always: wiki → weather → geocode →</text>
+      <text x="14" y="50" font-size="11" fill="#475569">attractions → web ×2 → THEN write plan."</text>
+    </g>
+    <g transform="translate(790, 46)">
+      <rect width="365" height="60" rx="10" fill="#f5f3ff"/>
+      <text x="14" y="20" font-size="11.5" font-weight="700" fill="#3b0764">A/B agent comparison</text>
+      <text x="14" y="36" font-size="11" fill="#475569">/plan?agent_type=cuga vs react</text>
+      <text x="14" y="50" font-size="11" fill="#475569">— same tools, different reasoning loops.</text>
+    </g>
+    <g transform="translate(1175, 46)">
+      <rect width="345" height="60" rx="10" fill="#fffbeb"/>
+      <text x="14" y="20" font-size="11.5" font-weight="700" fill="#78350f">Stateful sessions</text>
+      <text x="14" y="36" font-size="11" fill="#475569">thread_id per (agent_type, destination)</text>
+      <text x="14" y="50" font-size="11" fill="#475569">→ /chat follow-ups remember context.</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,1046 @@
+{
+  "db": "debit_card_specializing",
+  "tools": [
+    {
+      "name": "compute_consumption_differences",
+      "description": "Pairwise differences between three segment averages.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "avg_sme": {
+            "type": "number",
+            "description": "Average for SME segment."
+          },
+          "avg_lam": {
+            "type": "number",
+            "description": "Average for LAM segment."
+          },
+          "avg_kam": {
+            "type": "number",
+            "description": "Average for KAM segment."
+          }
+        },
+        "required": [
+          "avg_sme",
+          "avg_lam",
+          "avg_kam"
+        ]
+      },
+      "return_description": "{\"diff_sme_lam\": number, \"diff_lam_kam\": number, \"diff_kam_sme\": number}.",
+      "used_by_question_ids": [
+        1481
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_customers_by_segment_and_currency",
+      "description": "Count of customers belonging to a specific segment and using a specific currency.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "CZK",
+              "EUR"
+            ],
+            "description": "Currency code stored in the `Currency` column."
+          }
+        },
+        "required": [
+          "segment",
+          "currency"
+        ]
+      },
+      "return_description": "{\"count\": integer|null} \u2014 number of matching customers, or null if none.",
+      "used_by_question_ids": [
+        1486,
+        1486
+      ],
+      "reuse_count": 2
+    },
+    {
+      "name": "count_gas_stations_by_country_and_segment",
+      "description": "Count of gas stations for a specified country and segment.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "enum": [
+              "CZE",
+              "SVK"
+            ],
+            "description": "ISO country code stored in the `Country` column of `gasstations`."
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "Discount",
+              "Noname",
+              "Other",
+              "Premium",
+              "Value for money"
+            ],
+            "description": "Gas station segment (e.g., 'Premium', 'Discount') from the `Segment` column."
+          }
+        },
+        "required": [
+          "country",
+          "segment"
+        ]
+      },
+      "return_description": "{count: integer|null} \u2014 number of matching gas stations.",
+      "used_by_question_ids": [
+        1470,
+        1484,
+        1484
+      ],
+      "reuse_count": 3
+    },
+    {
+      "name": "count_transactions_by_country_date_time_range",
+      "description": "Count transactions for a given country, optionally filtered by exact date, a time window, or a start year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "enum": [
+              "CZE",
+              "SVK"
+            ],
+            "description": "ISO country code stored in `gasstations`.`Country`."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Exact transaction date (YYYY-MM-DD)."
+          },
+          "start_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}:\\d{2}$",
+            "description": "Lower bound of transaction time (HH:MM:SS)."
+          },
+          "end_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}:\\d{2}$",
+            "description": "Upper bound of transaction time (HH:MM:SS)."
+          },
+          "start_year": {
+            "type": "integer",
+            "description": "Four\u2011digit year; counts transactions on or after this year."
+          }
+        },
+        "required": [
+          "country"
+        ]
+      },
+      "return_description": "{count: integer|null} \u2014 number of matching transactions.",
+      "used_by_question_ids": [
+        1521
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "count_transactions_by_date_time_currency",
+      "description": "Count transactions on a given date before a specific time and paid in a given currency.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Transaction date in YYYY\u2011MM\u2011DD format (matches `transactions_1k`.`Date`)."
+          },
+          "before_time": {
+            "type": "string",
+            "description": "Upper exclusive bound for transaction time (HH:MM:SS)."
+          },
+          "currency": {
+            "type": "string",
+            "examples": [
+              "USD",
+              "EUR",
+              "CZK"
+            ],
+            "description": "Value of the `Currency` column in the `customers` table."
+          }
+        },
+        "required": [
+          "date",
+          "before_time",
+          "currency"
+        ]
+      },
+      "return_description": "{\"count\": integer} \u2013 number of matching transactions.",
+      "used_by_question_ids": [
+        1516
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_average_min_consumption_by_segment",
+      "description": "Average consumption for the globally\u2011minimum\u2011consumption record of a given segment, currency and year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column of `customers`."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "CZK",
+              "EUR"
+            ],
+            "description": "Currency code stored in the `Currency` column of `customers`."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 2013)."
+          }
+        },
+        "required": [
+          "segment",
+          "currency",
+          "year"
+        ]
+      },
+      "return_description": "{\"average\": number|null} \u2014 the computed average, or null if no matching rows.",
+      "used_by_question_ids": [
+        1481,
+        1481,
+        1481
+      ],
+      "reuse_count": 3
+    },
+    {
+      "name": "get_average_monthly_consumption_by_segment_and_year",
+      "description": "Average monthly consumption (total consumption divided by 12) for customers belonging to a specific segment in a given year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column of the `customers` table."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 2013)."
+          }
+        },
+        "required": [
+          "segment",
+          "year"
+        ]
+      },
+      "return_description": "{average_monthly_consumption: number|null} \u2014 the computed average monthly consumption, or null if no rows match.",
+      "used_by_question_ids": [
+        1473
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_average_transaction_amount_by_month",
+      "description": "Average transaction amount for a specified year and month in the transactions_1k table.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 2012)."
+          },
+          "month": {
+            "type": "integer",
+            "description": "Month number 1\u201112."
+          }
+        },
+        "required": [
+          "year",
+          "month"
+        ]
+      },
+      "return_description": "{\"rows\": [[number|null]]} \u2014 list of one row containing the AVG(Amount) (null if no rows).",
+      "used_by_question_ids": [
+        1504
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_average_transaction_price_by_currency",
+      "description": "Average transaction price (Price column) for all transactions made by customers using a specified currency.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "CZK",
+              "EUR"
+            ],
+            "description": "Currency code stored in the `Currency` column of the `customers` table."
+          }
+        },
+        "required": [
+          "currency"
+        ]
+      },
+      "return_description": "{\"average_price\": number|null} \u2014 the average `Price` of matching transactions, or null if none.",
+      "used_by_question_ids": [
+        1511
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_consumption_by_date_price_and_month",
+      "description": "For customers who paid a specific price on a given transaction date, return their consumption in a specified year\u2011month.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "transaction_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Transaction date in YYYY\u2011MM\u2011DD format (matches `transactions_1k`.`Date`)."
+          },
+          "price": {
+            "type": "number",
+            "description": "Exact transaction price to match (`Price` column)."
+          },
+          "target_month": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Year\u2011month in YYYYMM format for the consumption record (`yearmonth`.`Date`)."
+          }
+        },
+        "required": [
+          "transaction_date",
+          "price",
+          "target_month"
+        ]
+      },
+      "return_description": "{records: [{customer_id: integer, date: string, consumption: number}, ...]} \u2013 list of matching rows; empty list if none.",
+      "used_by_question_ids": [
+        1520
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_consumption_difference_between_customers",
+      "description": "Compute the numeric difference in total gas consumption between two customers for a specific year\u2011month (YYYYMM).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., 201304)."
+          },
+          "customer_a": {
+            "type": "integer",
+            "description": "CustomerID of the first customer (the minuend)."
+          },
+          "customer_b": {
+            "type": "integer",
+            "description": "CustomerID of the second customer (the subtrahend)."
+          }
+        },
+        "required": [
+          "date",
+          "customer_a",
+          "customer_b"
+        ]
+      },
+      "return_description": "{\"difference\": number|null} \u2014 consumption of customer_a minus consumption of customer_b for the given month.",
+      "used_by_question_ids": [
+        1485
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_countries_of_gas_stations_by_transaction_date",
+      "description": "Return distinct country codes of gas stations that have at least one transaction in the specified year\u2011month (YYYYMM).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., \"201306\")."
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
+      "return_description": "{\"countries\": [\"CZE\", \"SVK\", ...]} \u2013 list of distinct country codes; empty list if none.",
+      "used_by_question_ids": [
+        1501
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_country_by_transaction",
+      "description": "Return the ISO country code of the gas station for a transaction identified by CardID or by exact transaction Date.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "description": "Value of the `CardID` column in the `transactions_1k` table."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Exact transaction date (YYYY\u2011MM\u2011DD) matching the `Date` column."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "return_description": "{\"country\": string|null} \u2014 the country code, or null if no matching transaction.",
+      "used_by_question_ids": [
+        1523
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_country_of_gas_station",
+      "description": "Return the ISO country code of the gas station that sold the most expensive unit matching the supplied criteria (either a specific product_id, or a specific date and price).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "description": "Product identifier (matches `ProductID` in `transactions_1k`)."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Transaction date (YYYY\u2011MM\u2011DD) when filtering by date+price."
+          },
+          "price": {
+            "type": "number",
+            "description": "Exact transaction price to match when filtering by date+price."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "return_description": "{country: string|null} \u2014 the country code of the matching gas station, or null if none.",
+      "used_by_question_ids": [
+        1532
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_country_with_most_gas_stations_by_segment",
+      "description": "Return the country that has the most gas stations for a specified segment, and the total number of stations of that segment across all countries.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "Discount",
+              "Noname",
+              "Other",
+              "Premium",
+              "Value for money"
+            ],
+            "description": "Value of the `Segment` column in the `gasstations` table."
+          }
+        },
+        "required": [
+          "segment"
+        ]
+      },
+      "return_description": "{country: string, count: integer} \u2014 the country code with the most stations and the overall count of stations for the segment.",
+      "used_by_question_ids": [
+        1491
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_currency_by_date_and_consumption",
+      "description": "Currency used by the customer who spent a specific amount in a given year\u2011month.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., 201306)."
+          },
+          "consumption": {
+            "type": "number",
+            "description": "Exact consumption amount to match in the `Consumption` column."
+          }
+        },
+        "required": [
+          "date",
+          "consumption"
+        ]
+      },
+      "return_description": "{\"currency\": string|null} \u2014 the currency code, or null if no match.",
+      "used_by_question_ids": [
+        1522
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_currency_by_datetime",
+      "description": "Return distinct currency codes used by customers for transactions on a given date and time.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "examples": [
+              "2012-08-01",
+              "2013-05-15",
+              "2014-12-31"
+            ],
+            "description": "Transaction date matching the `Date` column (YYYY\u2011MM\u2011DD)."
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}:\\d{2}$",
+            "examples": [
+              "08:30:00",
+              "12:00:00",
+              "23:59:59"
+            ],
+            "description": "Transaction time matching the `Time` column (HH:MM:SS)."
+          }
+        },
+        "required": [
+          "date",
+          "time"
+        ]
+      },
+      "return_description": "List of distinct currency strings (may be empty).",
+      "used_by_question_ids": [
+        1514
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_customer_by_segment_and_month",
+      "description": "Return the CustomerID for a given month (YYYYMM), optionally limited to a segment, ordered by total consumption.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column of the `customers` table."
+          },
+          "date": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., \"201206\")."
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "description": "Sorting direction: \"asc\" for the least consumption, \"desc\" for the most."
+          }
+        },
+        "required": [
+          "date",
+          "order"
+        ]
+      },
+      "return_description": "{\"customer_id\": integer|null} \u2014 the CustomerID selected by the ordering, or null if no matching rows.",
+      "used_by_question_ids": [
+        1497
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_distinct_transaction_times_by_chain",
+      "description": "Return all distinct transaction times (HH:MM:SS) for transactions that occurred at gas stations belonging to a specified chain.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "chain_id": {
+            "type": "integer",
+            "description": "Identifier of the gas\u2011station chain (matches `ChainID` in the `gasstations` table)."
+          }
+        },
+        "required": [
+          "chain_id"
+        ]
+      },
+      "return_description": "{\"times\": [string, ...]} \u2013 list of distinct `Time` values sorted alphabetically; empty list if no matches.",
+      "used_by_question_ids": [
+        1507
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_earliest_customer_segment",
+      "description": "Return the Segment of the customer associated with the earliest transaction.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{segment: string|null} \u2014 the segment of the earliest customer.",
+      "used_by_question_ids": [
+        1517
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_gas_station_with_highest_revenue",
+      "description": "Return the GasStationID of the gas station that generated the highest total revenue (sum of `Price`) in the `transactions_1k` table.",
+      "params_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "return_description": "{gas_station_id: integer|null} \u2014 the ID of the top\u2011revenue gas station.",
+      "used_by_question_ids": [
+        1527
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_highest_monthly_consumption_by_year",
+      "description": "Maximum total gas consumption for any month within a specified year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 2012)."
+          }
+        },
+        "required": [
+          "year"
+        ]
+      },
+      "return_description": "{\"max_monthly_consumption\": number|null} \u2014 the highest summed Consumption for a month in the given year.",
+      "used_by_question_ids": [
+        1498
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_peak_consumption_month_by_segment_and_year",
+      "description": "Return the two\u2011digit month (MM) with the highest total gas consumption for customers of a specific segment in a given year.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column of the `customers` table."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 2013)."
+          }
+        },
+        "required": [
+          "segment",
+          "year"
+        ]
+      },
+      "return_description": "{\"peak_month\": string|null} \u2014 month (MM) with highest summed consumption, or null if no rows match.",
+      "used_by_question_ids": [
+        1480
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_percentage_increases_by_segment_between_years",
+      "description": "Compute the percentage increase in total consumption between start_year and end_year for each segment (SME, LAM, KAM). Percentage = (consumption_end - consumption_start) * 100 / consumption_start.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "start_year": {
+            "type": "integer",
+            "description": "Four\u2011digit start year (e.g., 2012)."
+          },
+          "end_year": {
+            "type": "integer",
+            "description": "Four\u2011digit end year (e.g., 2013)."
+          }
+        },
+        "required": [
+          "start_year",
+          "end_year"
+        ]
+      },
+      "return_description": "{percent_sme: number|null, percent_lam: number|null, percent_kam: number|null} \u2014 percentage increase for each segment in the order SME, LAM, KAM.",
+      "used_by_question_ids": [
+        1482
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_product_descriptions_by_country",
+      "description": "List distinct product descriptions for transactions that occurred at gas stations in the specified country.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "enum": [
+              "CZE",
+              "SVK"
+            ],
+            "description": "ISO country code stored in the `Country` column of the `gasstations` table."
+          }
+        },
+        "required": [
+          "country"
+        ]
+      },
+      "return_description": "{\"descriptions\": [string, ...]} \u2013 list of distinct product description strings; empty list if no matches.",
+      "used_by_question_ids": [
+        1506
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_product_id_by_datetime",
+      "description": "Retrieve the ProductID of the transaction that occurred on a specific date and time.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Transaction date in YYYY-MM-DD format (matches `transactions_1k`.`Date`)."
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}:\\d{2}$",
+            "description": "Transaction time in HH:MM:SS format (matches `transactions_1k`.`Time`)."
+          }
+        },
+        "required": [
+          "date",
+          "time"
+        ]
+      },
+      "return_description": "{\"product_id\": integer|null} \u2014 the ProductID of the matching transaction, or null if none.",
+      "used_by_question_ids": [
+        1519
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_segment_percentage_by_country",
+      "description": "Percentage of gas stations belonging to a specified segment within a given country. Calculated as (count of rows where Country and Segment match) * 100 / total rows for the country.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "enum": [
+              "CZE",
+              "SVK"
+            ],
+            "description": "ISO country code stored in the `Country` column of `gasstations`."
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "Discount",
+              "Noname",
+              "Other",
+              "Premium",
+              "Value for money"
+            ],
+            "description": "Segment value from the `Segment` column of `gasstations`."
+          }
+        },
+        "required": [
+          "country",
+          "segment"
+        ]
+      },
+      "return_description": "{percentage: number|null} \u2014 the computed percentage (0\u2011100) or null if the country has no rows.",
+      "used_by_question_ids": [
+        1528
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_segment_with_min_consumption",
+      "description": "Return the Segment of the customer with the smallest total gas consumption. If `year_month` is provided, the calculation is limited to that month; otherwise it uses all months.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "year_month": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., 201309). If omitted, the whole dataset is considered."
+          }
+        },
+        "required": []
+      },
+      "return_description": "{\"segment\": string|null} \u2014 the segment of the lowest\u2011consuming customer, or null if no data.",
+      "used_by_question_ids": [
+        1478,
+        1496
+      ],
+      "reuse_count": 2
+    },
+    {
+      "name": "get_top_customer_by_currency_and_year",
+      "description": "Return the CustomerID of the customer who consumed the most gas in a specified year while paying with a given currency.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "CZK",
+              "EUR"
+            ],
+            "description": "Currency code stored in the `Currency` column of the `customers` table."
+          },
+          "year": {
+            "type": "integer",
+            "description": "Four\u2011digit year (e.g., 2011)."
+          }
+        },
+        "required": [
+          "currency",
+          "year"
+        ]
+      },
+      "return_description": "{customer_id: integer|null} \u2014 the CustomerID with the highest total consumption, or null if no matching rows.",
+      "used_by_question_ids": [
+        1474
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_top_customer_by_date",
+      "description": "Return the CustomerID of the customer who paid the highest total Price on a specific transaction date.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Transaction date in ISO format YYYY-MM-DD (e.g., 2012-08-25)."
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
+      "return_description": "{\"customer_id\": integer|null} \u2014 the CustomerID with the highest summed Price on the given date, or null if no rows match.",
+      "used_by_question_ids": [
+        1512
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_top_customer_by_segment_currency_and_month",
+      "description": "Return the CustomerID of the customer in a specified segment who used a given currency and had the highest total consumption in a specific year\u2011month.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column of the `customers` table."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "CZK",
+              "EUR"
+            ],
+            "description": "Currency code stored in the `Currency` column of the `customers` table."
+          },
+          "year_month": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., 201310)."
+          }
+        },
+        "required": [
+          "segment",
+          "currency",
+          "year_month"
+        ]
+      },
+      "return_description": "{\"customer_id\": integer|null} \u2014 the CustomerID with the highest summed consumption for the given filters, or null if none.",
+      "used_by_question_ids": [
+        1487
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_top_product_descriptions",
+      "description": "Return the full product descriptions of the top\u2011selling products, ordered by transaction amount descending.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of top products to return (e.g., 5)."
+          }
+        },
+        "required": [
+          "limit"
+        ]
+      },
+      "return_description": "{descriptions: [string, ...]} \u2013 list of product descriptions in rank order.",
+      "used_by_question_ids": [
+        1530
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_total_consumption_by_customer_and_date_range",
+      "description": "Total gas consumption for a specific customer between a start and end year\u2011month (inclusive).",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "integer",
+            "description": "Value of the `CustomerID` column in the `yearmonth` table."
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Start of the period, formatted as YYYYMM (e.g., 201308)."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End of the period, formatted as YYYYMM (e.g., 201311)."
+          }
+        },
+        "required": [
+          "customer_id",
+          "start_date",
+          "end_date"
+        ]
+      },
+      "return_description": "{\"total_consumption\": number|null} \u2014 summed `Consumption` for the matching rows, or null if none.",
+      "used_by_question_ids": [
+        1483
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_total_consumption_by_segment_and_month",
+      "description": "Total gas consumption for all customers of a given segment in a specific year\u2011month.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "enum": [
+              "SME",
+              "LAM",
+              "KAM"
+            ],
+            "description": "Customer segment as stored in the `Segment` column of `customers`."
+          },
+          "year_month": {
+            "type": "string",
+            "description": "Year\u2011month in YYYYMM format (e.g., 201305)."
+          }
+        },
+        "required": [
+          "segment",
+          "year_month"
+        ]
+      },
+      "return_description": "{\"total_consumption\": number|null} \u2014 summed `Consumption` for matching rows, or null if none.",
+      "used_by_question_ids": [
+        1489
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "get_year_with_max_gas_consumption_by_currency",
+      "description": "Return the four\u2011digit year (YYYY) that recorded the highest total gas consumption for a specified currency.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Currency code from the `Currency` column in the `customers` table (e.g., 'EUR', 'USD')."
+          }
+        },
+        "required": [
+          "currency"
+        ]
+      },
+      "return_description": "{year: string|null} \u2013 the year with the maximum summed `Consumption`, or null if no rows match.",
+      "used_by_question_ids": [
+        1477
+      ],
+      "reuse_count": 1
+    },
+    {
+      "name": "subtract_counts",
+      "description": "Subtract count_b from count_a and return the numeric difference.",
+      "params_schema": {
+        "type": "object",
+        "properties": {
+          "count_a": {
+            "type": "integer",
+            "description": "First count (e.g., Czech Republic)."
+          },
+          "count_b": {
+            "type": "integer",
+            "description": "Second count (e.g., Slovakia)."
+          }
+        },
+        "required": [
+          "count_a",
+          "count_b"
+        ]
+      },
+      "return_description": "{\"difference\": integer} \u2014 the result of count_a - count_b.",
+      "used_by_question_ids": [
+        1484,
+        1486
+      ],
+      "reuse_count": 2
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "db": "california_schools",
+  "emitted_at": "2026-04-29T14:24:25.532123+00:00",
+  "total_questions": 89,
+  "with_sequence": 88,
+  "without_sequence": 1,
+  "validated_passing": 79,
+  "validation_failing": 9,
+  "ignored_count": 0,
+  "keep_count": 79,
+  "discard_count": 10,
+  "pass_rate_pct": 89.8,
+  "tools_registered": 116,
+  "unique_tools_used_in_sequences": 93,
+  "tools_reused_across_questions": 0,
+  "multi_step_sequences": 5,
+  "multi_step_question_ids": [
+    8,
+    28,
+    49,
+    76,
+    81
+  ],
+  "sequence_length_distribution": {
+    "1": 83,
+    "2": 5
+  }
+}

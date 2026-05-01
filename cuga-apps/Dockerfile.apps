@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1
+# =====================================================================
+# Dockerfile.apps — cuga-apps (MCP edition) app container.
+#
+# Stage 1 ships 4 reference apps (web_researcher, paper_scout,
+# travel_planner, code_reviewer). Dependencies here reflect that lean
+# set — heavy deps (faster-whisper, docling, chromadb, boxsdk, …) will
+# come back when the corresponding stage-2 apps are ported.
+# =====================================================================
+FROM python:3.13-slim
+
+# build-essential covers any C extensions the LangChain stack may need.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.apps.txt ./
+RUN pip install --no-cache-dir -r requirements.apps.txt
+
+# Mark the container so _mcp_bridge resolves service DNS automatically.
+ENV CUGA_IN_DOCKER=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+COPY apps/ ./apps/
+
+COPY start.sh /start.sh
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /start.sh /entrypoint.sh
+
+# Secrets are mounted at /run/secrets/app.env at runtime (read-only volume in
+# docker-compose.yml). The entrypoint sources them into the process env at
+# startup so they never appear in `docker inspect` or in the image itself.
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/start.sh"]

@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowREm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowDown" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1180" fill="#fafbfc"/>
+
+  <!-- ============== TITLE ============== -->
+  <text x="800" y="42" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">DeckForge  —  Architecture &amp; Tool Surface</text>
+  <text x="800" y="72" text-anchor="middle" font-size="15" fill="#64748b">Multi-modal RAG  ·  LangGraph ReAct (CugaAgent variant ready)  ·  5 inline tools  ·  per-session isolation  ·  port 28802</text>
+
+  <!-- ============== SECTION A: MODALITIES ============== -->
+  <text x="40" y="118" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">FILE TYPES THE AGENT'S extract_and_index TOOL DISPATCHES ON  ·  transcription runs INSIDE the tool call, not as a pre-step</text>
+
+  <!-- Modality cards: 6 across (240 wide, 16 gap) -->
+  <!-- 1. PDF -->
+  <g transform="translate(40, 134)" filter="url(#shadow)">
+    <rect width="240" height="138" rx="12" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+    <rect width="240" height="40" rx="12" fill="#f59e0b"/>
+    <rect y="28" width="240" height="12" fill="#f59e0b"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#fff">PDF</text>
+    <text x="220" y="26" text-anchor="end" font-size="12" font-weight="600" fill="#fef3c7" font-family="monospace">.pdf</text>
+    <text x="20" y="64" font-size="11" font-weight="700" fill="#475569">EXTRACTOR</text>
+    <text x="20" y="84" font-size="13" font-weight="600" fill="#0f172a" font-family="monospace">pdfplumber</text>
+    <rect x="20" y="98" width="84" height="22" rx="11" fill="#fffbeb" stroke="#fde68a"/>
+    <text x="62" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#92400e">TEXT</text>
+  </g>
+
+  <!-- 2. Slides -->
+  <g transform="translate(296, 134)" filter="url(#shadow)">
+    <rect width="240" height="138" rx="12" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+    <rect width="240" height="40" rx="12" fill="#f59e0b"/>
+    <rect y="28" width="240" height="12" fill="#f59e0b"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#fff">Slides</text>
+    <text x="220" y="26" text-anchor="end" font-size="12" font-weight="600" fill="#fef3c7" font-family="monospace">.pptx · .ppt</text>
+    <text x="20" y="64" font-size="11" font-weight="700" fill="#475569">EXTRACTOR</text>
+    <text x="20" y="84" font-size="13" font-weight="600" fill="#0f172a" font-family="monospace">python-pptx</text>
+    <rect x="20" y="98" width="84" height="22" rx="11" fill="#fffbeb" stroke="#fde68a"/>
+    <text x="62" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#92400e">TEXT</text>
+  </g>
+
+  <!-- 3. Markdown -->
+  <g transform="translate(552, 134)" filter="url(#shadow)">
+    <rect width="240" height="138" rx="12" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+    <rect width="240" height="40" rx="12" fill="#f59e0b"/>
+    <rect y="28" width="240" height="12" fill="#f59e0b"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#fff">Markdown</text>
+    <text x="220" y="26" text-anchor="end" font-size="11" font-weight="600" fill="#fef3c7" font-family="monospace">.md · .markdown</text>
+    <text x="20" y="64" font-size="11" font-weight="700" fill="#475569">EXTRACTOR</text>
+    <text x="20" y="84" font-size="13" font-weight="600" fill="#0f172a" font-family="monospace">plain text</text>
+    <rect x="20" y="98" width="84" height="22" rx="11" fill="#fffbeb" stroke="#fde68a"/>
+    <text x="62" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#92400e">TEXT</text>
+  </g>
+
+  <!-- 4. Plain Text -->
+  <g transform="translate(808, 134)" filter="url(#shadow)">
+    <rect width="240" height="138" rx="12" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+    <rect width="240" height="40" rx="12" fill="#f59e0b"/>
+    <rect y="28" width="240" height="12" fill="#f59e0b"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#fff">Plain Text</text>
+    <text x="220" y="26" text-anchor="end" font-size="12" font-weight="600" fill="#fef3c7" font-family="monospace">.txt · .rst</text>
+    <text x="20" y="64" font-size="11" font-weight="700" fill="#475569">EXTRACTOR</text>
+    <text x="20" y="84" font-size="13" font-weight="600" fill="#0f172a" font-family="monospace">plain text</text>
+    <rect x="20" y="98" width="84" height="22" rx="11" fill="#fffbeb" stroke="#fde68a"/>
+    <text x="62" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#92400e">TEXT</text>
+  </g>
+
+  <!-- 5. Audio -->
+  <g transform="translate(1064, 134)" filter="url(#shadow)">
+    <rect width="240" height="138" rx="12" fill="#fff" stroke="#f43f5e" stroke-width="1.5"/>
+    <rect width="240" height="40" rx="12" fill="#f43f5e"/>
+    <rect y="28" width="240" height="12" fill="#f43f5e"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#fff">Audio</text>
+    <text x="220" y="26" text-anchor="end" font-size="11" font-weight="600" fill="#ffe4e6" font-family="monospace">.mp3 · .wav · .m4a</text>
+    <text x="20" y="64" font-size="11" font-weight="700" fill="#475569">EXTRACTOR</text>
+    <text x="20" y="84" font-size="13" font-weight="600" fill="#0f172a" font-family="monospace">faster-whisper</text>
+    <rect x="20" y="98" width="116" height="22" rx="11" fill="#fff1f2" stroke="#fecdd3"/>
+    <text x="78" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#9f1239">TRANSCRIBE</text>
+  </g>
+
+  <!-- 6. Video -->
+  <g transform="translate(1320, 134)" filter="url(#shadow)">
+    <rect width="240" height="138" rx="12" fill="#fff" stroke="#f43f5e" stroke-width="1.5"/>
+    <rect width="240" height="40" rx="12" fill="#f43f5e"/>
+    <rect y="28" width="240" height="12" fill="#f43f5e"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#fff">Video</text>
+    <text x="220" y="26" text-anchor="end" font-size="11" font-weight="600" fill="#ffe4e6" font-family="monospace">.mp4 · .webm · .mov</text>
+    <text x="20" y="64" font-size="11" font-weight="700" fill="#475569">EXTRACTOR</text>
+    <text x="20" y="84" font-size="13" font-weight="600" fill="#0f172a" font-family="monospace">faster-whisper</text>
+    <text x="20" y="100" font-size="10" fill="#64748b" font-style="italic">audio track only</text>
+    <rect x="20" y="108" width="116" height="20" rx="10" fill="#fff1f2" stroke="#fecdd3"/>
+    <text x="78" y="121" text-anchor="middle" font-size="10.5" font-weight="700" fill="#9f1239">TRANSCRIBE</text>
+  </g>
+
+  <!-- Annotation: the agent calls extract_and_index per file; that call does the extraction/transcription -->
+  <text x="800" y="298" text-anchor="middle" font-size="12" fill="#0f172a">↓  each file becomes a parameter to the agent's <tspan font-family="monospace" font-weight="700" fill="#1e1b4b">extract_and_index(filepath)</tspan> tool call  ·  Whisper runs inside that call</text>
+
+  <!-- ============== SECTION B: ARCHITECTURE ============== -->
+  <text x="40" y="328" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">PIPELINE  ·  HTTP API  →  PER-SESSION STATE  →  LANGGRAPH AGENT  →  RAG &amp; SLIDE BUILD  →  OUTPUTS</text>
+
+  <!-- LEFT COLUMN: HTTP API + Session -->
+  <g transform="translate(40, 348)" filter="url(#shadow)">
+    <rect width="380" height="380" rx="14" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <rect width="380" height="42" rx="14" fill="#475569"/>
+    <rect y="30" width="380" height="12" fill="#475569"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#fff">HTTP / Session  ·  main.py</text>
+
+    <!-- API endpoints -->
+    <g transform="translate(16, 58)">
+      <rect width="348" height="34" rx="8" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="12" font-family="monospace" fill="#0f172a"><tspan font-weight="700" fill="#065f46">POST</tspan> /api/generate</text>
+      <text x="340" y="22" text-anchor="end" font-size="10.5" fill="#64748b" font-style="italic">folder + topic</text>
+    </g>
+    <g transform="translate(16, 100)">
+      <rect width="348" height="34" rx="8" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="12" font-family="monospace" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">GET</tspan> /api/stream/{id}</text>
+      <text x="340" y="22" text-anchor="end" font-size="10.5" fill="#64748b" font-style="italic">SSE progress</text>
+    </g>
+    <g transform="translate(16, 142)">
+      <rect width="348" height="34" rx="8" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="12" font-family="monospace" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">GET</tspan> /api/download/{id}</text>
+      <text x="340" y="22" text-anchor="end" font-size="10.5" fill="#64748b" font-style="italic">pptx · md</text>
+    </g>
+
+    <!-- Session box -->
+    <g transform="translate(16, 192)">
+      <rect width="348" height="170" rx="10" fill="#fff" stroke="#475569" stroke-width="1.5"/>
+      <text x="12" y="22" font-size="12" font-weight="700" fill="#0f172a">DeckForgeSession  ·  per-request state</text>
+      <text x="12" y="38" font-size="10.5" fill="#64748b" font-style="italic">isolated KB, queue, slides — runs concurrent safely</text>
+      <line x1="12" y1="48" x2="336" y2="48" stroke="#e2e8f0"/>
+
+      <g transform="translate(12, 60)">
+        <rect width="324" height="30" rx="6" fill="#f5f3ff" stroke="#ddd6fe"/>
+        <text x="10" y="20" font-size="11.5" font-family="monospace" fill="#3b0764"><tspan font-weight="700">kb</tspan>     KnowledgeBase (ChromaDB · in-memory)</text>
+      </g>
+      <g transform="translate(12, 96)">
+        <rect width="324" height="30" rx="6" fill="#eef2ff" stroke="#c7d2fe"/>
+        <text x="10" y="20" font-size="11.5" font-family="monospace" fill="#1e1b4b"><tspan font-weight="700">slides</tspan> list[Slide] · accumulated by add_slide</text>
+      </g>
+      <g transform="translate(12, 132)">
+        <rect width="324" height="30" rx="6" fill="#ecfeff" stroke="#a5f3fc"/>
+        <text x="10" y="20" font-size="11.5" font-family="monospace" fill="#0c4a6e"><tspan font-weight="700">queue</tspan>  asyncio.Queue → SSE events</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrow LEFT → CENTER -->
+  <line x1="424" y1="540" x2="455" y2="540" stroke="#10b981" stroke-width="2" marker-end="url(#arrowREm)"/>
+  <text x="440" y="532" text-anchor="middle" font-size="10" fill="#065f46" font-style="italic">create_task</text>
+
+  <!-- CENTER COLUMN: Agent + Tools -->
+  <g transform="translate(458, 348)" filter="url(#shadow)">
+    <rect width="700" height="380" rx="14" fill="#ecfdf5" stroke="#a7f3d0"/>
+    <rect width="700" height="42" rx="14" fill="#10b981"/>
+    <rect y="30" width="700" height="12" fill="#10b981"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#fff">Agent  ·  agent.py</text>
+    <text x="680" y="28" text-anchor="end" font-size="11" fill="#d1fae5" font-style="italic">LangGraph ReAct  (CugaAgent variant: build_cuga_agent)</text>
+
+    <!-- System prompt note -->
+    <g transform="translate(16, 56)">
+      <rect width="668" height="44" rx="8" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+      <text x="14" y="20" font-size="12" font-weight="700" fill="#065f46">_SYSTEM</text>
+      <text x="80" y="20" font-size="11.5" fill="#475569" font-style="italic">"6-step process: DISCOVER → INGEST → ASSESS → STRUCTURE → BUILD → FINALIZE"</text>
+      <text x="14" y="36" font-size="10.5" fill="#64748b">Hard rules: title ≤6 words · 2–4 speaker-note sentences · synthesise across sources, never repeat.</text>
+    </g>
+
+    <!-- Tools header -->
+    <text x="16" y="124" font-size="11" font-weight="700" fill="#065f46" letter-spacing="0.06em">5 INLINE @tool DEFS  ·  closed over the session</text>
+
+    <!-- 5 tool cards in a 2-col grid (3 + 2) -->
+    <g transform="translate(16, 138)">
+      <rect width="218" height="60" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="14" y="22" font-size="12.5" font-weight="700" fill="#1e1b4b" font-family="monospace">list_directory</text>
+      <text x="14" y="40" font-size="10.5" fill="#475569">classify all files in dir,</text>
+      <text x="14" y="54" font-size="10.5" fill="#475569">return manifest by type</text>
+    </g>
+    <g transform="translate(244, 138)">
+      <rect width="218" height="60" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="14" y="22" font-size="12.5" font-weight="700" fill="#1e1b4b" font-family="monospace">extract_and_index</text>
+      <text x="14" y="40" font-size="10.5" fill="#475569">extract / Whisper-transcribe</text>
+      <text x="14" y="54" font-size="10.5" fill="#475569">→ chunk → embed → kb</text>
+    </g>
+    <g transform="translate(472, 138)">
+      <rect width="212" height="60" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="14" y="22" font-size="12.5" font-weight="700" fill="#1e1b4b" font-family="monospace">search_knowledge_base</text>
+      <text x="14" y="40" font-size="10.5" fill="#475569">semantic search over</text>
+      <text x="14" y="54" font-size="10.5" fill="#475569">all indexed text · top-k</text>
+    </g>
+
+    <g transform="translate(16, 208)">
+      <rect width="218" height="60" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="14" y="22" font-size="12.5" font-weight="700" fill="#1e1b4b" font-family="monospace">add_slide</text>
+      <text x="14" y="40" font-size="10.5" fill="#475569">title · bullets · speaker</text>
+      <text x="14" y="54" font-size="10.5" fill="#475569">notes → session.slides</text>
+    </g>
+    <g transform="translate(244, 208)">
+      <rect width="218" height="60" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="14" y="22" font-size="12.5" font-weight="700" fill="#1e1b4b" font-family="monospace">finalize</text>
+      <text x="14" y="40" font-size="10.5" fill="#475569">deck_writer.py builds</text>
+      <text x="14" y="54" font-size="10.5" fill="#475569">PPTX + MD on disk</text>
+    </g>
+
+    <!-- Loop badge -->
+    <g transform="translate(472, 208)">
+      <rect width="212" height="60" rx="8" fill="#312e81"/>
+      <text x="106" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#fde68a">↻ ReAct loop</text>
+      <text x="106" y="40" text-anchor="middle" font-size="10.5" fill="#c7d2fe">LLM picks tool · sees obs ·</text>
+      <text x="106" y="54" text-anchor="middle" font-size="10.5" fill="#c7d2fe">picks next · until FINALIZE</text>
+    </g>
+
+    <!-- Stream events note -->
+    <g transform="translate(16, 282)">
+      <rect width="668" height="78" rx="8" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+      <text x="14" y="22" font-size="12" font-weight="700" fill="#0c4a6e">Progress events  →  session.queue  →  SSE stream</text>
+      <text x="14" y="42" font-size="10.5" fill="#475569" font-family="monospace">{type: "directory_scanned"|"extracting"|"indexed"|"search"|"slide_added"|"done", ...}</text>
+      <text x="14" y="60" font-size="10.5" fill="#64748b" font-style="italic">UI consumes these to render live progress: file-by-file extraction, chunk counts, slides as they're built.</text>
+    </g>
+  </g>
+
+  <!-- Arrow CENTER → RIGHT -->
+  <line x1="1162" y1="540" x2="1193" y2="540" stroke="#10b981" stroke-width="2" marker-end="url(#arrowREm)"/>
+
+  <!-- RIGHT COLUMN: RAG + Outputs -->
+  <g transform="translate(1196, 348)" filter="url(#shadow)">
+    <rect width="364" height="380" rx="14" fill="#f5f3ff" stroke="#ddd6fe"/>
+    <rect width="364" height="42" rx="14" fill="#8b5cf6"/>
+    <rect y="30" width="364" height="12" fill="#8b5cf6"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#fff">RAG &amp; Outputs</text>
+
+    <!-- RAG pipeline header -->
+    <text x="16" y="68" font-size="11" font-weight="700" fill="#3b0764" letter-spacing="0.06em">RAG STACK  ·  rag.py + extractors.py</text>
+
+    <g transform="translate(16, 78)">
+      <rect width="332" height="34" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="11.5" font-family="monospace" fill="#1e1b4b"><tspan font-weight="700" fill="#5b21b6">1.</tspan> extract / transcribe  →  raw text</text>
+    </g>
+    <g transform="translate(16, 116)">
+      <rect width="332" height="34" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="11.5" font-family="monospace" fill="#1e1b4b"><tspan font-weight="700" fill="#5b21b6">2.</tspan> chunk  ·  400 words · 80 overlap</text>
+    </g>
+    <g transform="translate(16, 154)">
+      <rect width="332" height="34" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="11.5" font-family="monospace" fill="#1e1b4b"><tspan font-weight="700" fill="#5b21b6">3.</tspan> embed  ·  all-MiniLM-L6-v2</text>
+    </g>
+    <g transform="translate(16, 192)">
+      <rect width="332" height="34" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="11.5" font-family="monospace" fill="#1e1b4b"><tspan font-weight="700" fill="#5b21b6">4.</tspan> store  ·  ChromaDB (in-memory)</text>
+    </g>
+    <g transform="translate(16, 230)">
+      <rect width="332" height="34" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="1.2"/>
+      <text x="12" y="22" font-size="11.5" font-family="monospace" fill="#1e1b4b"><tspan font-weight="700" fill="#5b21b6">5.</tspan> retrieve  ·  top-k by cosine</text>
+    </g>
+
+    <!-- Outputs header -->
+    <text x="16" y="290" font-size="11" font-weight="700" fill="#065f46" letter-spacing="0.06em">OUTPUTS  ·  outputs/{session_id}/</text>
+
+    <g transform="translate(16, 300)">
+      <rect width="332" height="32" rx="8" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+      <text x="12" y="22" font-size="12" font-family="monospace" fill="#0f172a"><tspan font-weight="700" fill="#065f46">deck.pptx</tspan>   16:9 widescreen · navy theme</text>
+    </g>
+    <g transform="translate(16, 338)">
+      <rect width="332" height="32" rx="8" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+      <text x="12" y="22" font-size="12" font-family="monospace" fill="#0f172a"><tspan font-weight="700" fill="#065f46">deck.md</tspan>     structured Markdown</text>
+    </g>
+  </g>
+
+  <!-- ============== SECTION C: 6-STEP TIMELINE ============== -->
+  <text x="40" y="772" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">AGENT'S 6-STEP PROCESS  ·  encoded in the system prompt</text>
+
+  <!-- Step cards: 6 across, 240 wide, 16 gap -->
+  <!-- 1. DISCOVER -->
+  <g transform="translate(40, 794)" filter="url(#shadow)">
+    <rect width="240" height="170" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="240" height="36" rx="12" fill="#10b981"/>
+    <rect y="24" width="240" height="12" fill="#10b981"/>
+    <circle cx="22" cy="18" r="11" fill="#fff"/>
+    <text x="22" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#10b981">1</text>
+    <text x="40" y="22" font-size="13" font-weight="700" fill="#fff">DISCOVER</text>
+    <text x="20" y="62" font-size="11" font-weight="700" fill="#94a3b8">TOOL</text>
+    <text x="20" y="82" font-size="13" font-weight="600" fill="#1e1b4b" font-family="monospace">list_directory</text>
+    <text x="20" y="108" font-size="11" font-weight="700" fill="#94a3b8">DOES</text>
+    <text x="20" y="126" font-size="11" fill="#475569">List + classify all files</text>
+    <text x="20" y="142" font-size="11" fill="#475569">in the input folder</text>
+    <text x="20" y="158" font-size="11" fill="#475569">(skip unsupported types)</text>
+  </g>
+
+  <!-- 2. INGEST -->
+  <g transform="translate(296, 794)" filter="url(#shadow)">
+    <rect width="240" height="170" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="240" height="36" rx="12" fill="#10b981"/>
+    <rect y="24" width="240" height="12" fill="#10b981"/>
+    <circle cx="22" cy="18" r="11" fill="#fff"/>
+    <text x="22" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#10b981">2</text>
+    <text x="40" y="22" font-size="13" font-weight="700" fill="#fff">INGEST</text>
+    <text x="20" y="62" font-size="11" font-weight="700" fill="#94a3b8">TOOL</text>
+    <text x="20" y="82" font-size="13" font-weight="600" fill="#1e1b4b" font-family="monospace">extract_and_index</text>
+    <text x="20" y="108" font-size="11" font-weight="700" fill="#94a3b8">DOES</text>
+    <text x="20" y="126" font-size="11" fill="#475569">Extract text per file,</text>
+    <text x="20" y="142" font-size="11" fill="#475569">chunk + embed, add</text>
+    <text x="20" y="158" font-size="11" fill="#475569">to session knowledge base</text>
+  </g>
+
+  <!-- 3. ASSESS -->
+  <g transform="translate(552, 794)" filter="url(#shadow)">
+    <rect width="240" height="170" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="240" height="36" rx="12" fill="#10b981"/>
+    <rect y="24" width="240" height="12" fill="#10b981"/>
+    <circle cx="22" cy="18" r="11" fill="#fff"/>
+    <text x="22" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#10b981">3</text>
+    <text x="40" y="22" font-size="13" font-weight="700" fill="#fff">ASSESS</text>
+    <text x="20" y="62" font-size="11" font-weight="700" fill="#94a3b8">TOOL</text>
+    <text x="20" y="82" font-size="13" font-weight="600" fill="#1e1b4b" font-family="monospace">search_knowledge_base</text>
+    <text x="20" y="108" font-size="11" font-weight="700" fill="#94a3b8">DOES</text>
+    <text x="20" y="126" font-size="11" fill="#475569">Broad searches to gauge</text>
+    <text x="20" y="142" font-size="11" fill="#475569">what content exists vs.</text>
+    <text x="20" y="158" font-size="11" fill="#475569">what's missing</text>
+  </g>
+
+  <!-- 4. STRUCTURE -->
+  <g transform="translate(808, 794)" filter="url(#shadow)">
+    <rect width="240" height="170" rx="12" fill="#fff" stroke="#312e81" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <rect width="240" height="36" rx="12" fill="#312e81"/>
+    <rect y="24" width="240" height="12" fill="#312e81"/>
+    <circle cx="22" cy="18" r="11" fill="#fff"/>
+    <text x="22" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#312e81">4</text>
+    <text x="40" y="22" font-size="13" font-weight="700" fill="#fff">STRUCTURE</text>
+    <text x="20" y="62" font-size="11" font-weight="700" fill="#94a3b8">TOOL</text>
+    <text x="20" y="82" font-size="13" font-weight="600" fill="#312e81" font-style="italic">— pure reasoning —</text>
+    <text x="20" y="108" font-size="11" font-weight="700" fill="#94a3b8">DOES</text>
+    <text x="20" y="126" font-size="11" fill="#475569">Plan narrative arc</text>
+    <text x="20" y="142" font-size="11" fill="#475569">in-context: section count,</text>
+    <text x="20" y="158" font-size="11" fill="#475569">titles, ordering</text>
+  </g>
+
+  <!-- 5. BUILD -->
+  <g transform="translate(1064, 794)" filter="url(#shadow)">
+    <rect width="240" height="170" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="240" height="36" rx="12" fill="#10b981"/>
+    <rect y="24" width="240" height="12" fill="#10b981"/>
+    <circle cx="22" cy="18" r="11" fill="#fff"/>
+    <text x="22" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#10b981">5</text>
+    <text x="40" y="22" font-size="13" font-weight="700" fill="#fff">BUILD</text>
+    <text x="20" y="62" font-size="11" font-weight="700" fill="#94a3b8">TOOLS</text>
+    <text x="20" y="82" font-size="12.5" font-weight="600" fill="#1e1b4b" font-family="monospace">search_kb + add_slide</text>
+    <text x="20" y="108" font-size="11" font-weight="700" fill="#94a3b8">DOES</text>
+    <text x="20" y="126" font-size="11" fill="#475569">Per slide: focused query,</text>
+    <text x="20" y="142" font-size="11" fill="#475569">draft 4–6 bullets + speaker</text>
+    <text x="20" y="158" font-size="11" fill="#475569">notes citing sources</text>
+  </g>
+
+  <!-- 6. FINALIZE -->
+  <g transform="translate(1320, 794)" filter="url(#shadow)">
+    <rect width="240" height="170" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="240" height="36" rx="12" fill="#10b981"/>
+    <rect y="24" width="240" height="12" fill="#10b981"/>
+    <circle cx="22" cy="18" r="11" fill="#fff"/>
+    <text x="22" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#10b981">6</text>
+    <text x="40" y="22" font-size="13" font-weight="700" fill="#fff">FINALIZE</text>
+    <text x="20" y="62" font-size="11" font-weight="700" fill="#94a3b8">TOOL</text>
+    <text x="20" y="82" font-size="13" font-weight="600" fill="#1e1b4b" font-family="monospace">finalize</text>
+    <text x="20" y="108" font-size="11" font-weight="700" fill="#94a3b8">DOES</text>
+    <text x="20" y="126" font-size="11" fill="#475569">Render PPTX (16:9 navy)</text>
+    <text x="20" y="142" font-size="11" fill="#475569">+ Markdown to disk,</text>
+    <text x="20" y="158" font-size="11" fill="#475569">stream "done" event</text>
+  </g>
+
+  <!-- Step arrows between cards -->
+  <g stroke="#10b981" stroke-width="1.5" fill="none">
+    <line x1="280" y1="879" x2="296" y2="879" marker-end="url(#arrowREm)"/>
+    <line x1="536" y1="879" x2="552" y2="879" marker-end="url(#arrowREm)"/>
+    <line x1="792" y1="879" x2="808" y2="879" marker-end="url(#arrowREm)"/>
+    <line x1="1048" y1="879" x2="1064" y2="879" marker-end="url(#arrowREm)"/>
+    <line x1="1304" y1="879" x2="1320" y2="879" marker-end="url(#arrowREm)"/>
+  </g>
+
+  <!-- ============== FOOTER PANEL ============== -->
+  <g transform="translate(40, 994)" filter="url(#shadow)">
+    <rect width="1520" height="146" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="32" font-size="14" font-weight="700" fill="#0f172a">Why DeckForge looks different from the other 23 apps</text>
+
+    <g transform="translate(20, 50)">
+      <rect width="368" height="80" rx="10" fill="#ecfdf5"/>
+      <text x="14" y="22" font-size="12" font-weight="700" fill="#065f46">No MCP servers — by design</text>
+      <text x="14" y="40" font-size="11" fill="#475569">All 5 tools touch session state (the KB,</text>
+      <text x="14" y="55" font-size="11" fill="#475569">slide list, queue). MCP tools must be</text>
+      <text x="14" y="70" font-size="11" fill="#475569">stateless — these can't migrate.</text>
+    </g>
+    <g transform="translate(408, 50)">
+      <rect width="368" height="80" rx="10" fill="#fff1f2"/>
+      <text x="14" y="22" font-size="12" font-weight="700" fill="#9f1239">Transcription is in-agent, not pre-baked</text>
+      <text x="14" y="40" font-size="11" fill="#475569">Whisper fires inside extract_and_index</text>
+      <text x="14" y="55" font-size="11" fill="#475569">when the agent picks an audio/video file —</text>
+      <text x="14" y="70" font-size="11" fill="#475569">the LLM decides what's worth transcribing.</text>
+    </g>
+    <g transform="translate(796, 50)">
+      <rect width="368" height="80" rx="10" fill="#f5f3ff"/>
+      <text x="14" y="22" font-size="12" font-weight="700" fill="#3b0764">Per-session isolation</text>
+      <text x="14" y="40" font-size="11" fill="#475569">DeckForgeSession owns its KB + queue +</text>
+      <text x="14" y="55" font-size="11" fill="#475569">slides. Two users generating decks at</text>
+      <text x="14" y="70" font-size="11" fill="#475569">once never share state.</text>
+    </g>
+    <g transform="translate(1184, 50)">
+      <rect width="316" height="80" rx="10" fill="#eef2ff"/>
+      <text x="14" y="22" font-size="12" font-weight="700" fill="#1e1b4b">Agent owns content decisions</text>
+      <text x="14" y="40" font-size="11" fill="#475569">App is thin: HTTP + SSE only.</text>
+      <text x="14" y="55" font-size="11" fill="#475569">Slide count, narrative, dedup — all</text>
+      <text x="14" y="70" font-size="11" fill="#475569">decided by the LLM in the ReAct loop.</text>
+    </g>
+  </g>
+</svg>

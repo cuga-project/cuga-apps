@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+pdfplumber
+python-pptx
+chromadb
+sentence-transformers
+langchain-core
+langgraph
+faster-whisper
+httpx

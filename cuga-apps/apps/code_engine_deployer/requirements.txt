@@ -1,0 +1,48 @@
+# Slim local-only requirements for the Code Engine Deployer.
+#
+# The deployer is run from a workstation (not inside the apps container)
+# because it shells out to host `ibmcloud` and `docker`. This file pins
+# only what the deployer process needs — cuga + FastAPI + the LLM provider
+# you actually use — not the rest of the cuga-apps stack.
+#
+# ── Verified working ───────────────────────────────────────────────────
+# Tested 2026-04-29 with Python 3.11.13 on RHEL 9. Boots in ~16s, hits
+# /health and /classify cleanly. cuga resolved to 0.2.26 with langchain
+# 1.2.16 + langchain-ibm 1.0.7 (all from public PyPI).
+#
+# ── Python version matters ─────────────────────────────────────────────
+# cuga supports Python 3.10 / 3.11 / 3.12 / 3.13.
+# Do NOT use Python 3.14 — many of cuga's transitive deps (numpy/pandas/
+# torch/etc.) don't ship 3.14 wheels yet, so pip falls back to building
+# from source and dies on machines without a C compiler.
+#
+# ── Install ────────────────────────────────────────────────────────────
+#
+#   cd /path/to/agent-apps/cuga-apps
+#   python3.11 -m venv .venv_cuga_deployer
+#   source .venv_cuga_deployer/bin/activate
+#   pip install --upgrade pip
+#   pip install -r apps/code_engine_deployer/requirements.txt
+#
+# Then:
+#   cd apps/code_engine_deployer
+#   python main.py --port 28818
+#   # open http://127.0.0.1:28818
+
+# ── Agent framework (cuga pulls langchain, langchain-ibm, langgraph, …) ─
+cuga
+
+# ── LLM providers — pick the one(s) you actually use ─────────────────────
+# cuga's transitive deps include langchain-openai, langchain-ibm,
+# langchain-ollama, langchain-groq, and langchain-litellm. langchain-anthropic
+# is NOT a cuga transitive dep, so add it explicitly if you use Claude:
+langchain-anthropic
+
+# ── Web ──────────────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# ── Compose parser ──────────────────────────────────────────────────────
+pyyaml

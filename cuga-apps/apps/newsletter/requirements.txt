@@ -1,0 +1,12 @@
+# newsletter_new — app dependencies
+
+# cuga framework
+git+ssh://git@github.com/cuga-project/cuga-agent.git@main
+langchain-core
+
+# RSS feed parsing
+feedparser
+
+# web UI
+fastapi
+uvicorn

@@ -1,0 +1,170 @@
+# Phase 4 — curated browser task templates.
+#
+# Each entry is a self-contained browser_task. Toolsmith matches gaps
+# against these the same way OpenAPISource matches against spec_index.
+# When a match is approved, the entire `steps` list is persisted as the
+# artifact's tool body (no Python codegen — the DSL is the code).
+#
+# Schema:
+#   id            stable string
+#   name          display name
+#   description   what the task does
+#   capabilities  short phrases used by the matcher
+#   parameters    {name: {type, required, description}} — what the user provides
+#   secrets       which provider profiles need to be active
+#   steps         the DSL list (see browser_runner/README.md)
+
+tasks:
+
+  - id: hn_top_stories
+    name: Hacker News top stories
+    description: Scrape the top N Hacker News stories from news.ycombinator.com.
+    capabilities:
+      - hacker news
+      - hn top stories
+      - read tech news
+      - what's hot on hn
+    parameters:
+      n:
+        type: integer
+        required: false
+        default: 5
+        description: How many stories to return (max 30).
+    secrets: []
+    steps:
+      - go_to: https://news.ycombinator.com
+      - wait_for_selector: tr.athing
+      - extract_text:
+          selector: "tr.athing td.title:nth-of-type(2)"
+          as: top_titles
+
+  - id: wikipedia_search
+    name: Wikipedia search via website
+    description: Use Wikipedia's website search (no API key) to find article URLs.
+    capabilities:
+      - wikipedia website search
+      - search wikipedia browser
+    parameters:
+      query:
+        type: string
+        required: true
+        description: Search term.
+    secrets: []
+    steps:
+      - go_to: "https://en.wikipedia.org/wiki/Special:Search?search=${query}"
+      - wait_for_selector: ul.mw-search-results, .mw-parser-output
+      - extract_text:
+          selector: ".mw-parser-output p, ul.mw-search-results"
+          as: result_summary
+
+  - id: github_repo_about
+    name: GitHub repo About scraper
+    description: Fetch the About text and star count from a public GitHub repo
+      WITHOUT needing a GitHub token (works for any public repo).
+    capabilities:
+      - github repo about
+      - read github description without token
+      - public github repo info
+    parameters:
+      owner:
+        type: string
+        required: true
+        description: Repo owner / organization.
+      repo:
+        type: string
+        required: true
+        description: Repo name.
+    secrets: []
+    steps:
+      - go_to: "https://github.com/${owner}/${repo}"
+      - wait_for_selector: 'h1, [data-testid="repository-name"], .container'
+      - extract_text:
+          selector: 'p.f4'
+          as: about
+      - extract_text:
+          selector: '#repo-stars-counter-star, a[href$="/stargazers"]'
+          as: stars
+
+  - id: school_portal_grades
+    name: School portal grades (template)
+    description: Template for "log in to my kid's school portal and read the
+      latest grades." Site-specific — clone this and adjust selectors per portal.
+      Demonstrates the auth + extract pattern.
+    capabilities:
+      - school portal grades
+      - check kids grades
+      - powerschool grades
+      - infinite campus grades
+    parameters: {}
+    secrets:
+      - school_portal_username
+      - school_portal_password
+    steps:
+      - go_to: https://example.school.example.com/login
+      - fill_field:
+          selector: 'input[name="username"]'
+          value: "${school_portal_username}"
+      - fill_field:
+          selector: 'input[name="password"]'
+          value: "${school_portal_password}"
+      - click_selector: 'button[type="submit"]'
+      - wait_for_selector: '.dashboard, .grades, [data-test="grades"]'
+      - extract_text:
+          selector: ".grades-table, [data-test=grades]"
+          as: latest_grades
+
+  - id: utility_bill_lookup
+    name: Utility bill lookup (template)
+    description: Template for "log in to my utility company website and read
+      the current balance." Each utility has its own selectors; clone and edit.
+    capabilities:
+      - utility bill amount
+      - electricity balance
+      - what do i owe utility
+    parameters: {}
+    secrets:
+      - utility_username
+      - utility_password
+    steps:
+      - go_to: https://example-utility.example.com/login
+      - fill_field:
+          selector: '#username'
+          value: "${utility_username}"
+      - fill_field:
+          selector: '#password'
+          value: "${utility_password}"
+      - click_selector: 'button[type=submit]'
+      - wait_for_selector: '.account-balance, [data-test=balance]'
+      - extract_text:
+          selector: '.account-balance, [data-test=balance]'
+          as: current_balance
+      - extract_text:
+          selector: '.due-date, [data-test=due-date]'
+          as: due_date
+
+  - id: form_submit_with_confirm
+    name: Confirmable form submission (template)
+    description: Template showing the user_confirm pattern — fills a form,
+      pauses for human approval before submitting. Use for any "place an order"
+      or "send" action you don't want to fire automatically.
+    capabilities:
+      - submit a form with my approval
+      - place order template
+      - confirmable action
+    parameters:
+      url:
+        type: string
+        required: true
+      form_selector:
+        type: string
+        required: false
+        default: "form"
+    secrets: []
+    steps:
+      - go_to: "${url}"
+      - wait_for_selector: "${form_selector}"
+      - user_confirm: "Review the form contents on the page and approve before I submit."
+      - click_selector: "button[type=submit]"
+      - extract_text:
+          selector: "body"
+          as: confirmation_page

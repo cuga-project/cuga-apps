@@ -1,0 +1,18 @@
+# Chief of Staff configuration. Copy to config.yaml or set as env vars.
+#
+# Backend listens here:
+backend:
+  host: 0.0.0.0
+  port: 8765
+
+# Frontend dev server:
+frontend:
+  port: 5174
+
+# Pluggable agent backend. Selected by CHIEF_OF_STAFF_AGENT env var.
+# Currently supported: "cuga". Add more by implementing AgentClient.
+agent:
+  name: cuga
+  cuga:
+    # URL of an out-of-process cuga agent. Override via CUGA_URL.
+    url: http://localhost:8000

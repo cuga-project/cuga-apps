@@ -1,0 +1,3 @@
+fastapi
+uvicorn[standard]
+git+ssh://git@github.com/cuga-project/cuga-agent.git@main

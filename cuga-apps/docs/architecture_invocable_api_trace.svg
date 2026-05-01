@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1200" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="28" font-weight="700" fill="#0f172a">Invocable API Synthesis  ·  Trace for Bird qid 28  ·  california_schools</text>
+  <text x="800" y="70" text-anchor="middle" font-size="14" fill="#64748b">13 MCP tool calls  ·  5 phases  ·  ends with a validated 2-step sequence + 2 registered tools</text>
+
+  <!-- ============== INPUT PANEL ============== -->
+  <g transform="translate(40, 90)" filter="url(#shadow)">
+    <rect width="1520" height="200" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="1520" height="36" rx="14" fill="#0f172a"/>
+    <rect y="24" width="1520" height="12" fill="#0f172a"/>
+    <text x="20" y="24" font-size="13" font-weight="700" fill="#fff">INPUT  ·  one Bird record</text>
+    <text x="1500" y="24" text-anchor="end" font-size="11" fill="#94a3b8" font-style="italic">db = california_schools, qid = 28, difficulty = challenging</text>
+
+    <!-- NL question -->
+    <text x="20" y="60" font-size="11" font-weight="700" fill="#475569" letter-spacing="0.06em">NATURAL-LANGUAGE QUESTION</text>
+    <text x="20" y="84" font-size="13" fill="#0f172a">"Consider the average difference between K-12 enrollment and 15-17 enrollment of schools that are locally funded,</text>
+    <text x="20" y="102" font-size="13" fill="#0f172a">list the names and DOC type of schools which has a difference above this average."</text>
+
+    <!-- Gold SQL -->
+    <text x="20" y="130" font-size="11" font-weight="700" fill="#475569" letter-spacing="0.06em">GOLD SQL  ·  has a SUBQUERY in WHERE  →  decomposition signal</text>
+    <rect x="20" y="138" width="1100" height="50" rx="6" fill="#0f172a"/>
+    <text x="32" y="156" font-size="11" font-family="monospace" fill="#cbd5e1">SELECT T2.School, T2.DOC FROM frpm T1 INNER JOIN schools T2 ON T1.CDSCode = T2.CDSCode</text>
+    <text x="32" y="170" font-size="11" font-family="monospace" fill="#cbd5e1">WHERE T2.FundingType = 'Locally funded' AND (T1.`Enrollment (K-12)` - T1.`Enrollment (Ages 5-17)`)</text>
+    <text x="32" y="184" font-size="11" font-family="monospace" fill="#fde68a">      &gt; (SELECT AVG(T3.`Enrollment (K-12)` - T3.`Enrollment (Ages 5-17)`) FROM frpm T3 ... WHERE T4.FundingType = 'Locally funded')</text>
+
+    <!-- Gold result + decomposition badge -->
+    <g transform="translate(1140, 138)">
+      <rect width="360" height="50" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+      <text x="14" y="20" font-size="11" font-weight="700" fill="#78350f">GOLD RESULT</text>
+      <text x="14" y="38" font-size="12" fill="#78350f"><tspan font-weight="700">57 rows</tspan> of (School, DOC)  ·  the oracle</text>
+    </g>
+  </g>
+
+  <!-- ============== PHASES BANNER LEGEND ============== -->
+  <g transform="translate(40, 304)">
+    <text x="0" y="0" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">TOOL-CALL TRACE  ·  color = MCP tool family</text>
+    <g transform="translate(360, -10)">
+      <rect width="14" height="14" rx="3" fill="#0ea5e9"/>
+      <text x="20" y="11" font-size="11" fill="#475569"><tspan font-weight="600">db_*</tspan> / <tspan font-weight="600">bird_*</tspan>  read-only inspection</text>
+    </g>
+    <g transform="translate(640, -10)">
+      <rect width="14" height="14" rx="3" fill="#8b5cf6"/>
+      <text x="20" y="11" font-size="11" fill="#475569"><tspan font-weight="600">tool_register</tspan>  mutation</text>
+    </g>
+    <g transform="translate(900, -10)">
+      <rect width="14" height="14" rx="3" fill="#10b981"/>
+      <text x="20" y="11" font-size="11" fill="#475569"><tspan font-weight="600">tool_call</tspan> / <tspan font-weight="600">tool_list</tspan>  execution</text>
+    </g>
+    <g transform="translate(1200, -10)">
+      <rect width="14" height="14" rx="3" fill="#f59e0b"/>
+      <text x="20" y="11" font-size="11" fill="#475569"><tspan font-weight="600">seq_*</tspan>  sequence + validation</text>
+    </g>
+  </g>
+
+  <!-- ============== PHASE 1: ORIENT (7 steps) ============== -->
+  <g transform="translate(40, 320)">
+    <rect width="1520" height="28" rx="6" fill="#0f172a"/>
+    <text x="14" y="19" font-size="12" font-weight="700" fill="#fff">PHASE 1  ·  ORIENT  ·  read schema, oracle, value vocabularies — no hallucinated columns</text>
+    <text x="1506" y="19" text-anchor="end" font-size="11" fill="#94a3b8">7 steps</text>
+  </g>
+
+  <!-- 7 step cards: 200w + 20 gap -->
+  <g transform="translate(40, 358)">
+    <g filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#0ea5e9"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">1</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#0c4a6e" font-family="monospace">bird_get_question</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">args: db, qid=28</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#0c4a6e">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569">NL + evidence + gold</text>
+      <text x="26" y="88" font-size="10" fill="#475569">SQL + difficulty</text>
+    </g>
+    <g transform="translate(220, 0)" filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#0ea5e9"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">2</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#0c4a6e" font-family="monospace">bird_run_gold</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">args: db, qid=28</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#0c4a6e">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569"><tspan font-weight="700">57 rows</tspan> of (School, DOC)</text>
+      <text x="26" y="88" font-size="10" fill="#475569">— this is the target</text>
+    </g>
+    <g transform="translate(440, 0)" filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#0ea5e9"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">3</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#0c4a6e" font-family="monospace">db_get_schema</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">args: db</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#0c4a6e">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569">DDL + foreign keys</text>
+      <text x="26" y="88" font-size="10" fill="#475569">— column names verified</text>
+    </g>
+    <g transform="translate(660, 0)" filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#10b981"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">4</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#065f46" font-family="monospace">tool_list</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">args: db</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#065f46">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569">[ ]  empty registry</text>
+      <text x="26" y="88" font-size="10" fill="#475569">(reuse-first check)</text>
+    </g>
+    <g transform="translate(880, 0)" filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#0ea5e9"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">5</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#0c4a6e" font-family="monospace">db_sample_rows</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">table=schools, n=5</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#0c4a6e">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569">FundingType = free-text</text>
+      <text x="26" y="88" font-size="10" fill="#475569">→ need DISTINCT next</text>
+    </g>
+    <g transform="translate(1100, 0)" filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#0ea5e9"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">6</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#0c4a6e" font-family="monospace">db_run_sql</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">DISTINCT FundingType</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#0c4a6e">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569">Directly · Locally ·</text>
+      <text x="26" y="88" font-size="10" fill="#475569">Not in CS funding model</text>
+    </g>
+    <g transform="translate(1320, 0)" filter="url(#shadow)">
+      <rect width="200" height="106" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" fill="#0ea5e9"/>
+      <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">7</text>
+      <text x="42" y="27" font-size="11.5" font-weight="700" fill="#0c4a6e" font-family="monospace">db_sample_rows</text>
+      <text x="14" y="50" font-size="10" fill="#64748b">table=frpm, n=5</text>
+      <line x1="14" y1="58" x2="186" y2="58" stroke="#e2e8f0"/>
+      <text x="14" y="74" font-size="10" font-weight="700" fill="#0c4a6e">→</text>
+      <text x="26" y="74" font-size="10" fill="#475569">columns w/ backticks:</text>
+      <text x="26" y="88" font-size="10" fill="#475569">"Enrollment (K-12)"</text>
+    </g>
+  </g>
+
+  <!-- Reasoning callout between phases 1 and 2 -->
+  <g transform="translate(40, 484)">
+    <rect width="1520" height="36" rx="8" fill="#312e81"/>
+    <text x="20" y="22" font-size="12" font-weight="700" fill="#fde68a">↓ DECISION  ·</text>
+    <text x="140" y="22" font-size="12" fill="#e0e7ff">Subquery in WHERE → 2-tool decomposition. Tool A computes the AVG; Tool B filters by FundingType + threshold. Slot examples for funding_type exclude "Locally funded" (the answer literal).</text>
+  </g>
+
+  <!-- ============== PHASE 2: REGISTER TOOL 1 ============== -->
+  <g transform="translate(40, 532)">
+    <rect width="1520" height="28" rx="6" fill="#0f172a"/>
+    <text x="14" y="19" font-size="12" font-weight="700" fill="#fff">PHASE 2  ·  REGISTER TOOL 1  ·  the inner aggregate (the "AVG" in the subquery)</text>
+    <text x="1506" y="19" text-anchor="end" font-size="11" fill="#94a3b8">1 step</text>
+  </g>
+
+  <g transform="translate(40, 570)" filter="url(#shadow)">
+    <rect width="1520" height="106" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="1.5"/>
+    <circle cx="28" cy="28" r="14" fill="#8b5cf6"/>
+    <text x="28" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">8</text>
+    <text x="52" y="33" font-size="13" font-weight="700" fill="#3b0764" font-family="monospace">tool_register(name="avg_enrollment_difference_by_funding_type", params_schema={...funding_type...}, code="def run(conn, funding_type): ...", description="...")</text>
+    <line x1="14" y1="50" x2="1506" y2="50" stroke="#e2e8f0"/>
+    <text x="14" y="70" font-size="11" font-weight="700" fill="#3b0764">SERVER GUARDS RUN  →  </text>
+    <rect x="170" y="58" width="200" height="20" rx="10" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="270" y="71" text-anchor="middle" font-size="10.5" fill="#3b0764">forbidden-name pattern  ✓</text>
+    <rect x="380" y="58" width="220" height="20" rx="10" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="490" y="71" text-anchor="middle" font-size="10.5" fill="#3b0764">SQL skeleton near-dup  ✓ (empty)</text>
+    <rect x="610" y="58" width="220" height="20" rx="10" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="720" y="71" text-anchor="middle" font-size="10.5" fill="#3b0764">name-token Jaccard ≥0.85  ✓</text>
+    <rect x="840" y="58" width="240" height="20" rx="10" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="960" y="71" text-anchor="middle" font-size="10.5" fill="#3b0764">_compile_tool() — exec sandbox  ✓</text>
+    <text x="14" y="96" font-size="11" fill="#475569">→ <tspan font-weight="700" fill="#3b0764">{registered: true}</tspan> · row inserted into state/california_schools.db / table tools</text>
+  </g>
+
+  <!-- ============== PHASE 3: SMOKE-TEST TOOL 1 ============== -->
+  <g transform="translate(40, 696)">
+    <rect width="1520" height="28" rx="6" fill="#0f172a"/>
+    <text x="14" y="19" font-size="12" font-weight="700" fill="#fff">PHASE 3  ·  SMOKE-TEST TOOL 1  ·  required by the prompt — fail fast on column typos / wrong placeholders</text>
+    <text x="1506" y="19" text-anchor="end" font-size="11" fill="#94a3b8">1 step</text>
+  </g>
+
+  <g transform="translate(40, 734)" filter="url(#shadow)">
+    <rect width="1520" height="76" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <circle cx="28" cy="28" r="14" fill="#10b981"/>
+    <text x="28" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">9</text>
+    <text x="52" y="33" font-size="13" font-weight="700" fill="#065f46" font-family="monospace">tool_call(name="avg_enrollment_difference_by_funding_type", args={"funding_type": "Locally funded"})</text>
+    <text x="14" y="60" font-size="11" fill="#475569">→ runs the registered code on a <tspan font-family="monospace" font-weight="700" fill="#065f46">mode=ro</tspan> SQLite connection  →  <tspan font-family="monospace" font-weight="700" fill="#065f46">{output: {"avg_difference": 16.7…}}</tspan>  ·  smoke-test passes</text>
+  </g>
+
+  <!-- ============== PHASE 4: REGISTER + TEST TOOL 2 ============== -->
+  <g transform="translate(40, 830)">
+    <rect width="1520" height="28" rx="6" fill="#0f172a"/>
+    <text x="14" y="19" font-size="12" font-weight="700" fill="#fff">PHASE 4  ·  REGISTER + TEST TOOL 2  ·  the outer filter (uses the avg as a threshold)</text>
+    <text x="1506" y="19" text-anchor="end" font-size="11" fill="#94a3b8">2 steps</text>
+  </g>
+
+  <g transform="translate(40, 868)">
+    <g filter="url(#shadow)">
+      <rect width="750" height="106" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="1.5"/>
+      <circle cx="28" cy="28" r="14" fill="#8b5cf6"/>
+      <text x="28" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">10</text>
+      <text x="52" y="33" font-size="13" font-weight="700" fill="#3b0764" font-family="monospace">tool_register(</text>
+      <text x="14" y="55" font-size="11" font-family="monospace" fill="#475569">  name="schools_with_enrollment_difference_above_funding",</text>
+      <text x="14" y="71" font-size="11" font-family="monospace" fill="#475569">  params_schema={funding_type: str, threshold: number},</text>
+      <text x="14" y="87" font-size="11" font-family="monospace" fill="#475569">  code="def run(conn, funding_type, threshold): ...")</text>
+      <text x="14" y="100" font-size="11" font-family="monospace" fill="#3b0764">  → registered: true  ·  guards pass</text>
+    </g>
+    <g transform="translate(770, 0)" filter="url(#shadow)">
+      <rect width="750" height="106" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+      <circle cx="28" cy="28" r="14" fill="#10b981"/>
+      <text x="28" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text>
+      <text x="52" y="33" font-size="13" font-weight="700" fill="#065f46" font-family="monospace">tool_call(</text>
+      <text x="14" y="55" font-size="11" font-family="monospace" fill="#475569">  name="schools_with_enrollment_difference_above_funding",</text>
+      <text x="14" y="71" font-size="11" font-family="monospace" fill="#475569">  args={funding_type: "Locally funded", threshold: 16.7})</text>
+      <text x="14" y="87" font-size="11" font-family="monospace" fill="#475569">  → {output: {schools: [["Arundel Elementary", "52"], ...</text>
+      <text x="14" y="100" font-size="11" font-family="monospace" fill="#065f46">          57 rows]}}  ·  smoke-test passes</text>
+    </g>
+  </g>
+
+  <!-- ============== PHASE 5: RECORD + VALIDATE ============== -->
+  <g transform="translate(40, 994)">
+    <rect width="1520" height="28" rx="6" fill="#0f172a"/>
+    <text x="14" y="19" font-size="12" font-weight="700" fill="#fff">PHASE 5  ·  RECORD + VALIDATE  ·  freeze the sequence; verify final = gold under set-equality</text>
+    <text x="1506" y="19" text-anchor="end" font-size="11" fill="#94a3b8">2 steps</text>
+  </g>
+
+  <g transform="translate(40, 1032)">
+    <g filter="url(#shadow)">
+      <rect width="750" height="106" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+      <circle cx="28" cy="28" r="14" fill="#f59e0b"/>
+      <text x="28" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">12</text>
+      <text x="52" y="33" font-size="13" font-weight="700" fill="#78350f" font-family="monospace">seq_record(qid=28, sequence=[</text>
+      <text x="14" y="55" font-size="11" font-family="monospace" fill="#475569">  {tool: "avg_enrollment...", args: {funding_type: "Locally funded"}, <tspan font-weight="700" fill="#78350f">bind: "avg"</tspan>},</text>
+      <text x="14" y="71" font-size="11" font-family="monospace" fill="#475569">  {tool: "schools_with_...", args: {funding_type: "Locally funded",</text>
+      <text x="14" y="87" font-size="11" font-family="monospace" fill="#475569">     threshold: <tspan font-weight="700" fill="#78350f">"{{avg.avg_difference}}"</tspan>}}])</text>
+      <text x="14" y="100" font-size="11" font-family="monospace" fill="#78350f">  → recorded: true  ·  persisted to sequences table</text>
+    </g>
+    <g transform="translate(770, 0)" filter="url(#shadow)">
+      <rect width="750" height="106" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+      <circle cx="28" cy="28" r="14" fill="#f59e0b"/>
+      <text x="28" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">13</text>
+      <text x="52" y="33" font-size="13" font-weight="700" fill="#78350f" font-family="monospace">seq_validate(qid=28)</text>
+      <text x="14" y="55" font-size="11" fill="#475569">runs gold SQL → 57 rows  ·  runs sequence with {{avg.avg_difference}} resolved → 57 rows</text>
+      <text x="14" y="71" font-size="11" fill="#475569">_normalize_for_compare on both  ·  set-equality check</text>
+      <text x="14" y="87" font-size="11" font-family="monospace" fill="#78350f">→ {passed: <tspan font-weight="700">true</tspan>, gold_result: [...], final_result: [...], failure_msg: null}</text>
+      <text x="14" y="100" font-size="11" font-family="monospace" fill="#78350f">→ outcome persisted to validations table</text>
+    </g>
+  </g>
+
+  <!-- ============== FOOTER: WHAT LANDED ON DISK ============== -->
+  <g transform="translate(40, 1158)">
+    <text x="0" y="14" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">EMITTED ARTIFACT  ·  output/california_schools/dataset.json[28]  ·  ALL FIELDS POPULATED</text>
+    <text x="700" y="14" font-size="11" fill="#475569">tools.py  +2 functions  ·  tools.json  +2 entries  ·  validation_report.passed_count++</text>
+    <text x="1300" y="14" font-size="11" font-weight="700" fill="#10b981">✓ validated: true</text>
+  </g>
+</svg>

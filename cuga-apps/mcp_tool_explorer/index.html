@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCP Tool Explorer</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:#0f1117;color:#e2e8f0;min-height:100vh;font-size:13px}
+
+  header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
+    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+  header h1{font-size:16px;font-weight:700;color:#fff}
+  .spacer{flex:1}
+  .hdr-stat{font-size:11px;color:#4b5563}
+
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:20px;
+    max-width:1400px;margin:0 auto;padding:20px 24px}
+
+  .card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;
+    overflow:hidden;margin-bottom:16px}
+  .card-header{padding:12px 16px 10px;border-bottom:1px solid #2d2d4a;
+    display:flex;align-items:center;gap:8px}
+  .card-header h2{font-size:13px;font-weight:600;color:#c5cae9}
+  .card-body{padding:14px 16px}
+
+  .btn{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;
+    cursor:pointer;border:none;background:#0d9488;color:#fff;transition:background .15s}
+  .btn:hover{background:#0f766e}
+  .btn:disabled{background:#374151;color:#6b7280;cursor:default}
+  .btn-sm{padding:3px 10px;font-size:11px}
+  .btn-ghost{background:#1f2937;border:1px solid #374151;color:#9ca3af}
+  .btn-ghost:hover{background:#374151}
+
+  /* Server list */
+  .server-item{padding:10px 12px;border:1px solid #2d2d4a;border-radius:7px;
+    margin-bottom:7px;cursor:pointer;transition:all .15s;
+    display:flex;align-items:center;gap:9px}
+  .server-item:hover{background:#1f2937;border-color:#374151}
+  .server-item.active{background:#0d3330;border-color:#0d9488}
+  .server-item.active .server-name{color:#5eead4}
+  .server-name{font-size:13px;font-weight:600;color:#c5cae9;flex:1}
+  .server-port{font-size:10px;color:#6b7280;font-family:ui-monospace,monospace}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot-online{background:#22c55e;box-shadow:0 0 6px #22c55e66}
+  .dot-offline{background:#6b7280}
+
+  /* Tool list */
+  .tool-item{border:1px solid #2d2d4a;border-radius:8px;margin-bottom:10px;
+    overflow:hidden;background:#151528}
+  .tool-header{padding:11px 14px;cursor:pointer;display:flex;align-items:baseline;
+    gap:10px;transition:background .15s}
+  .tool-header:hover{background:#1f1f3a}
+  .tool-name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:13px;font-weight:600;color:#7dd3fc}
+  .tool-desc{font-size:12px;color:#9ca3af;line-height:1.4;flex:1}
+  .chev{font-size:11px;color:#6b7280;flex-shrink:0}
+
+  .tool-body{padding:14px;border-top:1px solid #2d2d4a;background:#0f1117;display:none}
+  .tool-body.open{display:block}
+
+  .field{margin-bottom:11px}
+  .field-label{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+  .field-name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;color:#c5cae9;font-weight:600}
+  .field-type{font-size:10px;color:#6b7280;font-family:ui-monospace,monospace}
+  .field-req{font-size:10px;color:#f87171}
+  .field-help{font-size:11px;color:#6b7280;line-height:1.4;margin:2px 0 5px}
+  .field input[type=text],.field input[type=number],.field textarea{
+    width:100%;padding:7px 10px;border-radius:5px;font-size:12px;
+    background:#0f1117;border:1px solid #374151;color:#e2e8f0;outline:none;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .field textarea{min-height:64px;resize:vertical;line-height:1.4}
+  .field input:focus,.field textarea:focus{border-color:#0d9488}
+  .field-checkbox{display:flex;align-items:center;gap:8px}
+
+  .run-row{display:flex;align-items:center;gap:10px;margin-top:10px;
+    padding-top:10px;border-top:1px solid #2d2d4a}
+  .run-status{font-size:11px;color:#9ca3af}
+
+  .output{margin-top:12px;border-radius:6px;border:1px solid #2d2d4a;
+    background:#0b0d13;overflow:hidden}
+  .output-head{padding:7px 11px;font-size:11px;color:#9ca3af;
+    border-bottom:1px solid #2d2d4a;display:flex;align-items:center;gap:8px;
+    background:#1a1a2e}
+  .output-head.err{color:#f87171;background:#2a0a0a}
+  .output-body{padding:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;line-height:1.5;color:#d1d5db;white-space:pre-wrap;
+    max-height:480px;overflow:auto;word-break:break-word}
+
+  .empty-state{font-size:13px;color:#4b5563;text-align:center;padding:40px 20px}
+  .err-banner{background:#2a0a0a;border:1px solid #7f1d1d;color:#fca5a5;
+    padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛠️ MCP Tool Explorer</h1>
+  <span class="hdr-stat" id="hdr-status">—</span>
+  <div class="spacer"></div>
+  <button class="btn btn-sm btn-ghost" onclick="loadServers()">↺ Refresh</button>
+</header>
+
+<div class="layout">
+
+  <div>
+    <div class="card">
+      <div class="card-header"><h2>📡 MCP Servers</h2></div>
+      <div class="card-body" id="server-list">
+        <div class="empty-state">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h2 id="tools-title">Select a server</h2>
+      </div>
+      <div class="card-body" id="tools-panel">
+        <div class="empty-state">
+          Pick a server on the left to list its tools.<br>
+          Expand a tool to fill in arguments and invoke it.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let STATE = { servers: [], selected: null };
+
+async function loadServers() {
+  try {
+    const servers = await fetch('/api/servers').then(r => r.json());
+    STATE.servers = servers;
+    renderServers();
+    const online = servers.filter(s => s.online).length;
+    document.getElementById('hdr-status').textContent =
+      `${online}/${servers.length} servers reachable`;
+    // Auto-select first reachable server the first time.
+    if (!STATE.selected) {
+      const first = servers.find(s => s.online) || servers[0];
+      if (first) selectServer(first.name);
+    }
+  } catch (e) {
+    document.getElementById('server-list').innerHTML =
+      `<div class="err-banner">Failed to load servers: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderServers() {
+  const el = document.getElementById('server-list');
+  el.innerHTML = STATE.servers.map(s => `
+    <div class="server-item ${STATE.selected === s.name ? 'active' : ''}"
+         onclick="selectServer('${s.name}')">
+      <span class="dot ${s.online ? 'dot-online' : 'dot-offline'}"
+            title="${s.online ? 'online' : 'offline'}"></span>
+      <div style="flex:1;min-width:0">
+        <div class="server-name">${esc(s.name)}</div>
+        <div class="server-port">:${s.port}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function selectServer(name) {
+  STATE.selected = name;
+  renderServers();
+  const server = STATE.servers.find(s => s.name === name);
+  document.getElementById('tools-title').textContent =
+    `🧰 Tools · mcp-${name}`;
+  const panel = document.getElementById('tools-panel');
+  panel.innerHTML = '<div class="empty-state">Loading tools…</div>';
+
+  try {
+    const r = await fetch(`/api/servers/${encodeURIComponent(name)}/tools`);
+    const data = await r.json();
+    if (!r.ok || data.error) {
+      panel.innerHTML = `
+        <div class="err-banner">
+          <strong>Could not list tools for <code>mcp-${esc(name)}</code>.</strong><br>
+          ${esc(data.error || ('HTTP ' + r.status))}<br>
+          <span style="opacity:.7">URL: ${esc(server ? server.url : '?')}</span>
+        </div>`;
+      return;
+    }
+    renderTools(name, data.tools || []);
+  } catch (e) {
+    panel.innerHTML = `<div class="err-banner">Fetch failed: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTools(server, tools) {
+  const panel = document.getElementById('tools-panel');
+  if (!tools.length) {
+    panel.innerHTML = '<div class="empty-state">This server has no tools.</div>';
+    return;
+  }
+  panel.innerHTML = tools.map((t, i) => `
+    <div class="tool-item">
+      <div class="tool-header" onclick="toggleTool(${i})">
+        <span class="chev" id="chev-${i}">▸</span>
+        <div class="tool-name">${esc(t.name)}</div>
+        <div class="tool-desc">${esc(shortDesc(t.description))}</div>
+      </div>
+      <div class="tool-body" id="body-${i}">
+        ${renderToolBody(server, t, i)}
+      </div>
+    </div>`).join('');
+}
+
+function shortDesc(s) {
+  if (!s) return '';
+  const first = s.split('\n')[0].trim();
+  return first.length > 120 ? first.slice(0, 117) + '…' : first;
+}
+
+function renderToolBody(server, tool, i) {
+  const schema = tool.input_schema || {};
+  const props = schema.properties || {};
+  const required = new Set(schema.required || []);
+  const keys = Object.keys(props);
+
+  const fullDesc = tool.description && tool.description !== shortDesc(tool.description)
+    ? `<div style="font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:12px;
+         white-space:pre-wrap">${esc(tool.description)}</div>`
+    : '';
+
+  let fields;
+  if (keys.length === 0) {
+    fields = '<div style="font-size:12px;color:#6b7280;margin-bottom:10px">This tool takes no arguments.</div>';
+  } else {
+    fields = keys.map(k => renderField(i, k, props[k], required.has(k))).join('');
+  }
+
+  return `
+    ${fullDesc}
+    <form onsubmit="event.preventDefault();runTool('${esc(server)}','${esc(tool.name)}',${i})">
+      ${fields}
+      <div class="run-row">
+        <button class="btn" type="submit" id="run-${i}">▶ Run tool</button>
+        <span class="run-status" id="status-${i}"></span>
+      </div>
+      <div id="output-${i}"></div>
+    </form>`;
+}
+
+function renderField(toolIdx, key, spec, required) {
+  const type = Array.isArray(spec.type) ? spec.type[0] : (spec.type || 'string');
+  const typeLabel = Array.isArray(spec.type) ? spec.type.join('|') : type;
+  const help = spec.description
+    ? `<div class="field-help">${esc(spec.description)}</div>` : '';
+  const fieldId = `f-${toolIdx}-${key}`;
+  const hasDefault = Object.prototype.hasOwnProperty.call(spec, 'default');
+  const dflt = hasDefault ? spec.default : undefined;
+
+  let input;
+  if (type === 'boolean') {
+    const checked = dflt === true ? 'checked' : '';
+    input = `<div class="field-checkbox">
+      <input type="checkbox" id="${fieldId}" data-type="boolean" ${checked}>
+      <label for="${fieldId}" style="font-size:12px;color:#9ca3af">
+        ${hasDefault ? `default: ${String(dflt)}` : '(optional)'}
+      </label></div>`;
+  } else if (type === 'integer' || type === 'number') {
+    const val = hasDefault ? `value="${esc(String(dflt))}"` : '';
+    input = `<input type="number" id="${fieldId}" data-type="${esc(type)}"
+              ${val} placeholder="${hasDefault ? '' : typeLabel}">`;
+  } else if (type === 'array' || type === 'object') {
+    const val = hasDefault ? esc(JSON.stringify(dflt)) : '';
+    const ph = type === 'array' ? '["item1", "item2"]' : '{"key": "value"}';
+    input = `<textarea id="${fieldId}" data-type="${esc(type)}" placeholder="${ph}">${val}</textarea>`;
+  } else {
+    const val = hasDefault ? `value="${esc(String(dflt))}"` : '';
+    input = `<input type="text" id="${fieldId}" data-type="string"
+              ${val} placeholder="${typeLabel}">`;
+  }
+
+  return `
+    <div class="field">
+      <div class="field-label">
+        <span class="field-name">${esc(key)}</span>
+        <span class="field-type">${esc(typeLabel)}</span>
+        ${required ? '<span class="field-req">required</span>' : ''}
+      </div>
+      ${help}
+      ${input}
+    </div>`;
+}
+
+function collectArgs(toolIdx, tool) {
+  const schema = tool.input_schema || {};
+  const props = schema.properties || {};
+  const required = new Set(schema.required || []);
+  const args = {};
+  const errors = [];
+
+  for (const [key, spec] of Object.entries(props)) {
+    const el = document.getElementById(`f-${toolIdx}-${key}`);
+    if (!el) continue;
+    const kind = el.getAttribute('data-type');
+    const raw = kind === 'boolean' ? el.checked : el.value.trim();
+
+    if (kind !== 'boolean' && raw === '') {
+      if (required.has(key)) errors.push(`${key} is required`);
+      // leave unset so server/default applies
+      continue;
+    }
+
+    if (kind === 'boolean') {
+      args[key] = raw;
+    } else if (kind === 'integer') {
+      const n = Number(raw);
+      if (!Number.isInteger(n)) { errors.push(`${key}: expected integer`); continue; }
+      args[key] = n;
+    } else if (kind === 'number') {
+      const n = Number(raw);
+      if (Number.isNaN(n)) { errors.push(`${key}: expected number`); continue; }
+      args[key] = n;
+    } else if (kind === 'array' || kind === 'object') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (kind === 'array' && !Array.isArray(parsed))
+          throw new Error('must be a JSON array');
+        if (kind === 'object' && (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)))
+          throw new Error('must be a JSON object');
+        args[key] = parsed;
+      } catch (e) {
+        errors.push(`${key}: invalid JSON — ${e.message}`);
+      }
+    } else {
+      args[key] = raw;
+    }
+  }
+
+  return { args, errors };
+}
+
+async function runTool(server, toolName, toolIdx) {
+  // Find tool descriptor from currently-rendered state.
+  const btn = document.getElementById(`run-${toolIdx}`);
+  const status = document.getElementById(`status-${toolIdx}`);
+  const out = document.getElementById(`output-${toolIdx}`);
+
+  // We need the tool's schema to collect args — grab it via a quick refetch
+  // (small payload, keeps state simple).
+  if (!STATE.toolCache) STATE.toolCache = {};
+  if (!STATE.toolCache[server]) {
+    try {
+      const data = await fetch(`/api/servers/${encodeURIComponent(server)}/tools`).then(r => r.json());
+      STATE.toolCache[server] = data.tools || [];
+    } catch (e) {
+      out.innerHTML = errorBox('Failed to reload tool schema: ' + e.message);
+      return;
+    }
+  }
+  const tool = STATE.toolCache[server].find(t => t.name === toolName);
+  if (!tool) { out.innerHTML = errorBox('Tool not found'); return; }
+
+  const { args, errors } = collectArgs(toolIdx, tool);
+  if (errors.length) {
+    out.innerHTML = errorBox('Input error:\n- ' + errors.join('\n- '));
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = 'Invoking…';
+  out.innerHTML = '';
+  const started = performance.now();
+
+  try {
+    const r = await fetch(
+      `/api/servers/${encodeURIComponent(server)}/tools/${encodeURIComponent(toolName)}/call`,
+      { method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ args }) });
+    const data = await r.json();
+    const ms = Math.round(performance.now() - started);
+    status.textContent = `Done in ${ms} ms`;
+    out.innerHTML = renderOutput(data);
+  } catch (e) {
+    status.textContent = '';
+    out.innerHTML = errorBox('Request failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderOutput(data) {
+  if (data.error && !data.content?.length) {
+    return errorBox(data.error);
+  }
+  const isErr = !!data.is_error;
+  const headCls = isErr ? 'output-head err' : 'output-head';
+  const headText = isErr ? '✗ Tool returned an error' : '✓ Response';
+
+  const parts = (data.content || []).map(block => {
+    if (block.type === 'text') {
+      return esc(prettyIfJson(block.text || ''));
+    }
+    return `[${esc(block.type)}]\n` + esc(JSON.stringify(block.data, null, 2));
+  });
+  const body = parts.join('\n\n') || '(empty response)';
+
+  return `
+    <div class="output">
+      <div class="${headCls}">${headText}</div>
+      <div class="output-body">${body}</div>
+    </div>`;
+}
+
+function errorBox(msg) {
+  return `
+    <div class="output">
+      <div class="output-head err">✗ Error</div>
+      <div class="output-body">${esc(msg)}</div>
+    </div>`;
+}
+
+function toggleTool(i) {
+  const body = document.getElementById('body-' + i);
+  const chev = document.getElementById('chev-' + i);
+  body.classList.toggle('open');
+  chev.textContent = body.classList.contains('open') ? '▾' : '▸';
+}
+
+function prettyIfJson(s) {
+  const trimmed = (s || '').trim();
+  if (!trimmed) return s;
+  const c = trimmed[0];
+  if (c !== '{' && c !== '[' && c !== '"') return s;
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch (_) {
+    return s;
+  }
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+loadServers();
+setInterval(loadServers, 15000);
+</script>
+</body>
+</html>

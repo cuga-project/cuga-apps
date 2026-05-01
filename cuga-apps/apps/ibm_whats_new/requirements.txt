@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+pydantic
+httpx
+beautifulsoup4
+tavily-python   # required — for search_ibm_updates tool

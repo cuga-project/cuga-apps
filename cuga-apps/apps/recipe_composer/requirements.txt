@@ -1,0 +1,9 @@
+# Recipe Composer — only the packages main.py + ui.py actually need.
+# The cuga-apps Docker image already provides fastapi/uvicorn/pydantic/
+# langchain via requirements.apps.txt — these pins exist for standalone
+# bring-up.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3

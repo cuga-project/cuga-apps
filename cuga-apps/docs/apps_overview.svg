@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 940" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <filter id="pillshadow" x="-5%" y="-10%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="940" fill="#fafbfc"/>
+
+  <!-- Title -->
+  <text x="800" y="42" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">cuga-apps  ·  24 agents  ·  7 domains  ·  1 MCP fabric</text>
+  <text x="800" y="72" text-anchor="middle" font-size="15" fill="#64748b">Each app = CugaAgent + FastAPI UI · shared tools live behind 8 MCP servers (web · knowledge · geo · finance · code · local · text · invocable_apis)</text>
+
+  <!-- ============== ROW 1 ============== -->
+
+  <!-- ===== Panel 1: Research & Knowledge (7) ===== -->
+  <g transform="translate(40, 100)" filter="url(#shadow)">
+    <rect width="600" height="370" rx="16" fill="#eef2ff"/>
+    <path d="M 0,16 Q 0,0 16,0 L 584,0 Q 600,0 600,16 L 600,54 L 0,54 Z" fill="#6366f1"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">Research &amp; Knowledge</text>
+    <rect x="548" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="567" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">7</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">arXiv · Semantic Scholar · Wikipedia · Tavily web · YouTube transcripts · OpenStreetMap · TMDB</text>
+
+    <!-- pills row 1: 4 pills @ 140w -->
+    <g filter="url(#pillshadow)">
+      <g transform="translate(2, 78)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">paper_scout</text>
+      </g>
+      <g transform="translate(154, 78)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">wiki_dive</text>
+      </g>
+      <g transform="translate(306, 78)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">web_researcher</text>
+      </g>
+      <g transform="translate(458, 78)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">youtube_research</text>
+      </g>
+
+      <!-- pills row 2: 3 pills, centered -->
+      <g transform="translate(78, 134)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">webpage_summarizer</text>
+      </g>
+      <g transform="translate(230, 134)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">hiking_research</text>
+      </g>
+      <g transform="translate(382, 134)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#1e1b4b">movie_recommender</text>
+      </g>
+    </g>
+
+    <!-- subtle visual: bubble cluster shapes behind pills -->
+    <circle cx="500" cy="250" r="48" fill="#c7d2fe" fill-opacity="0.35"/>
+    <circle cx="100" cy="270" r="32" fill="#c7d2fe" fill-opacity="0.35"/>
+    <circle cx="540" cy="290" r="20" fill="#a5b4fc" fill-opacity="0.4"/>
+  </g>
+
+  <!-- ===== Panel 2: Content Creation (4) ===== -->
+  <g transform="translate(660, 100)" filter="url(#shadow)">
+    <rect width="400" height="370" rx="16" fill="#ecfdf5"/>
+    <path d="M 0,16 Q 0,0 16,0 L 384,0 Q 400,0 400,16 L 400,54 L 0,54 Z" fill="#10b981"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">Content Creation</text>
+    <rect x="348" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="367" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">4</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">RSS feeds · web search · markdown rendering · slide pipelines · Mermaid diagrams</text>
+
+    <g filter="url(#pillshadow)">
+      <g transform="translate(54, 100)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#064e3b">newsletter</text>
+      </g>
+      <g transform="translate(206, 100)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#064e3b">deck_forge</text>
+      </g>
+      <g transform="translate(54, 156)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#064e3b">arch_diagram</text>
+      </g>
+      <g transform="translate(206, 156)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#064e3b">api_doc_gen</text>
+      </g>
+    </g>
+
+    <circle cx="340" cy="260" r="40" fill="#a7f3d0" fill-opacity="0.45"/>
+    <circle cx="60" cy="280" r="24" fill="#a7f3d0" fill-opacity="0.45"/>
+  </g>
+
+  <!-- ===== Panel 3: Documents & Media Q&A (4) ===== -->
+  <g transform="translate(1080, 100)" filter="url(#shadow)">
+    <rect width="480" height="370" rx="16" fill="#fffbeb"/>
+    <path d="M 0,16 Q 0,0 16,0 L 464,0 Q 480,0 480,16 L 480,54 L 0,54 Z" fill="#f59e0b"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">Documents &amp; Media Q&amp;A</text>
+    <rect x="428" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="447" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">4</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">docling · faster-whisper · ChromaDB · tiktoken · file watching · semantic search over transcripts</text>
+
+    <g filter="url(#pillshadow)">
+      <g transform="translate(94, 100)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">box_qa</text>
+      </g>
+      <g transform="translate(246, 100)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">video_qa</text>
+      </g>
+      <g transform="translate(94, 156)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">drop_summarizer</text>
+      </g>
+      <g transform="translate(246, 156)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">voice_journal</text>
+      </g>
+    </g>
+
+    <circle cx="420" cy="260" r="36" fill="#fde68a" fill-opacity="0.55"/>
+    <circle cx="60" cy="270" r="28" fill="#fde68a" fill-opacity="0.55"/>
+  </g>
+
+  <!-- ============== ROW 2 ============== -->
+
+  <!-- ===== Panel 4: Productivity (2) ===== -->
+  <g transform="translate(40, 500)" filter="url(#shadow)">
+    <rect width="365" height="370" rx="16" fill="#fdf2f8"/>
+    <path d="M 0,16 Q 0,0 16,0 L 349,0 Q 365,0 365,16 L 365,54 L 0,54 Z" fill="#ec4899"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">Productivity</text>
+    <rect x="313" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="332" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">SQLite-backed state · cross-server orchestration (web + knowledge + geo)</text>
+
+    <g filter="url(#pillshadow)">
+      <g transform="translate(36, 130)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#ec4899" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#831843">smart_todo</text>
+      </g>
+      <g transform="translate(188, 130)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#ec4899" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#831843">travel_planner</text>
+      </g>
+    </g>
+
+    <circle cx="305" cy="240" r="36" fill="#fbcfe8" fill-opacity="0.6"/>
+    <circle cx="60" cy="250" r="22" fill="#fbcfe8" fill-opacity="0.6"/>
+  </g>
+
+  <!-- ===== Panel 5: Ops &amp; Alerts (2) ===== -->
+  <g transform="translate(425, 500)" filter="url(#shadow)">
+    <rect width="365" height="370" rx="16" fill="#ecfeff"/>
+    <path d="M 0,16 Q 0,0 16,0 L 349,0 Q 365,0 365,16 L 365,54 L 0,54 Z" fill="#06b6d4"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">Ops &amp; Alerts</text>
+    <rect x="313" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="332" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">psutil · CoinGecko · Alpha Vantage · scheduler-driven SMTP alerts</text>
+
+    <g filter="url(#pillshadow)">
+      <g transform="translate(36, 130)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#164e63">server_monitor</text>
+      </g>
+      <g transform="translate(188, 130)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#164e63">stock_alert</text>
+      </g>
+    </g>
+
+    <circle cx="305" cy="240" r="34" fill="#a5f3fc" fill-opacity="0.6"/>
+    <circle cx="60" cy="250" r="24" fill="#a5f3fc" fill-opacity="0.6"/>
+  </g>
+
+  <!-- ===== Panel 6: Developer Tools (2) — bird highlighted ===== -->
+  <g transform="translate(810, 500)" filter="url(#shadow)">
+    <rect width="365" height="370" rx="16" fill="#f5f3ff"/>
+    <path d="M 0,16 Q 0,0 16,0 L 349,0 Q 365,0 365,16 L 365,54 L 0,54 Z" fill="#8b5cf6"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">Developer &amp; Eval Tools</text>
+    <rect x="313" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="332" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">stdlib code analysis · Bird-SQL → invocable API + ground-truth tool-call dataset</text>
+
+    <g filter="url(#pillshadow)">
+      <g transform="translate(36, 110)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#8b5cf6" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#3b0764">code_reviewer</text>
+      </g>
+    </g>
+
+    <!-- Bird highlighted -->
+    <g filter="url(#pillshadow)">
+      <g transform="translate(36, 175)">
+        <rect width="293" height="80" rx="14" fill="#8b5cf6"/>
+        <text x="146.5" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">★  bird_invocable_api_creator</text>
+        <text x="146.5" y="52" text-anchor="middle" font-size="11.5" fill="#ddd6fe">CUGA-driven synthesis loop · validates against</text>
+        <text x="146.5" y="68" text-anchor="middle" font-size="11.5" fill="#ddd6fe">gold SQL · emits a runnable MCP server</text>
+      </g>
+    </g>
+
+    <text x="182.5" y="282" text-anchor="middle" font-size="11" fill="#7c3aed" font-weight="700">— novel —</text>
+
+    <circle cx="305" cy="135" r="22" fill="#ddd6fe" fill-opacity="0.7"/>
+    <circle cx="58" cy="135" r="18" fill="#ddd6fe" fill-opacity="0.7"/>
+  </g>
+
+  <!-- ===== Panel 7: IBM Stack (3) ===== -->
+  <g transform="translate(1195, 500)" filter="url(#shadow)">
+    <rect width="365" height="370" rx="16" fill="#f1f5f9"/>
+    <path d="M 0,16 Q 0,0 16,0 L 349,0 Q 365,0 365,16 L 365,54 L 0,54 Z" fill="#475569"/>
+    <text x="20" y="34" font-size="18" font-weight="700" fill="#fff">IBM Stack</text>
+    <rect x="313" y="13" width="38" height="28" rx="14" fill="#fff" fill-opacity="0.22"/>
+    <text x="332" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">3</text>
+    <text x="20" y="345" font-size="11.5" fill="#475569" font-style="italic">Tavily-grounded over IBM docs · cloud architecture guidance · release-note monitoring</text>
+
+    <g filter="url(#pillshadow)">
+      <g transform="translate(36, 100)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#475569" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">ibm_cloud_advisor</text>
+      </g>
+      <g transform="translate(188, 100)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#475569" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">ibm_docs_qa</text>
+      </g>
+      <g transform="translate(112, 156)">
+        <rect width="140" height="40" rx="20" fill="#fff" stroke="#475569" stroke-width="1.5"/>
+        <text x="70" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">ibm_whats_new</text>
+      </g>
+    </g>
+
+    <circle cx="305" cy="240" r="32" fill="#cbd5e1" fill-opacity="0.55"/>
+    <circle cx="60" cy="250" r="22" fill="#cbd5e1" fill-opacity="0.55"/>
+  </g>
+
+  <!-- Footer -->
+  <text x="800" y="908" text-anchor="middle" font-size="12" fill="#64748b">
+    ★ standout — same MCP/CUGA primitives that power 23 demo apps also power a benchmark-dataset factory.
+    Browse all tools at /:28900 · umbrella UI at /:3001
+  </text>
+</svg>

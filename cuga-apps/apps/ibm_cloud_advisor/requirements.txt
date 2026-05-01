@@ -1,0 +1,8 @@
+# ibm_cloud_advisor — dependencies
+# IBM Global Catalog API requires no key (public HTTP)
+# All packages below are already in the repo-level requirements.apps.txt
+fastapi
+uvicorn[standard]
+pydantic
+httpx
+tavily-python   # optional — for search_ibm_docs tool

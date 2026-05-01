@@ -1,0 +1,21 @@
+# video_qa — app dependencies
+
+# cuga framework
+git+ssh://git@github.com/cuga-project/cuga-agent.git@main
+langchain-core
+
+# transcription — faster-whisper is recommended (~4x faster than openai-whisper)
+# falls back to openai-whisper automatically if faster-whisper is not installed
+faster-whisper
+# openai-whisper  # uncomment as fallback if faster-whisper is unavailable
+
+# vector index + semantic search
+chromadb
+sentence-transformers
+
+# web UI (only needed for --web mode)
+fastapi
+uvicorn
+
+# supported audio formats: .wav  .mp3  .m4a  .flac  .ogg  .aac
+# no ffmpeg required — audio is fed directly to Whisper

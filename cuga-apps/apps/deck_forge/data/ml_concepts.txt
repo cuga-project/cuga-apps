@@ -1,0 +1,45 @@
+Machine Learning Concepts: Attention and Neural Language Models
+================================================================
+
+ATTENTION MECHANISMS IN NLP
+-----------------------------
+Before Transformers, sequence models used RNNs or LSTMs with an attention
+"add-on" (Bahdanau et al., 2015). The attention score between a decoder
+state and each encoder state determines how much the decoder attends to
+each input position.
+
+SELF-ATTENTION VS CROSS-ATTENTION
+----------------------------------
+Self-attention: tokens attend to other tokens in the *same* sequence.
+Cross-attention: decoder tokens attend to encoder tokens.
+
+TRANSFORMER TRAINING
+---------------------
+Training uses teacher forcing. The loss is cross-entropy over the target
+vocabulary. Modern LLMs are trained with the Adam optimizer with a
+linear warmup followed by cosine decay learning rate schedule.
+
+BERT FINE-TUNING
+-----------------
+BERT adds a task-specific classification head on top of the [CLS] token.
+Fine-tuning is efficient because only the head (and possibly the last few
+layers) need substantial gradient updates.
+
+PARAMETER COUNTS
+-----------------
+BERT-base:   110M parameters
+BERT-large:  340M parameters
+GPT-3:       175B parameters
+GPT-4:       unknown (estimated 1T+)
+
+COMPUTATIONAL COST
+-------------------
+Self-attention: O(n^2 d) time and O(n^2) memory per layer (n = seq length, d = dim).
+For long documents this is the bottleneck. Sparse attention reduces this to O(n sqrt(n)).
+
+KEY TAKEAWAYS
+--------------
+1. Self-attention is the core innovation of the Transformer.
+2. BERT demonstrated the power of bidirectional pre-training.
+3. Scaling model size and data consistently improves performance (scaling laws).
+4. Efficient attention variants are critical for long-context applications.

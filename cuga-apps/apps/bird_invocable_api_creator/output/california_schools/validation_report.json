@@ -1,0 +1,8 @@
+{
+  "db": "california_schools",
+  "total_questions": 89,
+  "with_sequence": 79,
+  "validated_passing": 67,
+  "tools_registered": 101,
+  "emitted_at": "2026-04-26T02:15:44.612838+00:00"
+}

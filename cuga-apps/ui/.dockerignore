@@ -1,0 +1,43 @@
+# ui/.dockerignore — applies to the ui/Dockerfile build context.
+#
+# The build context for the UI is `ui/` only — apps/.env and other repo
+# secrets are physically outside the context and CAN'T be copied in.
+# Still, double up: keep secrets, key files, and dev-only state out
+# defensively in case someone runs the build from the repo root some day.
+
+# Build outputs
+node_modules/
+dist/
+build/
+.vite/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.local
+.idea/
+.vscode/
+
+# Secrets & key material — DO NOT remove these patterns.
+# Anything matching ends up in the bundle if accidentally copied.
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+id_rsa*
+id_ed25519*
+*.p12
+*.pfx
+secrets/
+.secrets/
+credentials*.json
+*-key.json
+*-credentials.json
+
+# Local dev artefacts
+.npm/
+.cache/
+coverage/
+*.log

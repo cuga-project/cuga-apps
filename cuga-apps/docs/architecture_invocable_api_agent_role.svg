@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1496" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrowL" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10 z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="arrowDown" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1496" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="28" font-weight="700" fill="#0f172a">Where does the AGENT actually come in?</text>
+  <text x="800" y="70" text-anchor="middle" font-size="14" fill="#64748b">Walk through qid 28 from question to validated record · LEFT = agent reasoning · RIGHT = server determinism · ★ = real judgment moment · 🛡 = discipline-enforcing guard</text>
+
+  <!-- LEGEND -->
+  <g transform="translate(40, 92)">
+    <g transform="translate(0, 0)">
+      <rect width="14" height="14" rx="3" fill="#6366f1"/>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">AGENT</tspan> — LLM thinking + tool selection</text>
+    </g>
+    <g transform="translate(360, 0)">
+      <rect width="14" height="14" rx="3" fill="#0ea5e9"/>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#0c4a6e">SERVER</tspan> — MCP tool body, deterministic</text>
+    </g>
+    <g transform="translate(740, 0)">
+      <text x="0" y="12" font-size="14" fill="#f59e0b" font-weight="700">★</text>
+      <text x="18" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#78350f">JUDGMENT</tspan> — non-procedural decision the LLM owns</text>
+    </g>
+    <g transform="translate(1180, 0)">
+      <text x="0" y="12" font-size="14" fill="#8b5cf6" font-weight="700">🛡</text>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">GUARD</tspan> — server pushes back on shortcuts</text>
+    </g>
+  </g>
+
+  <!-- INPUT -->
+  <g transform="translate(40, 124)" filter="url(#shadow)">
+    <rect width="1520" height="56" rx="10" fill="#0f172a"/>
+    <text x="20" y="22" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">INPUT  ·  POST /question/california_schools/28</text>
+    <text x="20" y="42" font-size="13" fill="#fde68a">"Consider the average difference between K-12 and 15-17 enrollment of locally-funded schools, list names + DOC of schools above this average."</text>
+  </g>
+
+  <!-- ============ AGENT EQUIPMENT — what the LLM was loaded with at startup ============ -->
+  <g transform="translate(40, 196)" filter="url(#shadow)">
+    <rect width="1520" height="208" rx="12" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <rect width="1520" height="34" rx="12" fill="#6366f1"/>
+    <rect y="22" width="1520" height="12" fill="#6366f1"/>
+    <text x="20" y="22" font-size="13" font-weight="700" fill="#fff">AGENT EQUIPMENT  ·  what the LLM is loaded with at startup — does NOT change per question</text>
+
+    <!-- Vertical divider between columns -->
+    <line x1="760" y1="46" x2="760" y2="200" stroke="#e2e8f0" stroke-width="1"/>
+
+    <!-- LEFT: SYSTEM PROMPT SUMMARY -->
+    <text x="20" y="58" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">SYSTEM PROMPT  ·  apps/bird_invocable_api_creator/main.py:_SYSTEM</text>
+    <text x="20" y="74" font-size="11" fill="#475569" font-style="italic">teaches a methodology — applied by the LLM, not enforced by code</text>
+
+    <g transform="translate(20, 86)">
+      <rect width="720" height="22" rx="4" fill="#fef3c7"/>
+      <text x="6" y="16" font-size="11" fill="#78350f"><tspan font-weight="700">★ Decomposition:</tspan> subquery in WHERE / CTE / "and then" → ≥2 tools</text>
+    </g>
+    <g transform="translate(20, 110)">
+      <rect width="720" height="22" rx="4" fill="#fef3c7"/>
+      <text x="6" y="16" font-size="11" fill="#78350f"><tspan font-weight="700">★ Naming:</tspan> concept-led, domain-meaningful — no question_*, *_solver, gold_*</text>
+    </g>
+    <g transform="translate(20, 134)">
+      <rect width="720" height="22" rx="4" fill="#fef3c7"/>
+      <text x="6" y="16" font-size="11" fill="#78350f"><tspan font-weight="700">★ Slot lifting:</tspan> lift literals to params · examples ≠ the question's answer</text>
+    </g>
+    <g transform="translate(20, 158)">
+      <rect width="720" height="22" rx="4" fill="#fef3c7"/>
+      <text x="6" y="16" font-size="11" fill="#78350f"><tspan font-weight="700">★ Reuse first:</tspan> tool_list before tool_register; reuse w/ different args</text>
+    </g>
+    <g transform="translate(20, 182)">
+      <rect width="720" height="14" rx="3" fill="#1e293b"/>
+      <text x="6" y="11" font-size="10" fill="#fde68a" font-family="monospace">closed loop: register → tool_call → seq_record → seq_validate (retry × ≤2)</text>
+    </g>
+
+    <!-- RIGHT: TOOL SURFACE -->
+    <text x="780" y="58" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TOOL SURFACE  ·  load_tools(["invocable_apis"])  ·  18 MCP tools, 5 families</text>
+    <text x="780" y="74" font-size="11" fill="#475569" font-style="italic">all on mcp-invocable_apis (port 29107) · same envelope contract</text>
+
+    <!-- 5 family rows, 80w label + chips -->
+    <!-- db_* -->
+    <g transform="translate(780, 86)">
+      <rect width="74" height="22" rx="4" fill="#0ea5e9"/>
+      <text x="37" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">db_*  · 3</text>
+      <g transform="translate(82, 0)">
+        <rect width="124" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">db_get_schema</text>
+      </g>
+      <g transform="translate(214, 0)">
+        <rect width="124" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">db_sample_rows</text>
+      </g>
+      <g transform="translate(346, 0)">
+        <rect width="124" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">db_run_sql</text>
+      </g>
+    </g>
+    <!-- bird_* -->
+    <g transform="translate(780, 112)">
+      <rect width="74" height="22" rx="4" fill="#0ea5e9"/>
+      <text x="37" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">bird_*  · 4</text>
+      <g transform="translate(82, 0)">
+        <rect width="156" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="78" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">bird_list_databases</text>
+      </g>
+      <g transform="translate(246, 0)">
+        <rect width="156" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="78" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">bird_list_questions</text>
+      </g>
+      <g transform="translate(410, 0)">
+        <rect width="148" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="74" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">bird_get_question</text>
+      </g>
+      <g transform="translate(566, 0)">
+        <rect width="116" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="58" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#0c4a6e">bird_run_gold</text>
+      </g>
+    </g>
+    <!-- tool_* -->
+    <g transform="translate(780, 138)">
+      <rect width="74" height="22" rx="4" fill="#8b5cf6"/>
+      <text x="37" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">tool_*  · 5</text>
+      <g transform="translate(82, 0)">
+        <rect width="124" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#3b0764">tool_register</text>
+      </g>
+      <g transform="translate(214, 0)">
+        <rect width="100" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="50" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#3b0764">tool_list</text>
+      </g>
+      <g transform="translate(322, 0)">
+        <rect width="100" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="50" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#3b0764">tool_get</text>
+      </g>
+      <g transform="translate(430, 0)">
+        <rect width="100" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="50" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#3b0764">tool_call</text>
+      </g>
+      <g transform="translate(538, 0)">
+        <rect width="116" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+        <text x="58" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#3b0764">tool_delete</text>
+      </g>
+    </g>
+    <!-- seq_* -->
+    <g transform="translate(780, 164)">
+      <rect width="74" height="22" rx="4" fill="#f59e0b"/>
+      <text x="37" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">seq_*  · 3</text>
+      <g transform="translate(82, 0)">
+        <rect width="124" height="22" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#78350f">seq_record</text>
+      </g>
+      <g transform="translate(214, 0)">
+        <rect width="124" height="22" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#78350f">seq_execute</text>
+      </g>
+      <g transform="translate(346, 0)">
+        <rect width="124" height="22" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+        <text x="62" y="15" text-anchor="middle" font-size="10" font-family="monospace" fill="#78350f">seq_validate</text>
+      </g>
+    </g>
+    <!-- dataset_* / ignore_* -->
+    <g transform="translate(780, 190)">
+      <rect width="148" height="14" rx="3" fill="#475569"/>
+      <text x="74" y="11" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">dataset_* · ignore_*  · 3</text>
+      <text x="156" y="11" font-size="10" font-family="monospace" fill="#475569">dataset_emit  ·  ignore_set  ·  ignore_list</text>
+    </g>
+  </g>
+
+  <!-- Down arrow from Equipment into the lanes -->
+  <line x1="800" y1="408" x2="800" y2="424" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+  <text x="815" y="420" font-size="11" font-style="italic" fill="#475569">agent enters the loop</text>
+
+  <!-- Lane headers -->
+  <g transform="translate(40, 432)">
+    <rect width="720" height="36" rx="8" fill="#6366f1"/>
+    <text x="20" y="24" font-size="14" font-weight="700" fill="#fff">AGENT  ·  CugaAgent inside FastAPI app</text>
+  </g>
+  <g transform="translate(840, 432)">
+    <rect width="720" height="36" rx="8" fill="#0ea5e9"/>
+    <text x="20" y="24" font-size="14" font-weight="700" fill="#fff">SERVER  ·  mcp-invocable_apis · port 29107</text>
+  </g>
+
+  <!-- Lane separators -->
+  <line x1="780" y1="482" x2="780" y2="1446" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,4"/>
+  <line x1="820" y1="482" x2="820" y2="1446" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,4"/>
+
+  <!-- ============ PHASE 1: ORIENT ============ -->
+  <g transform="translate(40, 482)">
+    <rect width="1520" height="22" rx="4" fill="#1e293b"/>
+    <text x="14" y="16" font-size="11" font-weight="700" fill="#fff">PHASE 1  ·  ORIENT  ·  agent decides what it needs to know</text>
+  </g>
+
+  <g transform="translate(40, 512)" filter="url(#shadow)">
+    <rect width="720" height="120" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#3b0764">Agent reasons (procedural — driven by the prompt)</text>
+    <text x="14" y="44" font-size="11.5" fill="#475569">"I need: the question + evidence + gold SQL → bird_get_question."</text>
+    <text x="14" y="62" font-size="11.5" fill="#475569">"I need an oracle → bird_run_gold."</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569">"I haven't seen the schema yet → db_get_schema. Then sample_rows."</text>
+    <text x="14" y="98" font-size="11.5" fill="#475569">"FundingType looked free-text — I should DISTINCT it before designing."</text>
+    <text x="14" y="114" font-size="10.5" fill="#94a3b8" font-style="italic">7 read-only calls; the order is procedural — but the count varies by question.</text>
+  </g>
+
+  <line x1="760" y1="571" x2="838" y2="571" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(840, 512)" filter="url(#shadow)">
+    <rect width="720" height="120" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#0c4a6e">Server executes 7 read-only tools</text>
+    <text x="14" y="44" font-size="11" font-family="monospace" fill="#475569"><tspan font-weight="700" fill="#0c4a6e">bird_get_question</tspan>  ·  bird_run_gold (runs gold SQL on real SQLite)</text>
+    <text x="14" y="62" font-size="11" font-family="monospace" fill="#475569"><tspan font-weight="700" fill="#0c4a6e">db_get_schema</tspan>  ·  tool_list  ·  db_sample_rows × 2</text>
+    <text x="14" y="80" font-size="11" font-family="monospace" fill="#475569"><tspan font-weight="700" fill="#0c4a6e">db_run_sql("SELECT DISTINCT FundingType ...")</tspan></text>
+    <text x="14" y="100" font-size="11" fill="#475569">→ Returns canonical 57 rows, DDL, value vocabularies. Read-only;</text>
+    <text x="14" y="114" font-size="11" fill="#475569">no state mutated. Connection opened with <tspan font-family="monospace" font-weight="700">mode=ro</tspan>.</text>
+  </g>
+
+  <!-- ============ PHASE 2: DECOMPOSE — KEY JUDGMENT ============ -->
+  <g transform="translate(40, 646)">
+    <rect width="1520" height="22" rx="4" fill="#1e293b"/>
+    <text x="14" y="16" font-size="11" font-weight="700" fill="#fff">PHASE 2  ·  DECOMPOSE  ·  ★ THE KEY JUDGMENT — agent reads gold SQL and decides "1 tool or N?"</text>
+  </g>
+
+  <g transform="translate(40, 676)" filter="url(#shadow)">
+    <rect width="1520" height="118" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+    <text x="14" y="22" font-size="14" font-weight="700" fill="#78350f">★ Agent JUDGMENT  ·  no tool call — pure reasoning over what it just read</text>
+    <text x="14" y="46" font-size="12" fill="#475569"><tspan font-weight="700" fill="#78350f">Observed:</tspan>  Gold SQL has a subquery in WHERE — strongest decomposition signal in the system prompt.</text>
+    <text x="14" y="66" font-size="12" fill="#475569"><tspan font-weight="700" fill="#78350f">Decided:</tspan>   2 tools. Tool A = the AVG (subquery). Tool B = the outer filter, takes threshold + funding_type.</text>
+    <text x="14" y="86" font-size="12" fill="#475569"><tspan font-weight="700" fill="#78350f">Why it's judgment, not pattern:</tspan>  the prompt teaches signals; the agent has to apply them and pick a boundary.</text>
+    <text x="14" y="106" font-size="11" fill="#92400e" font-style="italic">A one-shot LLM script paste-translates the SQL — never decomposes. Reality: only 1 of 67 passing did this.</text>
+  </g>
+
+  <!-- ============ PHASE 3: DESIGN + REGISTER ============ -->
+  <g transform="translate(40, 808)">
+    <rect width="1520" height="22" rx="4" fill="#1e293b"/>
+    <text x="14" y="16" font-size="11" font-weight="700" fill="#fff">PHASE 3  ·  DESIGN + REGISTER TOOL 1  ·  ★ slot lifting + naming  ·  🛡 server fires 4 guards</text>
+  </g>
+
+  <g transform="translate(40, 838)" filter="url(#shadow)">
+    <rect width="720" height="148" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#3b0764">Agent designs the tool — multiple judgments stacked</text>
+    <line x1="14" y1="32" x2="706" y2="32" stroke="#e2e8f0"/>
+    <g transform="translate(14, 42)">
+      <text x="0" y="12" font-size="11" fill="#f59e0b" font-weight="700">★</text>
+      <text x="18" y="12" font-size="11" fill="#475569"><tspan font-weight="700">Naming:</tspan> "avg_enrollment_difference_by_funding_type" (concept-led, not "question_28_solver")</text>
+    </g>
+    <g transform="translate(14, 62)">
+      <text x="0" y="12" font-size="11" fill="#f59e0b" font-weight="700">★</text>
+      <text x="18" y="12" font-size="11" fill="#475569"><tspan font-weight="700">Slot lift:</tspan> "Locally funded" → parameter funding_type</text>
+    </g>
+    <g transform="translate(14, 82)">
+      <text x="0" y="12" font-size="11" fill="#f59e0b" font-weight="700">★</text>
+      <text x="18" y="12" font-size="11" fill="#475569"><tspan font-weight="700">Examples:</tspan> ["Directly funded", ...] — NOT "Locally funded" (would leak the answer)</text>
+    </g>
+    <g transform="translate(14, 102)">
+      <text x="0" y="12" font-size="11" fill="#f59e0b" font-weight="700">★</text>
+      <text x="18" y="12" font-size="11" fill="#475569"><tspan font-weight="700">Code:</tspan> uses backtick-quoted column names confirmed in Phase 1</text>
+    </g>
+    <text x="14" y="138" font-size="10.5" fill="#94a3b8" font-style="italic">Then calls <tspan font-family="monospace">tool_register(...)</tspan> — purely procedural after the design is fixed.</text>
+  </g>
+
+  <line x1="760" y1="912" x2="838" y2="912" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(840, 838)" filter="url(#shadow)">
+    <rect width="720" height="148" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#0c4a6e">Server pushes back BEFORE persisting — 4 guards</text>
+    <line x1="14" y1="32" x2="706" y2="32" stroke="#e2e8f0"/>
+    <g transform="translate(14, 42)">
+      <text x="0" y="12" font-size="11" fill="#8b5cf6" font-weight="700">🛡</text>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">Forbidden-name pattern:</tspan> regex rejects question_*, *_solver, gold_*, todo_*, *_wrapper</text>
+    </g>
+    <g transform="translate(14, 62)">
+      <text x="0" y="12" font-size="11" fill="#8b5cf6" font-weight="700">🛡</text>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">SQL skeleton dup:</tspan> strip literals — same skeleton as existing tool? → reject + name it</text>
+    </g>
+    <g transform="translate(14, 82)">
+      <text x="0" y="12" font-size="11" fill="#8b5cf6" font-weight="700">🛡</text>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">Name-token Jaccard ≥ 0.85:</tspan> cosmetic dup like *_v2 → reject</text>
+    </g>
+    <g transform="translate(14, 102)">
+      <text x="0" y="12" font-size="11" fill="#8b5cf6" font-weight="700">🛡</text>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">_compile_tool sandbox:</tspan> exec into {sqlite3, json, re} only — no other imports</text>
+    </g>
+    <text x="14" y="138" font-size="10.5" fill="#94a3b8" font-style="italic">All pass → INSERT into state/california_schools.db / table tools. Otherwise: agent re-tries with the message as feedback.</text>
+  </g>
+
+  <!-- ============ PHASE 4: SMOKE-TEST ============ -->
+  <g transform="translate(40, 998)">
+    <rect width="1520" height="22" rx="4" fill="#1e293b"/>
+    <text x="14" y="16" font-size="11" font-weight="700" fill="#fff">PHASE 4  ·  SMOKE-TEST  ·  prompt requires immediate tool_call after every register — fail-fast on bugs</text>
+  </g>
+
+  <g transform="translate(40, 1028)" filter="url(#shadow)">
+    <rect width="720" height="80" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#3b0764">Agent reasons (procedural)</text>
+    <text x="14" y="44" font-size="11.5" fill="#475569">"Prompt says: every tool_register is followed by an immediate tool_call."</text>
+    <text x="14" y="62" font-size="11.5" fill="#475569">Calls <tspan font-family="monospace">tool_call(name=..., args={"funding_type": "Locally funded"})</tspan></text>
+  </g>
+
+  <line x1="760" y1="1068" x2="838" y2="1068" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(840, 1028)" filter="url(#shadow)">
+    <rect width="720" height="80" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#0c4a6e">Server executes generated code</text>
+    <text x="14" y="44" font-size="11" fill="#475569">opens <tspan font-family="monospace" font-weight="700">mode=ro</tspan> SQLite connection · runs the registered <tspan font-family="monospace">run(conn, **kwargs)</tspan></text>
+    <text x="14" y="62" font-size="11" font-family="monospace" fill="#0c4a6e">→ {output: {"avg_difference": 16.7…}}  ·  any code bug surfaces HERE, not at eval</text>
+  </g>
+
+  <!-- Phase 4 repeat for tool 2 — abbreviated -->
+  <g transform="translate(40, 1118)" filter="url(#shadow)">
+    <rect width="1520" height="34" rx="8" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="14" y="22" font-size="11.5" fill="#475569"><tspan font-weight="700" fill="#3b0764">↻ Repeat Phases 3–4 for Tool 2</tspan>  ·  agent designs <tspan font-family="monospace">schools_with_enrollment_difference_above_funding(funding_type, threshold)</tspan>  ·  guards pass · smoke-test returns 57 rows</text>
+  </g>
+
+  <!-- ============ PHASE 5: COMPOSE SEQUENCE ============ -->
+  <g transform="translate(40, 1164)">
+    <rect width="1520" height="22" rx="4" fill="#1e293b"/>
+    <text x="14" y="16" font-size="11" font-weight="700" fill="#fff">PHASE 5  ·  COMPOSE SEQUENCE  ·  ★ agent designs cross-step variable binding</text>
+  </g>
+
+  <g transform="translate(40, 1194)" filter="url(#shadow)">
+    <rect width="720" height="100" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#78350f">★ Agent JUDGMENT  ·  how do these tools chain?</text>
+    <text x="14" y="44" font-size="11" fill="#475569">"Tool A's <tspan font-family="monospace" font-weight="700">avg_difference</tspan> output → Tool B's <tspan font-family="monospace" font-weight="700">threshold</tspan> input"</text>
+    <text x="14" y="62" font-size="11" fill="#475569">Designs: step 1 with <tspan font-family="monospace" font-weight="700" fill="#78350f">bind: "avg"</tspan>; step 2 args use <tspan font-family="monospace" font-weight="700" fill="#78350f">"{{avg.avg_difference}}"</tspan></text>
+    <text x="14" y="82" font-size="11" fill="#475569">Calls <tspan font-family="monospace">seq_record(qid=28, sequence=[...])</tspan></text>
+  </g>
+
+  <line x1="760" y1="1244" x2="838" y2="1244" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(840, 1194)" filter="url(#shadow)">
+    <rect width="720" height="100" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#0c4a6e">Server persists the sequence</text>
+    <text x="14" y="44" font-size="11" fill="#475569">Stores in <tspan font-family="monospace" font-weight="700">sequences</tspan> table keyed by question_id.</text>
+    <text x="14" y="62" font-size="11" fill="#475569">No execution yet — record is just the plan. Validation is the next step.</text>
+    <text x="14" y="82" font-size="11" fill="#475569">→ <tspan font-family="monospace" font-weight="700">{recorded: true}</tspan></text>
+  </g>
+
+  <!-- ============ PHASE 6: VALIDATE ============ -->
+  <g transform="translate(40, 1306)">
+    <rect width="1520" height="22" rx="4" fill="#1e293b"/>
+    <text x="14" y="16" font-size="11" font-weight="700" fill="#fff">PHASE 6  ·  VALIDATE  ·  🛡 server runs the closed-loop oracle — agent only reads outcome</text>
+  </g>
+
+  <g transform="translate(40, 1336)" filter="url(#shadow)">
+    <rect width="720" height="80" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#3b0764">Agent reasons (procedural)</text>
+    <text x="14" y="44" font-size="11.5" fill="#475569">"Prompt requires seq_validate after every seq_record."</text>
+    <text x="14" y="62" font-size="11.5" fill="#475569">Calls <tspan font-family="monospace">seq_validate(qid=28)</tspan>  ·  reads response  ·  passed=true → done; false → fix</text>
+  </g>
+
+  <line x1="760" y1="1376" x2="838" y2="1376" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(840, 1336)" filter="url(#shadow)">
+    <rect width="720" height="80" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="12" font-weight="700" fill="#0c4a6e">Server runs the oracle — entirely deterministic</text>
+    <text x="14" y="40" font-size="11" fill="#475569">execute gold SQL  ·  _run_sequence with {{var}} resolution  ·  _normalize_for_compare</text>
+    <text x="14" y="56" font-size="11" fill="#475569">set-equality compare (floats round 6dp · sort-within-row · sort-row-list)</text>
+    <text x="14" y="72" font-size="11" font-family="monospace" fill="#0c4a6e">→ {passed: true, ...}  ·  persisted to validations table  ·  the agent does not own this verdict</text>
+  </g>
+
+  <!-- ============ FINAL OUTPUT ============ -->
+  <g transform="translate(40, 1428)" filter="url(#shadow)">
+    <rect width="1520" height="38" rx="10" fill="#10b981"/>
+    <text x="20" y="16" font-size="10" font-weight="700" fill="#d1fae5" letter-spacing="0.06em">FINAL OUTPUT  ·  output/california_schools/dataset.json[28]</text>
+    <text x="20" y="32" font-size="11.5" fill="#fff">{question_id: 28, gold_sql, gold_result, tool_sequence: [...], final_result: [...], <tspan font-weight="700">validated: true</tspan>, failure_msg: null}  ·  tools.py +2  ·  validation_report++</text>
+  </g>
+
+  <!-- TAKEAWAY at bottom -->
+  <text x="800" y="1486" text-anchor="middle" font-size="13" font-weight="600" fill="#475569">Real agent value lives in the ★ moments: decomposition, naming, slot lifting, sequence binding, retry on failure. Everything else is procedural.</text>
+</svg>

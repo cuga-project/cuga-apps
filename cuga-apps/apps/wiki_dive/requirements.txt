@@ -1,0 +1,9 @@
+# Wiki Dive dependencies
+# All runtime deps are already in the shared requirements.apps.txt.
+# Listed here for standalone installs.
+
+fastapi
+uvicorn[standard]
+pydantic
+httpx
+langchain-core

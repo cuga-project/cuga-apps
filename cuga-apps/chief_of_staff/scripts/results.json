@@ -1,0 +1,3881 @@
+[
+  {
+    "idx": 1,
+    "category": "web_search",
+    "intent": "fact_lookup_capital",
+    "prompt": "What is the capital of Brazil?",
+    "response_head": "Search for a web‑search‑type tool in the runtime_tools application.",
+    "response_full_len": 67,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 2,
+    "category": "web_search",
+    "intent": "fact_lookup_capital",
+    "prompt": "What is the capital of Mongolia?",
+    "response_head": "[stub:cuga-unreachable] echo: What is the capital of Mongolia?",
+    "response_full_len": 62,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 3,
+    "category": "web_search",
+    "intent": "fact_lookup_capital",
+    "prompt": "What is the capital of Kazakhstan?",
+    "response_head": "[stub:cuga-unreachable] echo: What is the capital of Kazakhstan?",
+    "response_full_len": 64,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 4,
+    "category": "web_search",
+    "intent": "fact_lookup_population",
+    "prompt": "How many people live in Lagos, Nigeria?",
+    "response_head": "Search for a tool that can provide population data for Lagos, Nigeria.",
+    "response_full_len": 70,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 7.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 5,
+    "category": "web_search",
+    "intent": "fact_lookup_population",
+    "prompt": "What is the population of Iceland?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "population lookup",
+      "inputs": [
+        "country"
+      ],
+      "expected_output": "population number"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the “population lookup” capability using the existing `openapi__get_country_by_name` tool, which queries the REST Countries API and returns the country’s population number for a given country name.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 5.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 6,
+    "category": "web_search",
+    "intent": "fact_lookup_population",
+    "prompt": "What is the population of Singapore?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "population lookup",
+      "inputs": [
+        "country name"
+      ],
+      "expected_output": "current population number"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__population_lookup",
+      "summary": "Created a `population_lookup` tool that returns the current population for a given country name using the REST Countries API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 76.2,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 7,
+    "category": "web_search",
+    "intent": "fact_lookup_person",
+    "prompt": "Who is the current CEO of Anthropic?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "CEO lookup",
+      "inputs": [
+        "company"
+      ],
+      "expected_output": "name of current CEO"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "I was unable to locate a public API that reliably returns a company’s current CEO without requiring authentication or special headers, and no suitable curated browser task exists for this capability. Consequently, I cannot build a verified ",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 53.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 8,
+    "category": "web_search",
+    "intent": "fact_lookup_person",
+    "prompt": "Who founded Linux?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "Answer to factual question"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 21.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 9,
+    "category": "web_search",
+    "intent": "fact_lookup_person",
+    "prompt": "Who is the author of The Pragmatic Programmer?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "book author lookup",
+      "inputs": [
+        "title"
+      ],
+      "expected_output": "author name"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 8.6,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 10,
+    "category": "web_search",
+    "intent": "fact_lookup_history",
+    "prompt": "What year was Python 3.0 released?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "the year Python 3.0 was released"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Mounted a browser‑task tool named **wikipedia_search** to provide web‑search capability.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 157.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 11,
+    "category": "web_search",
+    "intent": "fact_lookup_history",
+    "prompt": "What year did Tim Berners-Lee invent the World Wide Web?",
+    "response_head": "The year Tim Berners‑Lee invented the World Wide Web was 1989.",
+    "response_full_len": 62,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.2,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 12,
+    "category": "web_search",
+    "intent": "fact_lookup_history",
+    "prompt": "What year was the Linux kernel first released?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "information about Linux kernel first release year"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 61.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 13,
+    "category": "web_search",
+    "intent": "fact_lookup_history",
+    "prompt": "When did the Hubble Space Telescope launch?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [],
+      "expected_output": "The launch date of the Hubble Space Telescope"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 53.6,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 14,
+    "category": "web_search",
+    "intent": "fact_lookup_science",
+    "prompt": "What is the boiling point of mercury in Celsius?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "boiling point lookup",
+      "inputs": [
+        "element name"
+      ],
+      "expected_output": "boiling point in Celsius"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "{\"code\": \"import re, json\\nimport httpx\\n\\nasync def boiling_point_lookup(element_name: str) -> str:\\n    \\\"\\\"\\\"Return boiling point in Celsius for the given chemical element.\\n    Uses Wikipedia API to fetch the element's page wikitext and",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 25.7,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 15,
+    "category": "web_search",
+    "intent": "fact_lookup_science",
+    "prompt": "What is the speed of sound in dry air at 20°C?",
+    "response_head": "Search for a tool that can provide the speed of sound in air.",
+    "response_full_len": 61,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.8,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 16,
+    "category": "web_search",
+    "intent": "fact_lookup_science",
+    "prompt": "What is the chemical symbol for tungsten?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "chemical element lookup",
+      "inputs": [
+        "element_name"
+      ],
+      "expected_output": "chemical symbol"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 143.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 17,
+    "category": "web_search",
+    "intent": "fact_lookup_science",
+    "prompt": "What is Avogadro's number?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "constant lookup",
+      "inputs": [
+        "constant name"
+      ],
+      "expected_output": "value of Avogadro's number"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 70.6,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 18,
+    "category": "web_search",
+    "intent": "definition",
+    "prompt": "What does the acronym SLA stand for in software engineering?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "definition of the term"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "catalog__knowledge",
+      "summary": "Mounted catalog server Knowledge MCP (deterministic path). (ReAct attempt errored: Client error '400 Bad Request' for url 'https://inference-3scale-apicast-production.apps.rits.fmaas.res.ibm.com/gpt-oss-120b/v1/chat/completions'\nFor more in",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 85.4,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 19,
+    "category": "web_search",
+    "intent": "definition",
+    "prompt": "What is an SBOM in software supply chain security?",
+    "response_head": "Search for a web search tool in the available applications.",
+    "response_full_len": 59,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.1,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 20,
+    "category": "web_search",
+    "intent": "definition",
+    "prompt": "What is BGP in networking, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "definition of BGP in one sentence"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability is already covered by the existing **dictionary_lookup** tool (uses https://api.dictionaryapi.dev to fetch definitions for a given word), which is probed and registered, so definition lookup is now available.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 39.6,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 21,
+    "category": "web_search",
+    "intent": "definition",
+    "prompt": "What is rate limiting in HTTP APIs, briefly?",
+    "response_head": "Rate limiting is a mechanism used by HTTP APIs to control how many requests a client can make within a given time window. It helps protect the service from overload, ensures fair usage among users, and can prevent abuse. When the limit is exceeded, the API typically returns a 429 Too Many Requests r",
+    "response_full_len": 369,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.1,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 22,
+    "category": "web_search",
+    "intent": "comparison",
+    "prompt": "What is the difference between TCP and UDP?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "protocol comparison",
+      "inputs": [
+        "protocol1",
+        "protocol2"
+      ],
+      "expected_output": "Explanation of differences between the two network protocols"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__tcp_udp_comparison",
+      "summary": "Created and registered a tool `tcp_udp_comparison` that returns a concise static explanation of the differences between TCP and UDP.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 84.8,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 23,
+    "category": "web_search",
+    "intent": "comparison",
+    "prompt": "What is the difference between SQL and NoSQL databases?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "Explanation of differences between SQL and NoSQL databases"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 27.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 24,
+    "category": "web_search",
+    "intent": "how_to",
+    "prompt": "How do I check disk usage on Linux from the command line?",
+    "response_head": "You can view disk usage from the Linux command line with a few common utilities:\n\n| Command | What it shows | Typical usage |\n|---------|---------------|---------------|\n| `df` | Overall filesystem space (total, used, available) | `df -h` – human‑readable sizes (e.g., GB, MB) |\n| `du` | Size of dire",
+    "response_full_len": 1118,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.6,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 25,
+    "category": "web_search",
+    "intent": "how_to",
+    "prompt": "How do I count lines in a file using wc?",
+    "response_head": "To count the number of lines in a file with `wc`, use the `-l` (lower‑case L) option:\n\n```bash\nwc -l filename\n```\n\nReplace `filename` with the path to your file. The command will output the line count followed by the file name, e.g.:\n\n```\n42 filename\n```\n\nIf you only want the number without the file",
+    "response_full_len": 476,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.6,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 26,
+    "category": "web_search",
+    "intent": "current_event_topic",
+    "prompt": "What is one notable AI announcement from earlier this month?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "news search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "details of a notable AI announcement from early this month"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "GitHub Search API needs credentials before I can build it: github_token. (ReAct attempt errored: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 140013196677952 and this is thread",
+      "already_existed": false,
+      "needs_secrets": {
+        "tool_id": "openapi__github_search_repos",
+        "tool_name": "github_search_repos",
+        "missing": [
+          "github_token"
+        ],
+        "required": [
+          "github_token"
+        ]
+      }
+    },
+    "elapsed_s": 38.0,
+    "outcome": "needs_secrets"
+  },
+  {
+    "idx": 27,
+    "category": "web_search",
+    "intent": "tech_lookup",
+    "prompt": "What is the latest stable Python version?",
+    "response_head": "Search for a tool that can retrieve the latest stable Python version.",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__duckduckgo_search",
+      "summary": "Created and registered a “duckduckgo_search” tool that queries DuckDuckGo’s Instant Answer API and returns a concise answer or abstract for a given search query.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 75.9,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 28,
+    "category": "web_search",
+    "intent": "tech_lookup",
+    "prompt": "What is the latest LTS version of Node.js?",
+    "response_head": "The latest LTS version of Node.js is 20.11.1.",
+    "response_full_len": 45,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 29,
+    "category": "web_search",
+    "intent": "tech_lookup",
+    "prompt": "What is the latest version of PostgreSQL?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "latest PostgreSQL version"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "openapi__get_country_by_name",
+      "summary": "Generated get_country_by_name via gpt_oss and probed successfully. (ReAct attempt errored: Client error '400 Bad Request' for url 'https://inference-3scale-apicast-production.apps.rits.fmaas.res.ibm.com/gpt-oss-120b/v1/chat/completions'\nFor",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 17.7,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 30,
+    "category": "web_search",
+    "intent": "unit_conversion",
+    "prompt": "How many liters are in 5 US gallons?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "unit conversion",
+      "inputs": [
+        "value",
+        "from_unit",
+        "to_unit"
+      ],
+      "expected_output": "numeric conversion result"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__unit_conversion",
+      "summary": "Created a custom `unit_conversion` tool that converts numeric values between supported length and temperature units using built‑in conversion logic.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 65.6,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 31,
+    "category": "web_search",
+    "intent": "unit_conversion",
+    "prompt": "How many kilometers in 100 nautical miles?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "unit conversion",
+      "inputs": [
+        "nautical miles",
+        "kilometers"
+      ],
+      "expected_output": "numeric conversion result"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the existing `custom__unit_conversion` tool (supports length units including nautical miles and kilometers) to satisfy the unit‑conversion capability.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 16.9,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 32,
+    "category": "web_search",
+    "intent": "unit_conversion",
+    "prompt": "Convert 32 fluid ounces to milliliters.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "unit conversion",
+      "inputs": [
+        "value",
+        "from_unit",
+        "to_unit"
+      ],
+      "expected_output": "converted value"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing custom tool `unit_conversion` (inputs: value, from_unit, to_unit) already fulfills the required capability, so no new tool needs to be built.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 5.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 33,
+    "category": "web_search",
+    "intent": "math_explanation",
+    "prompt": "Explain in one paragraph what a Fourier transform does.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "one-paragraph explanation of the term"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the “definition lookup” capability by reusing the existing `dictionary_lookup` tool (which queries https://api.dictionaryapi.dev for word definitions and is already verified). This tool accepts a term and returns a concise, one‑",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 5.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 34,
+    "category": "web_search",
+    "intent": "math_explanation",
+    "prompt": "Explain in one paragraph what a hash function is.",
+    "response_head": "A hash function is a deterministic algorithm that takes an input of arbitrary size—such as a string, file, or data structure—and produces a fixed-size string of characters, typically represented as a sequence of hexadecimal digits. The output, called a hash value or digest, appears random and change",
+    "response_full_len": 670,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.6,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 35,
+    "category": "web_search",
+    "intent": "geography",
+    "prompt": "What ocean borders Ireland on the west?",
+    "response_head": "Search for any web search or search tool in runtime_tools.",
+    "response_full_len": 58,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 16.7,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 36,
+    "category": "web_search",
+    "intent": "geography",
+    "prompt": "Which mountain range separates Europe and Asia?",
+    "response_head": "We need to discover a tool that can perform a web search.",
+    "response_full_len": 57,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.9,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 37,
+    "category": "web_search",
+    "intent": "geography",
+    "prompt": "What is the longest river in South America?",
+    "response_head": "Search for a tool that can retrieve geographic or factual data about rivers in South America.",
+    "response_full_len": 93,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.4,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 38,
+    "category": "web_search",
+    "intent": "biology",
+    "prompt": "What is photosynthesis, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "A concise definition of the requested term"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing tool **dictionary_lookup** (via dictionaryapi.dev) already fulfills “definition lookup” – it takes a term and returns concise definitions, and its probe succeeded. No new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 53.7,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 39,
+    "category": "web_search",
+    "intent": "biology",
+    "prompt": "What is mitosis, in one sentence?",
+    "response_head": "Search for a tool that can retrieve a definition of “mitosis”.",
+    "response_full_len": 62,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.9,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 40,
+    "category": "web_search",
+    "intent": "summary_topic",
+    "prompt": "Give me a one-paragraph summary of CRISPR.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "one-paragraph summary of CRISPR"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The “duckduckgo_search” tool (DuckDuckGo Instant Answer API) now successfully probes and can be used to accept a query string and return a concise, one‑paragraph summary of the requested topic.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 37.9,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 41,
+    "category": "fetch_webpage",
+    "intent": "fetch_known_url",
+    "prompt": "Fetch https://example.com and tell me the page title.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web page fetch",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "HTML page title"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__fetch_page_title",
+      "summary": "Created tool `fetch_page_title` that returns a web page’s title using the Microlink API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 40.3,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 42,
+    "category": "fetch_webpage",
+    "intent": "fetch_known_url",
+    "prompt": "Fetch https://www.iana.org/help/example-domains and summarize in two sentences.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web page fetch",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "HTML content of the page"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__fetch_page_summary",
+      "summary": "Created and registered a tool `fetch_page_summary` that fetches a URL via the Microlink API and returns a concise page description as the summary.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 46.5,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 43,
+    "category": "fetch_webpage",
+    "intent": "fetch_links",
+    "prompt": "List the outbound links on https://example.com.",
+    "response_head": "Here is the result of searching for a tool that can fetch a webpage and extract its outbound links.",
+    "response_full_len": 99,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.9,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 44,
+    "category": "fetch_webpage",
+    "intent": "fetch_feed",
+    "prompt": "Fetch the RSS feed at https://hnrss.org/frontpage and report 5 titles.",
+    "response_head": "We need to discover a tool to fetch a URL.",
+    "response_full_len": 42,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.3,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 45,
+    "category": "fetch_webpage",
+    "intent": "fetch_feed",
+    "prompt": "Fetch https://blog.python.org/feeds/posts/default and list the latest 3 posts.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "fetch URL",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "list of latest 3 posts from the RSS feed"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__fetch_rss_latest_posts",
+      "summary": "Created tool `fetch_rss_latest_posts` that retrieves and returns the latest three posts (title, link, pubDate) from any RSS feed URL.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 43.2,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 46,
+    "category": "code_analysis",
+    "intent": "valid_python",
+    "prompt": "Use check_python_syntax on: def add(a, b): return a + b",
+    "response_head": "[stub:cuga-unreachable] echo: Use check_python_syntax on: def add(a, b): return a + b",
+    "response_full_len": 85,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 47,
+    "category": "code_analysis",
+    "intent": "broken_python",
+    "prompt": "Use check_python_syntax on: def broken(a, b): return a +",
+    "response_head": "The Python code has confirmed that the snippet `def broken(a, b): return a +` contains a syntax error. The error details are:\n\n- **Valid syntax:** False  \n- **Error message:** `invalid syntax (<unknown>, line 1)`  \n- **Location:** line 1, column 29 (the missing operand after the `+` operator)\n\nYou’l",
+    "response_full_len": 394,
+    "tools_used": [
+      {
+        "name": "check_python_syntax",
+        "server": "code"
+      }
+    ],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 49.0,
+    "outcome": "answered_with_tool"
+  },
+  {
+    "idx": 48,
+    "category": "code_analysis",
+    "intent": "metrics_basic",
+    "prompt": "Use extract_code_metrics on: def foo():\n    if 1: return 1\n    if 2: return 2\n    return 3",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "code metrics extraction",
+      "inputs": [
+        "code_string"
+      ],
+      "expected_output": "metrics about the provided code"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 51.9,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 49,
+    "category": "code_analysis",
+    "intent": "metrics_class",
+    "prompt": "Use extract_code_metrics on: class A:\n    def m(self): pass\n    def n(self): pass",
+    "response_head": "Here are the extracted code metrics for the provided snippet:\n\n- **Total lines:** 3  \n- **Non‑blank lines:** 3  \n- **Branch complexity estimate:** 0  \n- **Top‑level definitions:**  \n  - Class `A`  \n  - Function `m`  \n  - Function `n`",
+    "response_full_len": 233,
+    "tools_used": [
+      {
+        "name": "extract_code_metrics",
+        "server": "code"
+      }
+    ],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 49.3,
+    "outcome": "answered_with_tool"
+  },
+  {
+    "idx": 50,
+    "category": "code_analysis",
+    "intent": "detect_js",
+    "prompt": "Use detect_language on: console.log(\"hello world\");",
+    "response_head": "[stub:cuga-unreachable] echo: Use detect_language on: console.log(\"hello world\");",
+    "response_full_len": 81,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 51,
+    "category": "code_analysis",
+    "intent": "detect_python",
+    "prompt": "Use detect_language on: import numpy as np; print(np.linalg.norm([3,4]))",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "language detection",
+      "inputs": [
+        "code_snippet"
+      ],
+      "expected_output": "detected programming language"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__detect_programming_language",
+      "summary": "Created and registered a tool `detect_programming_language` that uses simple heuristics (via regex patterns) to identify the programming language of a provided code snippet.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 106.7,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 52,
+    "category": "code_analysis",
+    "intent": "detect_rust",
+    "prompt": "Use detect_language on: fn main() { println!(\"{}\", 1+1); }",
+    "response_head": "Search for a language detection tool.",
+    "response_full_len": 37,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__detect_language",
+      "summary": "Created and registered a custom `detect_language` tool that uses simple Unicode‑range heuristics to return language codes (e.g., “en”, “ru”, “zh”, “ar”, or “unknown”) for a given text.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 109.1,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 53,
+    "category": "code_analysis",
+    "intent": "detect_go",
+    "prompt": "Use detect_language on: package main; import \"fmt\"; func main(){fmt.Println(1)}",
+    "response_head": "Search for a language detection tool.",
+    "response_full_len": 37,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.8,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 54,
+    "category": "code_analysis",
+    "intent": "detect_sql",
+    "prompt": "Use detect_language on: SELECT id, name FROM users WHERE active = 1;",
+    "response_head": "[stub:cuga-unreachable] echo: Use detect_language on: SELECT id, name FROM users WHERE active = 1;",
+    "response_full_len": 98,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 55,
+    "category": "code_analysis",
+    "intent": "detect_yaml",
+    "prompt": "Use detect_language on: services:\n  web:\n    image: nginx:latest",
+    "response_head": "[stub:cuga-unreachable] echo: Use detect_language on: services:\n  web:\n    image: nginx:latest",
+    "response_full_len": 94,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 56,
+    "category": "system_metrics",
+    "intent": "snapshot",
+    "prompt": "Use get_system_metrics to report current CPU and memory.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "system metrics",
+      "inputs": [],
+      "expected_output": "Current CPU and memory usage report"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__system_metrics",
+      "summary": "Created a `system_metrics` tool that returns the host’s current CPU usage percent and memory usage (total, used, percent).",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 115.4,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 57,
+    "category": "system_metrics",
+    "intent": "alerts",
+    "prompt": "Use get_system_metrics_with_alerts and just show the alerts list.",
+    "response_head": "Tool shortlisting failed due to an internal error: Connection error.. Please retry with a different query.",
+    "response_full_len": 106,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 17.2,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 58,
+    "category": "system_metrics",
+    "intent": "top_cpu",
+    "prompt": "Use list_top_processes with by=cpu, n=5.",
+    "response_head": "[stub:cuga-unreachable] echo: Use list_top_processes with by=cpu, n=5.",
+    "response_full_len": 70,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 59,
+    "category": "system_metrics",
+    "intent": "top_memory",
+    "prompt": "Use list_top_processes with by=memory, n=5.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [
+      {
+        "name": "list_top_processes",
+        "server": null
+      }
+    ],
+    "gap": {
+      "capability": "list top processes",
+      "inputs": [
+        "by",
+        "n"
+      ],
+      "expected_output": "list of top n processes sorted by memory"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__list_top_processes",
+      "summary": "Created a local tool `list_top_processes` that returns the top N processes sorted by memory usage (RSS) on the host system.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 95.8,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 60,
+    "category": "system_metrics",
+    "intent": "top_processes_n10",
+    "prompt": "Use list_top_processes with by=cpu, n=10.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [
+      {
+        "name": "list_top_processes",
+        "server": null
+      }
+    ],
+    "gap": {
+      "capability": "process listing",
+      "inputs": [
+        "by",
+        "n"
+      ],
+      "expected_output": "list of top processes sorted by the specified metric"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "I couldn’t create a verified tool for “process listing” because there’s no existing API or remote endpoint to probe; without a probeable service I can’t safely register a new local‑only tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 88.8,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 61,
+    "category": "system_metrics",
+    "intent": "disk_root",
+    "prompt": "Use check_disk_usage on path \"/\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use check_disk_usage on path \"/\".",
+    "response_full_len": 63,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 62,
+    "category": "system_metrics",
+    "intent": "disk_tmp",
+    "prompt": "Use check_disk_usage on path \"/tmp\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use check_disk_usage on path \"/tmp\".",
+    "response_full_len": 66,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__disk_usage_check",
+      "summary": "Created a local tool `disk_usage_check` that returns total, used, and free bytes for a given filesystem path.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 126.2,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 63,
+    "category": "system_metrics",
+    "intent": "find_large_tmp",
+    "prompt": "Use find_large_files on path \"/tmp\" with min_size_mb=1, top_n=5.",
+    "response_head": "[stub:cuga-unreachable] echo: Use find_large_files on path \"/tmp\" with min_size_mb=1, top_n=5.",
+    "response_full_len": 94,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 64,
+    "category": "system_metrics",
+    "intent": "find_large_var",
+    "prompt": "Use find_large_files on path \"/var\" with min_size_mb=10, top_n=5.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "find large files",
+      "inputs": [
+        "path",
+        "min_size_mb",
+        "top_n"
+      ],
+      "expected_output": "list of largest files matching criteria"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__file_system_scan",
+      "summary": "Created and registered a custom tool `file_system_scan` that scans a directory, filters files by a minimum size (MB), and returns the top N largest files.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 88.1,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 65,
+    "category": "system_metrics",
+    "intent": "service_sshd",
+    "prompt": "Use get_service_status with service=\"sshd\".",
+    "response_head": "Search for a tool that can retrieve a service status.",
+    "response_full_len": 53,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.5,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 66,
+    "category": "system_metrics",
+    "intent": "service_cron",
+    "prompt": "Use get_service_status with service=\"cron\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "service status check",
+      "inputs": [
+        "service"
+      ],
+      "expected_output": "status of the requested service"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 53.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 67,
+    "category": "text_processing",
+    "intent": "chunk_short",
+    "prompt": "Use chunk_text on \"The quick brown fox jumps over the lazy dog. Then the dog ran away. Then the fox ate breakfast.\" with chunk_size=40, overlap=10.",
+    "response_head": "Here are the chunks produced with a size of 40 characters and an overlap of 10 characters:\n\n1. **“The quick brown fox jumps over the lazy ”**  \n2. **“ the lazy dog. Then the dog ran away. Th”**  \n3. **“n away. Then the fox ate breakfast.”**  \n4. **“fast.”**",
+    "response_full_len": 257,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 53.9,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 68,
+    "category": "text_processing",
+    "intent": "chunk_long",
+    "prompt": "Use chunk_text on \"In the beginning the Universe was created. This has made a lot of people very angry and been widely regarded as a bad move.\" with chunk_size=30, overlap=5.",
+    "response_head": "[stub:cuga-unreachable] echo: Use chunk_text on \"In the beginning the Universe was created. This has made a lot of people very angry and been widely regarded as a bad move.\" with chunk_size=30, overlap=5.",
+    "response_full_len": 204,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 69,
+    "category": "text_processing",
+    "intent": "count_tokens_basic",
+    "prompt": "Use count_tokens on \"the quick brown fox jumps over the lazy dog\" with model=cl100k_base.",
+    "response_head": "[stub:cuga-unreachable] echo: Use count_tokens on \"the quick brown fox jumps over the lazy dog\" with model=cl100k_base.",
+    "response_full_len": 119,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 70,
+    "category": "text_processing",
+    "intent": "count_tokens_long",
+    "prompt": "Use count_tokens on \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.\" with model=cl100k_base.",
+    "response_head": "[stub:cuga-unreachable] echo: Use count_tokens on \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.\" with model=cl100k_base.",
+    "response_full_len": 155,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__token_counter",
+      "summary": "Created and registered a custom `token_counter` tool that returns the integer token count for any given text and OpenAI model using the local tiktoken library.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 108.5,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 71,
+    "category": "text_processing",
+    "intent": "extract_text_html",
+    "prompt": "Use extract_text on \"<html><body><h1>Hi</h1><p>This is <b>bold</b>.</p></body></html>\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use extract_text on \"<html><body><h1>Hi</h1><p>This is <b>bold</b>.</p></body></html>\".",
+    "response_full_len": 117,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 72,
+    "category": "text_processing",
+    "intent": "extract_text_long_html",
+    "prompt": "Use extract_text on \"<html><body><nav>menu</nav><h1>Title</h1><p>Para 1.</p><p>Para 2.</p></body></html>\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use extract_text on \"<html><body><nav>menu</nav><h1>Title</h1><p>Para 1.</p><p>Para 2.</p></body></html>\".",
+    "response_full_len": 136,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 73,
+    "category": "youtube_feed",
+    "intent": "video_info",
+    "prompt": "Use get_youtube_video_info with youtube_url=\"https://www.youtube.com/watch?v=dQw4w9WgXcQ\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_youtube_video_info with youtube_url=\"https://www.youtube.com/watch?v=dQw4w9WgXcQ\".",
+    "response_full_len": 120,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 74,
+    "category": "youtube_feed",
+    "intent": "transcript",
+    "prompt": "Use get_youtube_transcript with youtube_url=\"https://www.youtube.com/watch?v=mAa6h-fHvJU\", max_words=200.",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_youtube_transcript with youtube_url=\"https://www.youtube.com/watch?v=mAa6h-fHvJU\", max_words=200.",
+    "response_full_len": 135,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 75,
+    "category": "youtube_feed",
+    "intent": "fetch_feed_python",
+    "prompt": "Use fetch_feed with url=\"https://blog.python.org/feeds/posts/default\", max_items=5.",
+    "response_head": "Fetching the list of available tools that match a `fetch_feed` operation.",
+    "response_full_len": 73,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 5.4,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 76,
+    "category": "youtube_feed",
+    "intent": "search_feeds",
+    "prompt": "Use search_feeds with feed_urls=[\"https://hnrss.org/frontpage\"], keywords=[\"AI\",\"language model\"], max_per_feed=20.",
+    "response_head": "[stub:cuga-unreachable] echo: Use search_feeds with feed_urls=[\"https://hnrss.org/frontpage\"], keywords=[\"AI\",\"language model\"], max_per_feed=20.",
+    "response_full_len": 145,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__feed_search",
+      "summary": "Created a custom tool **feed_search** that fetches multiple RSS/Atom feeds via rss2json.com, filters items by given keywords, and returns up to the specified number of matching items per feed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 128.2,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 77,
+    "category": "geo_mcp",
+    "intent": "geocode_tokyo",
+    "prompt": "Use geocode on city=\"Tokyo\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "geocoding",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "latitude and longitude for the given city"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the geocoding capability by reusing the existing “geo” MCP tool (catalog__geo), which provides latitude/longitude for a given city.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 52.8,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 78,
+    "category": "geo_mcp",
+    "intent": "geocode_iceland",
+    "prompt": "Use geocode on city=\"Reykjavik\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use geocode on city=\"Reykjavik\".",
+    "response_full_len": 62,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 79,
+    "category": "geo_mcp",
+    "intent": "geocode_paris",
+    "prompt": "Use geocode on city=\"Paris\".",
+    "response_head": "Search for a geocoding tool in the geo‑related application.",
+    "response_full_len": 59,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required geocoding capability is already covered by the installed catalog tool **geo** (catalog__geo), which provides geocoding (city → coordinates) without needing an API key. No new tool needed.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 61.7,
+    "outcome": "already_existed_and_answered"
+  },
+  {
+    "idx": 80,
+    "category": "geo_mcp",
+    "intent": "geocode_buenos_aires",
+    "prompt": "Use geocode on city=\"Buenos Aires\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use geocode on city=\"Buenos Aires\".",
+    "response_full_len": 65,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 81,
+    "category": "geo_mcp",
+    "intent": "weather_reykjavik",
+    "prompt": "Use get_weather with city=\"Reykjavik\". Just temperature.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "weather lookup",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "temperature"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing generated tool **fetch_weather_summary** (city → JSON weather data from wttr.in) already fulfills the “weather lookup” capability, so no new tool is needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 3.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 82,
+    "category": "geo_mcp",
+    "intent": "weather_capetown",
+    "prompt": "Use get_weather with city=\"Cape Town\". Just temperature.",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_weather with city=\"Cape Town\". Just temperature.",
+    "response_full_len": 86,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__city_temperature_lookup",
+      "summary": "Created and registered a tool `city_temperature_lookup` that takes a city name and returns its current temperature in Celsius using Open‑Meteo’s geocoding and weather APIs.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 161.1,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 83,
+    "category": "geo_mcp",
+    "intent": "weather_oslo",
+    "prompt": "Use get_weather with city=\"Oslo\". Just temperature.",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_weather with city=\"Oslo\". Just temperature.",
+    "response_full_len": 81,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 84,
+    "category": "geo_mcp",
+    "intent": "weather_jakarta",
+    "prompt": "Use get_weather with city=\"Jakarta\". Just temperature.",
+    "response_head": "Search for a weather‑related tool in the runtime_tools app.",
+    "response_full_len": 59,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 5.5,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 85,
+    "category": "geo_mcp",
+    "intent": "attractions_paris",
+    "prompt": "Use search_attractions near city=\"Paris\", limit=3.",
+    "response_head": "[stub:cuga-unreachable] echo: Use search_attractions near city=\"Paris\", limit=3.",
+    "response_full_len": 80,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 86,
+    "category": "geo_mcp",
+    "intent": "attractions_lisbon",
+    "prompt": "Use search_attractions near city=\"Lisbon\", limit=3.",
+    "response_head": "[stub:cuga-unreachable] echo: Use search_attractions near city=\"Lisbon\", limit=3.",
+    "response_full_len": 81,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 87,
+    "category": "geo_mcp",
+    "intent": "hikes_boulder",
+    "prompt": "Use find_hikes near city=\"Boulder, Colorado\", limit=3.",
+    "response_head": "[stub:cuga-unreachable] echo: Use find_hikes near city=\"Boulder, Colorado\", limit=3.",
+    "response_full_len": 84,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 88,
+    "category": "geo_mcp",
+    "intent": "hikes_seattle",
+    "prompt": "Use find_hikes near city=\"Seattle\", limit=3.",
+    "response_head": "We need to discover a tool that can find hikes near a city. Use find_tools in isolation.",
+    "response_full_len": 88,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__hike_search",
+      "summary": "Created and registered a custom tool “hike_search” that takes a city and limit, geocodes the city via Open‑Meteo, queries the Overpass API for nearby hiking trails, and returns up to three trail details.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 103.3,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 89,
+    "category": "finance_mcp",
+    "intent": "stock_aapl",
+    "prompt": "Use get_stock_quote with symbol=\"AAPL\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"AAPL\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 90,
+    "category": "finance_mcp",
+    "intent": "stock_msft",
+    "prompt": "Use get_stock_quote with symbol=\"MSFT\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"MSFT\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 91,
+    "category": "finance_mcp",
+    "intent": "stock_nvda",
+    "prompt": "Use get_stock_quote with symbol=\"NVDA\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"NVDA\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "catalog__finance",
+      "summary": "Mounted catalog server Finance MCP (deterministic path). (ReAct attempt errored: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 140013196677952 and this is thread id 140009703687",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 157.6,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 92,
+    "category": "finance_mcp",
+    "intent": "stock_googl",
+    "prompt": "Use get_stock_quote with symbol=\"GOOGL\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"GOOGL\".",
+    "response_full_len": 70,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__twelvedata_stock_price",
+      "summary": "Created a tool `twelvedata_stock_price` that returns real‑time stock quote data for a given ticker symbol using Twelve Data’s free demo API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 228.2,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 93,
+    "category": "finance_mcp",
+    "intent": "stock_ibm",
+    "prompt": "Use get_stock_quote with symbol=\"IBM\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"IBM\".",
+    "response_full_len": 68,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 94,
+    "category": "finance_mcp",
+    "intent": "stock_brk",
+    "prompt": "Use get_stock_quote with symbol=\"BRK.B\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"BRK.B\".",
+    "response_full_len": 70,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 95,
+    "category": "finance_mcp",
+    "intent": "crypto_btc_usd",
+    "prompt": "Use get_crypto_price with id=\"bitcoin\", currency=\"usd\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_crypto_price with id=\"bitcoin\", currency=\"usd\".",
+    "response_full_len": 85,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 96,
+    "category": "finance_mcp",
+    "intent": "crypto_eth_usd",
+    "prompt": "Use get_crypto_price with id=\"ethereum\", currency=\"usd\".",
+    "response_head": "Ethereum is currently priced at **$2,265.17 USD** (24‑hour change: –2.34%, market cap: $273.8 B).",
+    "response_full_len": 97,
+    "tools_used": [
+      {
+        "name": "get_crypto_price",
+        "server": "finance"
+      }
+    ],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 49.4,
+    "outcome": "answered_with_tool"
+  },
+  {
+    "idx": 97,
+    "category": "finance_mcp",
+    "intent": "crypto_ada_usd",
+    "prompt": "Use get_crypto_price with id=\"cardano\", currency=\"usd\".",
+    "response_head": "Cardano (ADA) is currently priced at **$0.245202 USD**. It has changed by **‑1.26 %** over the past 24 hours, and its market capitalization stands at **$9.06 billion USD**.",
+    "response_full_len": 172,
+    "tools_used": [
+      {
+        "name": "get_crypto_price",
+        "server": "finance"
+      }
+    ],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 45.7,
+    "outcome": "answered_with_tool"
+  },
+  {
+    "idx": 98,
+    "category": "finance_mcp",
+    "intent": "crypto_btc_eur",
+    "prompt": "Use get_crypto_price with id=\"bitcoin\", currency=\"eur\".",
+    "response_head": "The current price data returned by **get_crypto_price** is:\n\n```json\n{\n  \"ok\": true,\n  \"data\": {\n    \"symbol\": \"bitcoin\",\n    \"coingecko_id\": \"bitcoin\",\n    \"vs_currency\": \"usd\",\n    \"price\": 75707,\n    \"change_24h\": -2.8643381290458065,\n    \"market_cap\": 1516142031047.3984\n  }\n}\n```\n\nSo, Bitcoin is",
+    "response_full_len": 591,
+    "tools_used": [
+      {
+        "name": "get_crypto_price",
+        "server": "finance"
+      }
+    ],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 37.5,
+    "outcome": "answered_with_tool"
+  },
+  {
+    "idx": 99,
+    "category": "openapi_explicit",
+    "intent": "chuck_norris",
+    "prompt": "Tell me a random Chuck Norris joke from chucknorris.io.",
+    "response_head": "[stub:cuga-unreachable] echo: Tell me a random Chuck Norris joke from chucknorris.io.",
+    "response_full_len": 85,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 100,
+    "category": "openapi_explicit",
+    "intent": "rest_countries_japan",
+    "prompt": "Use the REST Countries API to get the population of Japan.",
+    "response_head": "[stub:cuga-unreachable] echo: Use the REST Countries API to get the population of Japan.",
+    "response_full_len": 88,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 101,
+    "category": "openapi_explicit",
+    "intent": "rest_countries_brazil_currency",
+    "prompt": "Use the REST Countries API to find the currency of Brazil.",
+    "response_head": "Search for a tool that accesses the REST Countries API.",
+    "response_full_len": 55,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.5,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 102,
+    "category": "openapi_explicit",
+    "intent": "rest_countries_languages",
+    "prompt": "Use the REST Countries API to list the official languages of Switzerland.",
+    "response_head": "[stub:cuga-unreachable] echo: Use the REST Countries API to list the official languages of Switzerland.",
+    "response_full_len": 103,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 103,
+    "category": "openapi_explicit",
+    "intent": "rest_countries_capital",
+    "prompt": "Use the REST Countries API to get the capital of Mongolia.",
+    "response_head": "[stub:cuga-unreachable] echo: Use the REST Countries API to get the capital of Mongolia.",
+    "response_full_len": 88,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 104,
+    "category": "openapi_explicit",
+    "intent": "open_meteo_latlon",
+    "prompt": "Use Open-Meteo to fetch current weather for latitude=64.13, longitude=-21.94.",
+    "response_head": "Fetching available tools for Open-Meteo...",
+    "response_full_len": 42,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.1,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 105,
+    "category": "openapi_explicit",
+    "intent": "open_meteo_city",
+    "prompt": "Use OpenMeteoCurrentWeatherTool with city=\"Reykjavik\". Report just temperature_c and weather_description.",
+    "response_head": "[stub:cuga-unreachable] echo: Use OpenMeteoCurrentWeatherTool with city=\"Reykjavik\". Report just temperature_c and weather_description.",
+    "response_full_len": 135,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 106,
+    "category": "openapi_explicit",
+    "intent": "open_meteo_city_oslo",
+    "prompt": "Use OpenMeteoCurrentWeatherTool with city=\"Oslo\". Report temperature_c and weather_description.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "weather lookup",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "temperature_c and weather_description"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing tool **fetch_weather_summary** already provides current weather JSON (including temperature °C and description) for a given city, satisfying the requested “weather lookup” capability.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 112.6,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 107,
+    "category": "openapi_explicit",
+    "intent": "open_meteo_city_paris",
+    "prompt": "Use OpenMeteoCurrentWeatherTool with city=\"Paris\". Report temperature_c and weather_description.",
+    "response_head": "Fetching available tools that match OpenMeteoCurrentWeatherTool.",
+    "response_full_len": 64,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.1,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 108,
+    "category": "openapi_explicit",
+    "intent": "official_joke",
+    "prompt": "Use official-joke-api.appspot.com to fetch a random joke.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web request",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "random joke JSON"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing `http_get_json` tool already satisfies the “web request” capability: it accepts a `url` input and returns the JSON response (e.g., a random joke). No new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 4.9,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 109,
+    "category": "openapi_explicit",
+    "intent": "icanhazdadjoke",
+    "prompt": "Use icanhazdadjoke.com to fetch a random dad joke.",
+    "response_head": "Fetching available tools for retrieving a random dad joke from icanhazdadjoke.com.",
+    "response_full_len": 82,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.8,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 110,
+    "category": "openapi_explicit",
+    "intent": "cat_fact",
+    "prompt": "Use catfact.ninja to fetch a random cat fact.",
+    "response_head": "[stub:cuga-unreachable] echo: Use catfact.ninja to fetch a random cat fact.",
+    "response_full_len": 75,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 111,
+    "category": "openapi_explicit",
+    "intent": "bored_activity",
+    "prompt": "Use boredapi.com to suggest a random activity.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "boredapi request",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "random activity suggestion"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing tool **`http_get_json`**, which accepts a `url` input and performs an HTTP GET request returning the JSON response (e.g., a random activity suggestion from any API).",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 106.9,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 112,
+    "category": "openapi_explicit",
+    "intent": "advice_slip",
+    "prompt": "Use api.adviceslip.com to fetch a piece of advice.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "HTTP GET request",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "JSON advice from api.adviceslip.com"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability already exists: the `http_get_json` tool (generated__http_get_json) performs an HTTP GET on any supplied URL and returns the JSON response, so it can fetch the advice from api.adviceslip.com without building a new tool",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 52.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 113,
+    "category": "openapi_explicit",
+    "intent": "useless_fact",
+    "prompt": "Use uselessfacts.jsph.pl to fetch a random fact.",
+    "response_head": "We need to call find_tools with query about fetching random fact from uselessfacts.jsph.pl.",
+    "response_full_len": 91,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__fetch_random_fact",
+      "summary": "Created and registered tool **fetch_random_fact** that returns a random fact (defaulting to catfact.ninja or using a provided URL).",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 155.3,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 114,
+    "category": "openapi_explicit",
+    "intent": "pokeapi_pikachu",
+    "prompt": "Use pokeapi.co to look up the Pokemon \"pikachu\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "pokemon lookup",
+      "inputs": [
+        "pokemon_name"
+      ],
+      "expected_output": "detailed Pokémon data such as ID, name, types, abilities, stats"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing tool **`pokeapi_lookup`** (generated ID `generated__pokeapi_lookup`), which looks up Pokémon by name or ID and returns its ID, types, abilities, etc.; no new tool is needed.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 98.6,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 115,
+    "category": "openapi_explicit",
+    "intent": "exchange_rates",
+    "prompt": "Use open.er-api.com to look up exchange rates with USD as base.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "exchange rate lookup",
+      "inputs": [
+        "base_currency"
+      ],
+      "expected_output": "exchange rates data"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the gap by reusing the existing **finance** MCP tool (catalog entry “Finance MCP”) which already provides FX‑rate data, satisfying the “exchange rate lookup” capability.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 10.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 116,
+    "category": "openapi_explicit",
+    "intent": "github_repo_about_explicit",
+    "prompt": "Use the GitHub REST API to get the about text and stars for facebook/react.",
+    "response_head": "[stub:cuga-unreachable] echo: Use the GitHub REST API to get the about text and stars for facebook/react.",
+    "response_full_len": 105,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 117,
+    "category": "openapi_explicit",
+    "intent": "github_repo_pytorch",
+    "prompt": "Use the GitHub REST API to get the about text and stars for pytorch/pytorch.",
+    "response_head": "Search for a GitHub‑API tool in the runtime_tools app.",
+    "response_full_len": 54,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 118,
+    "category": "openapi_explicit",
+    "intent": "ip_geolocation",
+    "prompt": "Use ipapi.co to look up geolocation for IP \"8.8.8.8\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "IP geolocation lookup",
+      "inputs": [
+        "IP address"
+      ],
+      "expected_output": "Geolocation data (city, region, country, etc.)"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already satisfied by the existing tool **generated__ip_geolocation_lookup**, which looks up geolocation data for a given IP address via ip‑api.com. No new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 53.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 119,
+    "category": "browser_tier",
+    "intent": "hn_top",
+    "prompt": "Get the top 5 stories from Hacker News right now.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "Hacker News top stories",
+      "inputs": [],
+      "expected_output": "list of top 5 story titles and URLs"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing tool **generated__hacker_news_top_stories** (fetches the top 5 Hacker News story titles and URLs) already satisfies the required capability, so no new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 9.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 120,
+    "category": "browser_tier",
+    "intent": "hn_top_again",
+    "prompt": "Show me what's hot on Hacker News today.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "Hacker News top stories",
+      "inputs": [],
+      "expected_output": "list of current hot stories with titles and URLs"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__hacker_news_hot_stories",
+      "summary": "Created and registered a tool `hacker_news_hot_stories` that returns the current hot (front‑page) stories from Hacker News via the Algolia API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 59.8,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 121,
+    "category": "browser_tier",
+    "intent": "wikipedia_browser",
+    "prompt": "Search Wikipedia for the article on Alan Turing using the website.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "wikipedia search",
+      "inputs": [
+        "search_query"
+      ],
+      "expected_output": "full Wikipedia article or summary for Alan Turing"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__wikipedia_search",
+      "summary": "Created and registered a `wikipedia_search` tool that takes a query string and returns the article’s title and introductory extract via Wikipedia’s MediaWiki API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 45.0,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 122,
+    "category": "browser_tier",
+    "intent": "wikipedia_browser_2",
+    "prompt": "Search Wikipedia for the article on the Apollo 11 mission via the website.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "wikipedia search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "Wikipedia article content for Apollo 11 mission"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "A “wikipedia_search” tool (generated__wikipedia_search) that returns Wikipedia article extracts is already installed in the toolbox, fulfilling the requested capability.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 109.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 123,
+    "category": "browser_tier",
+    "intent": "github_about_browser",
+    "prompt": "Get the GitHub About text for the facebook/react repo via the website.",
+    "response_head": "[stub:cuga-unreachable] echo: Get the GitHub About text for the facebook/react repo via the website.",
+    "response_full_len": 100,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 124,
+    "category": "browser_tier",
+    "intent": "github_about_pytorch_browser",
+    "prompt": "Get the GitHub About text for pytorch/pytorch via the website.",
+    "response_head": "Get the GitHub About text for pytorch/pytorch via the website.",
+    "response_full_len": 62,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.4,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 125,
+    "category": "needs_creds",
+    "intent": "school_portal",
+    "prompt": "Check my kid's school portal for grades.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "school portal grades retrieval",
+      "inputs": [
+        "student_id",
+        "login_credentials"
+      ],
+      "expected_output": "list of current grades"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Browser task School portal grades (template) needs credentials before I can install it: school_portal_username, school_portal_password. (ReAct attempt errored: SQLite objects created in a thread can only be used in that same thread. The obj",
+      "already_existed": false,
+      "needs_secrets": {
+        "tool_id": "browser__school_portal_grades",
+        "tool_name": "school_portal_grades",
+        "missing": [
+          "school_portal_username",
+          "school_portal_password"
+        ],
+        "required": [
+          "school_portal_username",
+          "school_portal_password"
+        ]
+      }
+    },
+    "elapsed_s": 5.0,
+    "outcome": "needs_secrets"
+  },
+  {
+    "idx": 126,
+    "category": "needs_creds",
+    "intent": "utility_bill",
+    "prompt": "Get my outstanding utility bill from my account.",
+    "response_head": "We need to discover a tool that can fetch utility bills.",
+    "response_full_len": 56,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.2,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 127,
+    "category": "multi_tool",
+    "intent": "wiki_then_fetch",
+    "prompt": "Find the Wikipedia URL for the Eiffel Tower and fetch the first paragraph.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "Wikipedia fetch",
+      "inputs": [
+        "topic"
+      ],
+      "expected_output": "Wikipedia URL and first paragraph"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Mounted a browser‑task tool “wikipedia_search” that can retrieve a Wikipedia article URL and its first paragraph for a given topic.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 55.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 128,
+    "category": "multi_tool",
+    "intent": "geocode_then_weather",
+    "prompt": "Geocode Berlin, then use get_weather for that city. Report just temperature.",
+    "response_head": "[stub:cuga-unreachable] echo: Geocode Berlin, then use get_weather for that city. Report just temperature.",
+    "response_full_len": 106,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 129,
+    "category": "multi_tool",
+    "intent": "geocode_then_openmeteo",
+    "prompt": "Geocode Reykjavik, then use Open-Meteo to get the current temperature.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "geocoding and weather lookup",
+      "inputs": [
+        "address string"
+      ],
+      "expected_output": "current temperature in Reykjavik"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "{\"code\":\"async def address_to_temperature(address: str):\\n    import httpx\\n    async with httpx.AsyncClient() as client:\\n        # Geocode the address to get latitude and longitude\\n        geo_resp = await client.get(\\n            \\\"http",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 49.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 130,
+    "category": "multi_tool",
+    "intent": "tokens_then_chunk",
+    "prompt": "Count tokens in \"The quick brown fox jumps.\" with cl100k_base, then chunk it with chunk_size=10, overlap=2.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "token counting and chunking",
+      "inputs": [
+        "text",
+        "encoding",
+        "chunk_size",
+        "overlap"
+      ],
+      "expected_output": "token count and list of text chunks"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__token_count_and_chunk",
+      "summary": "Created a custom tool `token_count_and_chunk` that counts tokens using tiktoken (or a specified model’s encoding) and splits the text into overlapping token‑size chunks, returning the token count and list of chunks.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 56.3,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 131,
+    "category": "multi_tool",
+    "intent": "stock_plus_crypto",
+    "prompt": "Use get_stock_quote for AAPL and get_crypto_price for ethereum in usd.",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote for AAPL and get_crypto_price for ethereum in usd.",
+    "response_full_len": 100,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 132,
+    "category": "multi_tool",
+    "intent": "search_fetch_summarize",
+    "prompt": "Search for 'rust programming language official site', fetch the homepage, give me a one-line summary.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "one-line summary of homepage"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing **duckduckgo_search** tool (base URL https://api.duckduckgo.com, GET “/”) already satisfies the “web search” capability: it accepts a `query` string and returns a concise answer or abstract—effectively a one‑line summary of the",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 11.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 133,
+    "category": "multi_tool",
+    "intent": "fetch_then_count",
+    "prompt": "Fetch https://example.com, then count tokens in the visible text using cl100k_base.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web fetch",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "token count"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability is already covered by the existing tool **`fetch_page_summary`** (generated __fetch_page_summary__), which accepts a `url` and returns the page’s visible text (a concise summary) via the Microlink API. No new tool was ",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 56.2,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 134,
+    "category": "multi_tool",
+    "intent": "two_geocodes",
+    "prompt": "Geocode \"Tokyo\" and \"Sydney\". Report both lat/lon.",
+    "response_head": "Search for geocoding tools.",
+    "response_full_len": 27,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.2,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 135,
+    "category": "multi_tool",
+    "intent": "two_weathers",
+    "prompt": "Use get_weather for both Reykjavik and Oslo. Report temperatures only.",
+    "response_head": "Search for weather‑related tools in the runtime_tools application.",
+    "response_full_len": 66,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.8,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 136,
+    "category": "multi_tool",
+    "intent": "stock_three",
+    "prompt": "Use get_stock_quote for AAPL, MSFT, and NVDA. Report price for each.",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote for AAPL, MSFT, and NVDA. Report price for each.",
+    "response_full_len": 98,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 137,
+    "category": "multi_tool",
+    "intent": "weather_three_cities",
+    "prompt": "Use get_weather for Tokyo, London, and Sydney. Just temperatures.",
+    "response_head": "Search for a weather‑related tool that can return temperature data.",
+    "response_full_len": 67,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.6,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 138,
+    "category": "multi_tool",
+    "intent": "metrics_then_processes",
+    "prompt": "Use get_system_metrics, then list_top_processes by cpu, n=3.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "system metrics",
+      "inputs": [],
+      "expected_output": "list of top 3 CPU processes"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__top_cpu_processes",
+      "summary": "Created a local tool **top_cpu_processes** that returns the top 3 processes by CPU usage on the host system.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 72.7,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 139,
+    "category": "multi_tool",
+    "intent": "disk_then_large",
+    "prompt": "Use check_disk_usage for /, then find_large_files for /tmp, top_n=3.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "disk usage check",
+      "inputs": [
+        "path",
+        "top_n"
+      ],
+      "expected_output": "disk usage statistics for the specified path and a list of the top N largest files in the given directory"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__disk_usage_and_large_files",
+      "summary": "Created a custom tool `disk_usage_and_large_files` that reports total, used, and free bytes for each given path and returns the top N largest files (by size) in each path.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 44.4,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 140,
+    "category": "multi_tool",
+    "intent": "html_extract_then_count",
+    "prompt": "Use extract_text on \"<html><body>Hello world.</body></html>\", then count_tokens with cl100k_base.",
+    "response_head": "Search for tools that can extract text from HTML and count tokens using the cl100k_base encoding.",
+    "response_full_len": 97,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.3,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 141,
+    "category": "fail_cleanly",
+    "intent": "nonsense",
+    "prompt": "Compute the qzaxblorx of the foonurg system.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "compute qzaxblorx",
+      "inputs": [
+        "foonurg system parameters"
+      ],
+      "expected_output": "qzaxblorx value"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "No suitable existing API or public endpoint could be found for “compute qzaxblorx”, and there is no browser‑task that matches; therefore a tool cannot be built at this time.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 6.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 142,
+    "category": "fail_cleanly",
+    "intent": "nonsense_2",
+    "prompt": "Calculate the borophyll index using a quantum unicorn forge.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "borophyll index calculation",
+      "inputs": [
+        "quantum unicorn forge parameters"
+      ],
+      "expected_output": "calculated borophyll index"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__borophyll_index_calculator",
+      "summary": "Created a custom tool `borophyll_index_calculator` that computes the Borophyll index as the arithmetic mean of the provided numeric parameters.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 31.2,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 143,
+    "category": "fail_cleanly",
+    "intent": "unsupported",
+    "prompt": "Order me a pizza from a local restaurant near 10001.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "food ordering",
+      "inputs": [
+        "zip_code",
+        "restaurant",
+        "order_details"
+      ],
+      "expected_output": "order confirmation"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 9.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 144,
+    "category": "fail_cleanly",
+    "intent": "unsupported_2",
+    "prompt": "Book me a hotel room in Tokyo for next weekend.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "hotel booking",
+      "inputs": [
+        "city",
+        "check_in_date",
+        "check_out_date"
+      ],
+      "expected_output": "booking confirmation"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 50.9,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 145,
+    "category": "edge_case",
+    "intent": "empty_symbol",
+    "prompt": "Use get_stock_quote with symbol=\"\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "stock quote retrieval",
+      "inputs": [
+        "symbol"
+      ],
+      "expected_output": "current stock price and related data"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the stock‑quote capability by reusing the existing “twelvedata_stock_price” tool, which accepts a ticker symbol and returns the current price (and related data) via the Twelve Data public demo API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 50.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 146,
+    "category": "edge_case",
+    "intent": "fake_symbol",
+    "prompt": "Use get_stock_quote with symbol=\"ZZZZZZ\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "stock quote lookup",
+      "inputs": [
+        "symbol"
+      ],
+      "expected_output": "current price and related data for the given stock symbol"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing generated tool **twelvedata_stock_price** (symbol → real‑time price) already satisfies the “stock quote lookup” capability, so no new tool was needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 54.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 147,
+    "category": "edge_case",
+    "intent": "fake_city",
+    "prompt": "Use geocode on city=\"Atlantis\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use geocode on city=\"Atlantis\".",
+    "response_full_len": 61,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 148,
+    "category": "edge_case",
+    "intent": "bogus_url",
+    "prompt": "Fetch https://nonexistent-zzz.example/feed and report what happens.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "HTTP fetch",
+      "inputs": [
+        "url"
+      ],
+      "expected_output": "response content or error"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__http_fetch_content",
+      "summary": "Created tool `http_fetch_content` that GET‑fetches any URL and returns its raw content (or error details).",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 131.1,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 149,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Bhutan?",
+    "response_head": "[stub:cuga-unreachable] echo: What is the capital of Bhutan?",
+    "response_full_len": 60,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing `rest_countries_lookup` tool (openapi__rest_countries_lookup), which returns a country’s capital given its name.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 112.1,
+    "outcome": "already_existed_and_answered"
+  },
+  {
+    "idx": 150,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Uruguay?",
+    "response_head": "Search for a tool that can retrieve the capital of Uruguay from the runtime tools collection.",
+    "response_full_len": 93,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.1,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 151,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Tanzania?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "capital lookup",
+      "inputs": [
+        "country"
+      ],
+      "expected_output": "capital city name"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__capital_lookup",
+      "summary": "Created and registered a `capital_lookup` tool that returns a country’s capital city using the REST Countries API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 102.7,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 152,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Latvia?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [],
+      "expected_output": "The capital city of Latvia"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Used the existing `capital_lookup` tool (which queries the REST Countries API) to answer the “web search” gap, enabling retrieval of the capital city of Latvia.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 53.7,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 153,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Madagascar?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "capital of Madagascar"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Added the existing duckduckgo_search tool (DuckDuckGo Instant Answer API) for web search after probing it successfully. This tool can answer queries like “capital of Madagascar”.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 55.0,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 154,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Paraguay?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "capital lookup",
+      "inputs": [
+        "country name"
+      ],
+      "expected_output": "capital city of the given country"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already satisfied by the existing tool **custom__capital_lookup** (which uses the REST Countries API and has been successfully probed), so no new tool needs to be built.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 37.5,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 155,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Slovenia?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "capital lookup",
+      "inputs": [
+        "country"
+      ],
+      "expected_output": "capital city"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already satisfied by the existing `custom__capital_lookup` tool (which uses the REST Countries API and has a successful probe), so no new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 6.0,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 156,
+    "category": "web_search",
+    "intent": "fact_lookup_capital_more",
+    "prompt": "What is the capital of Eritrea?",
+    "response_head": "The capital of Eritrea is Asmara.",
+    "response_full_len": 33,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 17.4,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 157,
+    "category": "web_search",
+    "intent": "company_quick",
+    "prompt": "What does the company Stripe do, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "short description of Stripe"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__company_description_lookup",
+      "summary": "Built and registered **company_description_lookup** – a custom async tool that queries DuckDuckGo’s Instant Answer API for “{company_name} company”, extracts the abstract text, and returns the first sentence as a concise one‑sentence descri",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 120.1,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 158,
+    "category": "web_search",
+    "intent": "company_quick",
+    "prompt": "What does the company Confluent do, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "short description of a company"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the gap using the existing `duckduckgo_search` tool (DuckDuckGo Instant Answer API), which accepts a query and returns a concise answer—perfect for producing short company descriptions. The tool was probed successfully and is re",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 55.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 159,
+    "category": "web_search",
+    "intent": "company_quick",
+    "prompt": "What does the company Datadog do, in one sentence?",
+    "response_head": "Search for a tool that can retrieve company information about Datadog.",
+    "response_full_len": 70,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 2.3,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 160,
+    "category": "web_search",
+    "intent": "company_quick",
+    "prompt": "What does the company Snowflake do, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "A concise description of Snowflake's business"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing **`duckduckgo_search`** tool (DuckDuckGo Instant Answer API). It accepts a query string (e.g., the company name) and returns the concise abstract text, which can be used as a one‑se",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 41.1,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 161,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is the FastAPI Python library used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "Explanation of what the FastAPI Python library is used for"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability is already covered by the existing **wikipedia_search** tool (catalog browser__wikipedia_search), which accepts a `query` string and returns a concise article description—perfect for looking up FastAPI usage. No new to",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 8.7,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 162,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is the React JavaScript library used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "definition of React library usage"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__duckduckgo_search",
+      "summary": "Built and registered a DuckDuckGo web‑search tool (`duckduckgo_search`) that accepts a query and returns the API’s JSON answer, enabling the planner to retrieve explanations such as what the React JavaScript library is used for.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 30.0,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 163,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is the Tailwind CSS library used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "information about Tailwind CSS library usage"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required “web search” capability is already satisfied by the existing `duckduckgo_search` tool (input `q`, returns concise answer/abstract), so no new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 4.7,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 164,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is Pydantic used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "Explanation of what Pydantic is used for"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Browser task Utility bill lookup (template) needs credentials before I can install it: utility_username, utility_password. (ReAct attempt errored: Client error '400 Bad Request' for url 'https://inference-3scale-apicast-production.apps.rits",
+      "already_existed": false,
+      "needs_secrets": {
+        "tool_id": "browser__utility_bill_lookup",
+        "tool_name": "utility_bill_lookup",
+        "missing": [
+          "utility_username",
+          "utility_password"
+        ],
+        "required": [
+          "utility_username",
+          "utility_password"
+        ]
+      }
+    },
+    "elapsed_s": 6.3,
+    "outcome": "needs_secrets"
+  },
+  {
+    "idx": 165,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is the LangChain library used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "library description",
+      "inputs": [
+        "library name"
+      ],
+      "expected_output": "Explanation of what the LangChain library is used for"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability is already covered by the existing `generated__wikipedia_search` tool, which takes a library name (e.g., “LangChain”) and returns the Wikipedia article’s introductory extract—providing a concise explanation of the libr",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 11.2,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 166,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is the LangGraph library used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "library description lookup",
+      "inputs": [
+        "library_name"
+      ],
+      "expected_output": "Explanation of what the LangGraph library is used for"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability is already covered by the existing `generated__wikipedia_search` tool, which accepts a `query` string and returns the article extract (i.e., a concise description) from Wikipedia—perfect for explaining what the LangGra",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 87.2,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 167,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is httpx used for in Python?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "web search",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "Explanation of what httpx is used for in Python"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing tool **duckduckgo_search** (generated__duckduckgo_search) already provides a web‑search capability with a single “q” input, so no new tool is needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 5.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 168,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is Playwright used for in browser automation?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "playwright information",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "Explanation of what Playwright is used for in browser automation"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The existing `wikipedia_search` tool already satisfies the “playwright information” capability (it accepts a `query` string and returns the article extract), so no new tool was needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 5.4,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 169,
+    "category": "web_search",
+    "intent": "library_quick",
+    "prompt": "What is Docker Compose used for?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "description of Docker Compose"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the gap with the existing `duckduckgo_search` tool (DuckDuckGo Instant Answer API) which returns concise definitions for any term, such as “Docker Compose”.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 7.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 170,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is gRPC, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "One-sentence definition of the term"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already satisfied by the existing **`dictionary_lookup`** tool (uses https://api.dictionaryapi.dev to fetch English word definitions). It accepts a single input `word` and returns definition data, which can be tri",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 5.1,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 171,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is GraphQL, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "a concise definition"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The needed capability already exists as the **`dictionary_lookup`** tool (uses https://api.dictionaryapi.dev to fetch concise English word definitions) and has been successfully probed. No new tool was required.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 4.5,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 172,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is OAuth2, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "OAuth2"
+      ],
+      "expected_output": "A concise one-sentence definition of OAuth2"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the capability by leveraging the existing **duckduckgo_search** tool (a DuckDuckGo Instant Answer API wrapper) which, given a term like “OAuth2”, returns a concise definition‑style answer. This satisfies the “definition lookup” ",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 14.2,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 173,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is mTLS, in one sentence?",
+    "response_head": "[stub:cuga-unreachable] echo: What is mTLS, in one sentence?",
+    "response_full_len": 60,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing **`dictionary_lookup`** tool (uses https://api.dictionaryapi.dev to fetch English word definitions), so no new tool needs to be built.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 97.8,
+    "outcome": "already_existed_and_answered"
+  },
+  {
+    "idx": 174,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is a Kubernetes pod, in one sentence?",
+    "response_head": "A Kubernetes pod is the smallest deployable unit that encapsulates one or more tightly coupled containers sharing the same network namespace and storage resources.",
+    "response_full_len": 163,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing **`dictionary_lookup`** tool (uses https://api.dictionaryapi.dev to fetch a concise English‑word definition), which has been probed successfully; no new tool needed.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 11.0,
+    "outcome": "already_existed_and_answered"
+  },
+  {
+    "idx": 175,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is a service mesh, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "query"
+      ],
+      "expected_output": "one-sentence definition of service mesh"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 142.7,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 176,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is a CDN, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "a concise definition sentence"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the capability by reusing the existing `dictionary_lookup` tool (which queries dictionaryapi.dev) to retrieve concise English word definitions.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 4.8,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 177,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is event sourcing, in one sentence?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "term"
+      ],
+      "expected_output": "one-sentence definition of event sourcing"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Toolsmith did not register a tool.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 13.5,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 178,
+    "category": "web_search",
+    "intent": "concept_quick",
+    "prompt": "What is a circuit breaker pattern in microservices?",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "definition lookup",
+      "inputs": [
+        "topic"
+      ],
+      "expected_output": "Explanation of the circuit breaker pattern in microservices"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Used the existing duckduckgo_search tool (already in the toolbox) to provide concise definitions/explanations for topics such as “circuit breaker pattern”.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 10.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 179,
+    "category": "geo_mcp",
+    "intent": "geocode_more",
+    "prompt": "Use geocode on city=\"Marrakech\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "geocoding",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "coordinates or location data"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required geocoding capability is already provided by the existing catalog tool `geo`, so no new tool needs to be built.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 51.3,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 180,
+    "category": "geo_mcp",
+    "intent": "geocode_more",
+    "prompt": "Use geocode on city=\"Quito\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "geocode lookup",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "latitude and longitude coordinates for the given city"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__open_meteo_geocode",
+      "summary": "Created and registered `open_meteo_geocode`, a tool that returns latitude and longitude for a given city using the Open‑Meteo Geocoding API.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 109.5,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 181,
+    "category": "geo_mcp",
+    "intent": "geocode_more",
+    "prompt": "Use geocode on city=\"Helsinki\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use geocode on city=\"Helsinki\".",
+    "response_full_len": 61,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 182,
+    "category": "geo_mcp",
+    "intent": "geocode_more",
+    "prompt": "Use geocode on city=\"Wellington\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use geocode on city=\"Wellington\".",
+    "response_full_len": 63,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing tool **open_meteo_geocode** (catalog → generated), which returns latitude and longitude for a given city name, so no new tool needs to be built.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 113.9,
+    "outcome": "already_existed_and_answered"
+  },
+  {
+    "idx": 183,
+    "category": "geo_mcp",
+    "intent": "weather_more",
+    "prompt": "Use get_weather with city=\"Helsinki\". Just temperature.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "weather lookup",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "temperature"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "generated__weather_lookup",
+      "summary": "Created and registered a `weather_lookup` tool that returns the current temperature (°C) for a given city using Open‑Meteo’s geocoding and forecast APIs.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 109.9,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 184,
+    "category": "geo_mcp",
+    "intent": "weather_more",
+    "prompt": "Use get_weather with city=\"Wellington\". Just temperature.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "weather lookup",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "temperature"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the “weather_lookup” capability by reusing the existing generated tool `generated__weather_lookup`, which already accepts a city name and returns the current temperature in Celsius (probe‑verified).",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 54.5,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 185,
+    "category": "geo_mcp",
+    "intent": "weather_more",
+    "prompt": "Use get_weather with city=\"Quito\". Just temperature.",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "weather lookup",
+      "inputs": [
+        "city"
+      ],
+      "expected_output": "temperature"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "Implemented the gap by reusing the already‑available `weather_lookup` tool (which returns the current temperature in Celsius for a given city) – no new tool needed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 4.7,
+    "outcome": "acquisition_failed"
+  },
+  {
+    "idx": 186,
+    "category": "finance_mcp",
+    "intent": "stock_more",
+    "prompt": "Use get_stock_quote with symbol=\"AMZN\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"AMZN\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 187,
+    "category": "finance_mcp",
+    "intent": "stock_more",
+    "prompt": "Use get_stock_quote with symbol=\"META\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"META\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing `twelvedata_stock_price` tool (symbol → real‑time price via the Twelve Data demo API), so no new tool needed.",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 112.2,
+    "outcome": "already_existed_and_answered"
+  },
+  {
+    "idx": 188,
+    "category": "finance_mcp",
+    "intent": "stock_more",
+    "prompt": "Use get_stock_quote with symbol=\"TSLA\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"TSLA\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 189,
+    "category": "finance_mcp",
+    "intent": "stock_more",
+    "prompt": "Use get_stock_quote with symbol=\"INTC\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_stock_quote with symbol=\"INTC\".",
+    "response_full_len": 69,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 190,
+    "category": "finance_mcp",
+    "intent": "stock_more",
+    "prompt": "Use get_stock_quote with symbol=\"AMD\".",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "stock quote lookup",
+      "inputs": [
+        "symbol"
+      ],
+      "expected_output": "stock quote data"
+    },
+    "acquisition": {
+      "success": false,
+      "artifact_id": null,
+      "summary": "The required capability is already covered by the existing tool **twelvedata_stock_price** (id generated__twelvedata_stock_price), which takes a “symbol” string and returns the real‑time price via the Twelve Data public demo API; no new too",
+      "already_existed": true,
+      "needs_secrets": null
+    },
+    "elapsed_s": 97.8,
+    "outcome": "already_existed_no_answer"
+  },
+  {
+    "idx": 191,
+    "category": "finance_mcp",
+    "intent": "crypto_more",
+    "prompt": "Use get_crypto_price with id=\"solana\", currency=\"usd\".",
+    "response_head": "Search for a tool that can retrieve a cryptocurrency price by ID and currency.",
+    "response_full_len": 78,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.2,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 192,
+    "category": "finance_mcp",
+    "intent": "crypto_more",
+    "prompt": "Use get_crypto_price with id=\"ripple\", currency=\"usd\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_crypto_price with id=\"ripple\", currency=\"usd\".",
+    "response_full_len": 84,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 193,
+    "category": "finance_mcp",
+    "intent": "crypto_more",
+    "prompt": "Use get_crypto_price with id=\"polkadot\", currency=\"usd\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use get_crypto_price with id=\"polkadot\", currency=\"usd\".",
+    "response_full_len": 86,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 194,
+    "category": "code_analysis",
+    "intent": "detect_bash",
+    "prompt": "Use detect_language on: #!/bin/bash\\nfor i in {1..5}; do echo $i; done",
+    "response_head": "",
+    "response_full_len": 0,
+    "tools_used": [],
+    "gap": {
+      "capability": "language detection",
+      "inputs": [
+        "text"
+      ],
+      "expected_output": "detected language"
+    },
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__detect_programming_language",
+      "summary": "Created and registered a custom tool `detect_programming_language` that uses simple heuristics to identify the programming language of a given code snippet.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 119.3,
+    "outcome": "acquired_no_answer"
+  },
+  {
+    "idx": 195,
+    "category": "code_analysis",
+    "intent": "detect_html",
+    "prompt": "Use detect_language on: <html><head></head><body><h1>x</h1></body></html>",
+    "response_head": "Search for a language‑detection tool in the runtime_tools application.",
+    "response_full_len": 70,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 1.9,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 196,
+    "category": "code_analysis",
+    "intent": "detect_css",
+    "prompt": "Use detect_language on: .button { color: red; padding: 10px; }",
+    "response_head": "[stub:cuga-unreachable] echo: Use detect_language on: .button { color: red; padding: 10px; }",
+    "response_full_len": 92,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 197,
+    "category": "code_analysis",
+    "intent": "metrics_simple",
+    "prompt": "Use extract_code_metrics on: x = 1\\ny = 2\\nprint(x+y)",
+    "response_head": "[stub:cuga-unreachable] echo: Use extract_code_metrics on: x = 1\\ny = 2\\nprint(x+y)",
+    "response_full_len": 83,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 198,
+    "category": "text_processing",
+    "intent": "extract_with_styles",
+    "prompt": "Use extract_text on \"<style>p { color: red; }</style><body><p>hello world</p></body>\".",
+    "response_head": "[stub:cuga-unreachable] echo: Use extract_text on \"<style>p { color: red; }</style><body><p>hello world</p></body>\".",
+    "response_full_len": 116,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": {
+      "success": true,
+      "artifact_id": "custom__html_text_extractor",
+      "summary": "Created and registered a custom tool `html_text_extractor` that takes an HTML string and returns the plain text with all tags removed.",
+      "already_existed": false,
+      "needs_secrets": null
+    },
+    "elapsed_s": 130.4,
+    "outcome": "acquired_and_answered"
+  },
+  {
+    "idx": 199,
+    "category": "text_processing",
+    "intent": "tokens_short",
+    "prompt": "Use count_tokens on \"hi\" with model=cl100k_base.",
+    "response_head": "[stub:cuga-unreachable] echo: Use count_tokens on \"hi\" with model=cl100k_base.",
+    "response_full_len": 78,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 60.0,
+    "outcome": "answered_from_model"
+  },
+  {
+    "idx": 200,
+    "category": "text_processing",
+    "intent": "tokens_paragraph",
+    "prompt": "Use count_tokens on \"This is a paragraph with multiple sentences. It has commas, semicolons; and parentheses (yes, those).\" with model=cl100k_base.",
+    "response_head": "The tool search did not return any matching functions. It appears that there is no available token‑counting utility in the current environment. If you need to count tokens for the given text, you may have to implement a simple approximation manually or use an external service. Let me know how you’d ",
+    "response_full_len": 316,
+    "tools_used": [],
+    "gap": null,
+    "acquisition": null,
+    "elapsed_s": 17.6,
+    "outcome": "answered_from_model"
+  }
+]

@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1080" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowDown" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowDownIndigo" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrowDownTeal" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0ea5e9"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1080" fill="#fafbfc"/>
+
+  <!-- ============== TITLE ============== -->
+  <text x="800" y="42" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">cuga-apps  —  System Architecture</text>
+  <text x="800" y="72" text-anchor="middle" font-size="15" fill="#64748b">24 agent apps  ·  8 MCP servers  ·  one shared tool fabric  ·  one umbrella UI</text>
+
+  <!-- ============== CROSS-CUTTING STRIP ============== -->
+  <g transform="translate(40, 100)" filter="url(#shadow)">
+    <rect width="1520" height="70" rx="12" fill="#fff" stroke="#e2e8f0"/>
+    <text x="20" y="28" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">CROSS-CUTTING INFRA</text>
+
+    <!-- 4 mini cards -->
+    <g transform="translate(190, 16)">
+      <rect width="290" height="42" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="14" y="18" font-size="11" font-weight="700" fill="#475569">apps/_ports.py</text>
+      <text x="14" y="33" font-size="11" fill="#64748b">single source of truth for every port</text>
+    </g>
+    <g transform="translate(490, 16)">
+      <rect width="290" height="42" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="14" y="18" font-size="11" font-weight="700" fill="#475569">apps/_llm.py</text>
+      <text x="14" y="33" font-size="11" fill="#64748b">multi-provider: rits · anthropic · openai · watsonx · ollama · litellm</text>
+    </g>
+    <g transform="translate(790, 16)">
+      <rect width="320" height="42" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="14" y="18" font-size="11" font-weight="700" fill="#475569">tests/  —  120 integration tests</text>
+      <text x="14" y="33" font-size="11" fill="#64748b">smoke · mcp · wiring · llm  (~13s default, $0)</text>
+    </g>
+    <g transform="translate(1120, 16)">
+      <rect width="380" height="42" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="14" y="18" font-size="11" font-weight="700" fill="#475569">Docker — Dockerfile.mcp + Dockerfile.apps</text>
+      <text x="14" y="33" font-size="11" fill="#64748b">one MCP image · 8 entrypoints  ·  one apps image hosting all 24</text>
+    </g>
+  </g>
+
+  <!-- ============== USER LAYER ============== -->
+  <g transform="translate(620, 200)" filter="url(#shadow)">
+    <rect width="360" height="58" rx="29" fill="#0f172a"/>
+    <text x="180" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">User browser</text>
+    <text x="180" y="46" text-anchor="middle" font-size="11.5" fill="#cbd5e1">prompts · clicks · views agent output</text>
+  </g>
+
+  <line x1="800" y1="262" x2="800" y2="288" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+
+  <!-- ============== UI LAYER ============== -->
+  <g transform="translate(40, 295)">
+    <text x="20" y="20" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">LAYER 1  ·  USER INTERFACE</text>
+  </g>
+  <g transform="translate(420, 320)" filter="url(#shadow)">
+    <rect width="350" height="80" rx="12" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#1e1b4b">Umbrella UI</text>
+    <text x="20" y="48" font-size="12" fill="#475569">React + Vite · nginx</text>
+    <rect x="20" y="56" width="60" height="18" rx="9" fill="#eef2ff"/>
+    <text x="50" y="69" text-anchor="middle" font-size="11" font-weight="700" fill="#4338ca">:3001</text>
+    <text x="90" y="69" font-size="11" fill="#64748b">tile per app · MCP-usage chips</text>
+  </g>
+  <g transform="translate(830, 320)" filter="url(#shadow)">
+    <rect width="350" height="80" rx="12" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#1e1b4b">MCP Tool Explorer</text>
+    <text x="20" y="48" font-size="12" fill="#475569">browse + invoke any MCP tool</text>
+    <rect x="20" y="56" width="60" height="18" rx="9" fill="#eef2ff"/>
+    <text x="50" y="69" text-anchor="middle" font-size="11" font-weight="700" fill="#4338ca">:28900</text>
+    <text x="90" y="69" font-size="11" fill="#64748b">forms from input schemas</text>
+  </g>
+
+  <line x1="595" y1="404" x2="595" y2="438" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+  <line x1="1005" y1="404" x2="1005" y2="438" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowDown)"/>
+
+  <!-- ============== APPS LAYER ============== -->
+  <g transform="translate(40, 444)">
+    <text x="20" y="20" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">LAYER 2  ·  AGENT APPS  (24)</text>
+  </g>
+  <g transform="translate(40, 469)" filter="url(#shadow)">
+    <rect width="1520" height="120" rx="14" fill="#eef2ff" stroke="#a5b4fc" stroke-width="1"/>
+    <text x="24" y="30" font-size="14" font-weight="700" fill="#1e1b4b">24 FastAPI agent apps  ·  each = CugaAgent + ui.py  ·  ports 28071–28815</text>
+
+    <!-- category chips -->
+    <g transform="translate(24, 50)">
+      <rect width="180" height="28" rx="14" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+      <text x="90" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e1b4b">Research &amp; Knowledge · 7</text>
+    </g>
+    <g transform="translate(214, 50)">
+      <rect width="160" height="28" rx="14" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+      <text x="80" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#064e3b">Content Creation · 4</text>
+    </g>
+    <g transform="translate(384, 50)">
+      <rect width="180" height="28" rx="14" fill="#fff" stroke="#f59e0b" stroke-width="1.2"/>
+      <text x="90" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">Documents &amp; Media · 4</text>
+    </g>
+    <g transform="translate(574, 50)">
+      <rect width="135" height="28" rx="14" fill="#fff" stroke="#ec4899" stroke-width="1.2"/>
+      <text x="67.5" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#831843">Productivity · 2</text>
+    </g>
+    <g transform="translate(719, 50)">
+      <rect width="135" height="28" rx="14" fill="#fff" stroke="#06b6d4" stroke-width="1.2"/>
+      <text x="67.5" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#164e63">Ops &amp; Alerts · 2</text>
+    </g>
+    <g transform="translate(864, 50)">
+      <rect width="160" height="28" rx="14" fill="#fff" stroke="#8b5cf6" stroke-width="1.2"/>
+      <text x="80" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#3b0764">Developer &amp; Eval · 2</text>
+    </g>
+    <g transform="translate(1034, 50)">
+      <rect width="120" height="28" rx="14" fill="#fff" stroke="#475569" stroke-width="1.2"/>
+      <text x="60" y="19" text-anchor="middle" font-size="11.5" font-weight="600" fill="#0f172a">IBM Stack · 3</text>
+    </g>
+
+    <!-- pattern note -->
+    <text x="24" y="103" font-size="11.5" fill="#475569"><tspan font-weight="700" fill="#312e81">Per-app pattern  →</tspan>  FastAPI shell  ·  POST /ask  ·  GET /  (HTML)  ·  CugaAgent(model=create_llm, tools=load_tools([...]), special_instructions=_SYSTEM)</text>
+  </g>
+
+  <!-- bridge arrow -->
+  <line x1="800" y1="591" x2="800" y2="618" stroke="#6366f1" stroke-width="2" marker-end="url(#arrowDownIndigo)"/>
+  <text x="815" y="610" font-size="11" font-style="italic" fill="#4338ca">load_tools(["web", "knowledge", ...])</text>
+
+  <!-- ============== BRIDGE LAYER ============== -->
+  <g transform="translate(40, 624)">
+    <text x="20" y="20" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">LAYER 3  ·  ADAPTER  /  BRIDGE</text>
+  </g>
+  <g transform="translate(280, 650)" filter="url(#shadow)">
+    <rect width="1040" height="62" rx="12" fill="#312e81"/>
+    <text x="24" y="26" font-size="14" font-weight="700" fill="#fff">apps/_mcp_bridge.py  —  LangChain ↔ MCP adapter</text>
+    <text x="24" y="48" font-size="12" fill="#c7d2fe">Apps call <tspan font-family="monospace" fill="#fde68a">load_tools([servers])</tspan> · returns LangChain StructuredTools that round-trip via streamable HTTP. Non-LLM <tspan font-family="monospace" fill="#fde68a">call_tool()</tspan> path for schedulers / watchers.</text>
+  </g>
+
+  <line x1="800" y1="714" x2="800" y2="742" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrowDownTeal)"/>
+  <text x="815" y="734" font-size="11" font-style="italic" fill="#0c4a6e">streamable HTTP · MCP protocol</text>
+
+  <!-- ============== MCP FABRIC ============== -->
+  <g transform="translate(40, 748)">
+    <text x="20" y="20" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">LAYER 4  ·  MCP FABRIC  (8 servers · ports 29100–29107 · 36+ tools)</text>
+  </g>
+  <g transform="translate(40, 776)" filter="url(#shadow)">
+    <rect width="1520" height="120" rx="14" fill="#ecfeff" stroke="#7dd3fc" stroke-width="1"/>
+
+    <!-- 8 server cards -->
+    <g transform="translate(20, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-web · 29100</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">web_search, fetch_webpage,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">feeds, youtube transcripts</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">7 tools</text>
+    </g>
+    <g transform="translate(210, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-knowledge · 29101</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">Wikipedia, arXiv,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">Semantic Scholar</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">9 tools</text>
+    </g>
+    <g transform="translate(400, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-geo · 29102</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">Nominatim, Overpass,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">OpenTripMap, wttr.in</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">4 tools</text>
+    </g>
+    <g transform="translate(590, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-finance · 29103</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">CoinGecko,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">Alpha Vantage</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">2 tools</text>
+    </g>
+    <g transform="translate(780, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-code · 29104</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">Python AST,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">code metrics, lang-id</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">3 tools</text>
+    </g>
+    <g transform="translate(970, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-local · 29105</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">psutil, faster-whisper,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">disk + service status</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">7 tools</text>
+    </g>
+    <g transform="translate(1160, 16)">
+      <rect width="180" height="88" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <rect width="180" height="26" rx="10" fill="#0ea5e9"/>
+      <rect y="16" width="180" height="10" fill="#0ea5e9"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">mcp-text · 29106</text>
+      <text x="90" y="46" text-anchor="middle" font-size="10" fill="#0c4a6e">docling, tiktoken,</text>
+      <text x="90" y="60" text-anchor="middle" font-size="10" fill="#0c4a6e">recursive chunking</text>
+      <rect x="40" y="68" width="100" height="14" rx="7" fill="#e0f2fe"/>
+      <text x="90" y="78" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">4 tools</text>
+    </g>
+    <g transform="translate(1350, 16)">
+      <rect width="150" height="88" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="1.5"/>
+      <rect width="150" height="26" rx="10" fill="#8b5cf6"/>
+      <rect y="16" width="150" height="10" fill="#8b5cf6"/>
+      <text x="75" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">★ mcp-invocable_apis</text>
+      <text x="75" y="34" text-anchor="middle" font-size="10" fill="#3b0764">29107</text>
+      <text x="75" y="52" text-anchor="middle" font-size="9.5" fill="#3b0764">Bird-SQL synthesis</text>
+      <text x="75" y="66" text-anchor="middle" font-size="9.5" fill="#3b0764">tool_register, seq_*,</text>
+      <text x="75" y="78" text-anchor="middle" font-size="9.5" fill="#3b0764">dataset_emit</text>
+    </g>
+  </g>
+
+  <line x1="800" y1="898" x2="800" y2="924" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+  <text x="815" y="918" font-size="11" font-style="italic" fill="#475569">httpx · {ok, data} envelopes</text>
+
+  <!-- ============== EXTERNAL ============== -->
+  <g transform="translate(40, 930)">
+    <text x="20" y="20" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="0.08em">LAYER 5  ·  EXTERNAL DATA SOURCES  +  LOCAL PRIMITIVES</text>
+  </g>
+  <g transform="translate(40, 957)" filter="url(#shadow)">
+    <rect width="1520" height="80" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="24" y="28" font-size="13" font-weight="700" fill="#0f172a">External APIs / local resources hit by the MCP layer</text>
+    <text x="24" y="50" font-size="11.5" fill="#475569">Tavily  ·  arXiv  ·  Semantic Scholar  ·  Wikipedia REST  ·  OpenStreetMap (Nominatim, Overpass)  ·  OpenTripMap  ·  wttr.in  ·  CoinGecko  ·  Alpha Vantage  ·  YouTube oEmbed/transcripts</text>
+    <text x="24" y="68" font-size="11.5" fill="#475569">psutil (host)  ·  faster-whisper (Whisper)  ·  docling (PDF/DOCX)  ·  tiktoken (BPE)  ·  ChromaDB (in-app)  ·  SQLite (per-app + invocable_apis registry)  ·  Bird-SQL DBs</text>
+  </g>
+
+  <!-- footer -->
+  <text x="800" y="1064" text-anchor="middle" font-size="11.5" fill="#64748b">Each layer talks to the next over HTTP only — no in-process imports across the apps↔MCP boundary. Same protocol everywhere = uniform tests, uniform tool explorer.</text>
+</svg>

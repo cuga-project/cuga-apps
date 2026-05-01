@@ -1,0 +1,10 @@
+[
+  {
+    "id": "smart-todo-digest",
+    "factory": "digest",
+    "config": {
+      "schedule": "0 8 * * 1-5",
+      "email": "anupama.murthi@gmail.com"
+    }
+  }
+]

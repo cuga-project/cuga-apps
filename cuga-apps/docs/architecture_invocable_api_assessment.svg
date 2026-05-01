@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1140" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1140" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="28" font-weight="700" fill="#0f172a">Bird Invocable API  ·  is this a strong agent demo?</text>
+  <text x="800" y="70" text-anchor="middle" font-size="14" fill="#64748b">Yes — for these 5 reasons. With one honest caveat the deck shouldn't paper over.</text>
+
+  <!-- ============== BAND A: STRENGTHS ============== -->
+  <g transform="translate(40, 96)">
+    <rect width="1520" height="32" rx="6" fill="#10b981"/>
+    <text x="14" y="22" font-size="13" font-weight="700" fill="#fff">A.  AGENT CAPABILITIES THAT ARE ACTUALLY EXERCISED  ·  things a one-shot LLM cannot replicate</text>
+  </g>
+
+  <!-- 5 strength cards: 290w + 17.5 gap = 5*290 + 4*17.5 = 1450+70 = 1520 -->
+  <!-- Card 1 -->
+  <g transform="translate(40, 142)" filter="url(#shadow)">
+    <rect width="290" height="248" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="290" height="42" rx="12" fill="#10b981"/>
+    <rect y="30" width="290" height="12" fill="#10b981"/>
+    <circle cx="26" cy="22" r="14" fill="#fff"/>
+    <text x="26" y="27" text-anchor="middle" font-size="13" font-weight="700" fill="#10b981">1</text>
+    <text x="48" y="27" font-size="13" font-weight="700" fill="#fff">Stateful multi-turn</text>
+    <text x="48" y="40" font-size="11" fill="#d1fae5">+ feedback loop</text>
+
+    <text x="16" y="68" font-size="11" fill="#475569" font-style="italic">Next action depends on what the last step revealed — no fixed plan.</text>
+    <line x1="16" y1="92" x2="274" y2="92" stroke="#e2e8f0"/>
+    <text x="16" y="112" font-size="10.5" font-weight="700" fill="#065f46">EVIDENCE  ·  qid 28</text>
+    <text x="16" y="132" font-size="11" fill="#475569">Step 5  db_sample_rows(schools)</text>
+    <text x="16" y="148" font-size="11" fill="#475569">→ FundingType is free-text</text>
+    <text x="16" y="174" font-size="11" font-weight="700" fill="#065f46">→ triggers Step 6</text>
+    <text x="16" y="190" font-size="11" font-family="monospace" fill="#475569">db_run_sql DISTINCT</text>
+    <text x="16" y="220" font-size="11" fill="#475569" font-style="italic">A scripted pipeline would batch-prefetch every value upfront.</text>
+  </g>
+
+  <!-- Card 2 -->
+  <g transform="translate(347.5, 142)" filter="url(#shadow)">
+    <rect width="290" height="248" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="290" height="42" rx="12" fill="#10b981"/>
+    <rect y="30" width="290" height="12" fill="#10b981"/>
+    <circle cx="26" cy="22" r="14" fill="#fff"/>
+    <text x="26" y="27" text-anchor="middle" font-size="13" font-weight="700" fill="#10b981">2</text>
+    <text x="48" y="27" font-size="13" font-weight="700" fill="#fff">18-tool selection</text>
+    <text x="48" y="40" font-size="11" fill="#d1fae5">over 5 families</text>
+
+    <text x="16" y="68" font-size="11" fill="#475569" font-style="italic">The right family at the right time depends on agent state — not policy.</text>
+    <line x1="16" y1="92" x2="274" y2="92" stroke="#e2e8f0"/>
+    <text x="16" y="112" font-size="10.5" font-weight="700" fill="#065f46">FAMILIES</text>
+
+    <g transform="translate(16, 122)">
+      <rect width="120" height="22" rx="11" fill="#ecfeff" stroke="#0ea5e9"/>
+      <text x="60" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="#0c4a6e">db_* / bird_*  read</text>
+    </g>
+    <g transform="translate(146, 122)">
+      <rect width="124" height="22" rx="11" fill="#f5f3ff" stroke="#8b5cf6"/>
+      <text x="62" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3b0764">tool_register  mutate</text>
+    </g>
+    <g transform="translate(16, 150)">
+      <rect width="120" height="22" rx="11" fill="#ecfdf5" stroke="#10b981"/>
+      <text x="60" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="#065f46">tool_call  exec</text>
+    </g>
+    <g transform="translate(146, 150)">
+      <rect width="124" height="22" rx="11" fill="#fef3c7" stroke="#f59e0b"/>
+      <text x="62" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="#78350f">seq_*  validate</text>
+    </g>
+
+    <text x="16" y="200" font-size="11" font-weight="700" fill="#065f46">qid 28 used 4 of 5 families</text>
+    <text x="16" y="220" font-size="11" fill="#475569" font-style="italic">in 13 calls — a scripted state machine would freeze the order.</text>
+  </g>
+
+  <!-- Card 3 -->
+  <g transform="translate(655, 142)" filter="url(#shadow)">
+    <rect width="290" height="248" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="290" height="42" rx="12" fill="#10b981"/>
+    <rect y="30" width="290" height="12" fill="#10b981"/>
+    <circle cx="26" cy="22" r="14" fill="#fff"/>
+    <text x="26" y="27" text-anchor="middle" font-size="13" font-weight="700" fill="#10b981">3</text>
+    <text x="48" y="27" font-size="13" font-weight="700" fill="#fff">Course correction</text>
+    <text x="48" y="40" font-size="11" fill="#d1fae5">from oracle diffs</text>
+
+    <text x="16" y="68" font-size="11" fill="#475569" font-style="italic">Failure is a signal, not a wall. Up to 2 retries per question.</text>
+    <line x1="16" y1="92" x2="274" y2="92" stroke="#e2e8f0"/>
+    <text x="16" y="112" font-size="10.5" font-weight="700" fill="#065f46">LOOP</text>
+    <text x="16" y="132" font-size="11" font-family="monospace" fill="#475569">seq_validate → passed=false</text>
+    <text x="16" y="148" font-size="11" font-family="monospace" fill="#475569">  → failure_msg points</text>
+    <text x="16" y="164" font-size="11" font-family="monospace" fill="#475569">  at offending step</text>
+    <text x="16" y="184" font-size="11" font-weight="700" fill="#065f46">→ tool_register (fix)</text>
+    <text x="16" y="202" font-size="11" font-weight="700" fill="#065f46">→ seq_validate (retry)</text>
+    <text x="16" y="226" font-size="11" fill="#475569" font-style="italic">Forbidden-name + near-duplicate guards reject shortcuts.</text>
+  </g>
+
+  <!-- Card 4 -->
+  <g transform="translate(962.5, 142)" filter="url(#shadow)">
+    <rect width="290" height="248" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="290" height="42" rx="12" fill="#10b981"/>
+    <rect y="30" width="290" height="12" fill="#10b981"/>
+    <circle cx="26" cy="22" r="14" fill="#fff"/>
+    <text x="26" y="27" text-anchor="middle" font-size="13" font-weight="700" fill="#10b981">4</text>
+    <text x="48" y="27" font-size="13" font-weight="700" fill="#fff">Oracle-grounded</text>
+    <text x="48" y="40" font-size="11" fill="#d1fae5">synthesis</text>
+
+    <text x="16" y="68" font-size="11" fill="#475569" font-style="italic">The agent has a measurable target before it writes a line of code.</text>
+    <line x1="16" y1="92" x2="274" y2="92" stroke="#e2e8f0"/>
+    <text x="16" y="112" font-size="10.5" font-weight="700" fill="#065f46">PRE-CODE</text>
+    <text x="16" y="132" font-size="11" font-family="monospace" fill="#475569">bird_run_gold(qid)</text>
+    <text x="16" y="148" font-size="11" fill="#475569">→ canonical 57 rows</text>
+
+    <text x="16" y="174" font-size="10.5" font-weight="700" fill="#065f46">CONTRAST</text>
+    <text x="16" y="192" font-size="11" fill="#475569">A one-shot wrapper has no</text>
+    <text x="16" y="208" font-size="11" fill="#475569">oracle until eval time.</text>
+    <text x="16" y="224" font-size="11" font-weight="700" fill="#065f46">"trustworthy by construction"</text>
+  </g>
+
+  <!-- Card 5 -->
+  <g transform="translate(1270, 142)" filter="url(#shadow)">
+    <rect width="290" height="248" rx="12" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <rect width="290" height="42" rx="12" fill="#10b981"/>
+    <rect y="30" width="290" height="12" fill="#10b981"/>
+    <circle cx="26" cy="22" r="14" fill="#fff"/>
+    <text x="26" y="27" text-anchor="middle" font-size="13" font-weight="700" fill="#10b981">5</text>
+    <text x="48" y="27" font-size="13" font-weight="700" fill="#fff">Cross-question state</text>
+    <text x="48" y="40" font-size="11" fill="#d1fae5">accumulates</text>
+
+    <text x="16" y="68" font-size="11" fill="#475569" font-style="italic">Agent reasons across episodes, not just within one.</text>
+    <line x1="16" y1="92" x2="274" y2="92" stroke="#e2e8f0"/>
+    <text x="16" y="112" font-size="10.5" font-weight="700" fill="#065f46">RULE</text>
+    <text x="16" y="132" font-size="11" font-family="monospace" fill="#475569">tool_list  before designing</text>
+    <text x="16" y="148" font-size="11" fill="#475569">→ if a tool fits, REUSE it</text>
+    <text x="16" y="164" font-size="11" fill="#475569">  with different args.</text>
+    <text x="16" y="190" font-size="11" font-weight="700" fill="#065f46">Most agent demos don't</text>
+    <text x="16" y="206" font-size="11" font-weight="700" fill="#065f46">ask this — within-episode</text>
+    <text x="16" y="222" font-size="11" font-weight="700" fill="#065f46">tool-calls only.</text>
+  </g>
+
+  <!-- Recursive bonus banner -->
+  <g transform="translate(40, 410)" filter="url(#shadow)">
+    <rect width="1520" height="48" rx="10" fill="#312e81"/>
+    <text x="20" y="20" font-size="13" font-weight="700" fill="#fde68a">★ Bonus  ·  recursive</text>
+    <text x="200" y="20" font-size="13" fill="#e0e7ff">The agent's <tspan font-family="monospace" fill="#fff">output</tspan> is itself a runnable MCP server.</text>
+    <text x="20" y="38" font-size="12" fill="#c7d2fe">An agent producing tools that other agents can be benchmarked against. Few demos in the repo cross that meta-line.</text>
+  </g>
+
+  <!-- ============== BAND B: HONEST METRICS ============== -->
+  <g transform="translate(40, 478)">
+    <rect width="1520" height="32" rx="6" fill="#f59e0b"/>
+    <text x="14" y="22" font-size="13" font-weight="700" fill="#fff">B.  BUT THE HONEST NUMBERS  ·  output/california_schools/validation_report.json  ·  measured, not aspirational</text>
+  </g>
+
+  <!-- 4 metric tiles. Each shows actual fill + aspiration line. 4 * 372 + 3 * 16 = 1488+48 = 1536. Adjust to 4 * 368 + 3 * 16 = 1472+48 = 1520 ✓ -->
+  <!-- Metric 1: Pass rate -->
+  <g transform="translate(40, 524)" filter="url(#shadow)">
+    <rect width="368" height="180" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="28" font-size="12" font-weight="700" fill="#475569" letter-spacing="0.06em">PASS RATE</text>
+    <text x="20" y="68" font-size="36" font-weight="800" fill="#10b981">75%</text>
+    <text x="170" y="68" font-size="14" fill="#64748b">67 / 89 questions</text>
+    <text x="170" y="86" font-size="11" fill="#94a3b8" font-style="italic">passed seq_validate</text>
+
+    <!-- bar -->
+    <rect x="20" y="108" width="328" height="16" rx="8" fill="#f1f5f9"/>
+    <rect x="20" y="108" width="246" height="16" rx="8" fill="#10b981"/>
+    <line x1="316" y1="102" x2="316" y2="130" stroke="#dc2626" stroke-width="2" stroke-dasharray="3,2"/>
+    <text x="316" y="142" text-anchor="middle" font-size="10" font-weight="700" fill="#dc2626">90% target</text>
+
+    <text x="20" y="166" font-size="11" fill="#475569"><tspan font-weight="700" fill="#10b981">solid</tspan> for unsupervised first pass; the 25% tail is where retry/fallback failed</text>
+  </g>
+
+  <!-- Metric 2: Mean reuse -->
+  <g transform="translate(424, 524)" filter="url(#shadow)">
+    <rect width="368" height="180" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="28" font-size="12" font-weight="700" fill="#475569" letter-spacing="0.06em">MEAN REUSE PER TOOL</text>
+    <text x="20" y="68" font-size="36" font-weight="800" fill="#dc2626">1.0×</text>
+    <text x="170" y="68" font-size="14" fill="#64748b">68 distinct tools</text>
+    <text x="170" y="86" font-size="11" fill="#94a3b8" font-style="italic">in passing sequences</text>
+
+    <!-- bar -->
+    <rect x="20" y="108" width="328" height="16" rx="8" fill="#f1f5f9"/>
+    <rect x="20" y="108" width="55" height="16" rx="8" fill="#dc2626"/>
+    <line x1="219" y1="102" x2="219" y2="130" stroke="#10b981" stroke-width="2" stroke-dasharray="3,2"/>
+    <text x="219" y="142" text-anchor="middle" font-size="10" font-weight="700" fill="#10b981">3× target</text>
+
+    <text x="20" y="166" font-size="11" fill="#475569"><tspan font-weight="700" fill="#dc2626">moat is theoretical here</tspan>  ·  agent defaulted to one-tool-per-question</text>
+  </g>
+
+  <!-- Metric 3: Multi-step decomposition -->
+  <g transform="translate(808, 524)" filter="url(#shadow)">
+    <rect width="368" height="180" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="28" font-size="12" font-weight="700" fill="#475569" letter-spacing="0.06em">MULTI-STEP DECOMPOSITION</text>
+    <text x="20" y="68" font-size="36" font-weight="800" fill="#dc2626">1%</text>
+    <text x="170" y="68" font-size="14" fill="#64748b">1 of 67 passing</text>
+    <text x="170" y="86" font-size="11" fill="#94a3b8" font-style="italic">qid 28 was the lone one</text>
+
+    <!-- bar -->
+    <rect x="20" y="108" width="328" height="16" rx="8" fill="#f1f5f9"/>
+    <rect x="20" y="108" width="3" height="16" rx="2" fill="#dc2626"/>
+    <line x1="118" y1="102" x2="118" y2="130" stroke="#10b981" stroke-width="2" stroke-dasharray="3,2"/>
+    <text x="118" y="142" text-anchor="middle" font-size="10" font-weight="700" fill="#10b981">~30% target</text>
+
+    <text x="20" y="166" font-size="11" fill="#475569">prompt teaches signals (subqueries, CTEs); LLM picks easier path 99% of time</text>
+  </g>
+
+  <!-- Metric 4: API surface size -->
+  <g transform="translate(1192, 524)" filter="url(#shadow)">
+    <rect width="368" height="180" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="28" font-size="12" font-weight="700" fill="#475569" letter-spacing="0.06em">API SURFACE SIZE</text>
+    <text x="20" y="68" font-size="36" font-weight="800" fill="#dc2626">101</text>
+    <text x="170" y="68" font-size="14" fill="#64748b">tools registered</text>
+    <text x="170" y="86" font-size="11" fill="#94a3b8" font-style="italic">for 89 questions  →  &gt;1:1</text>
+
+    <!-- bar  -->
+    <rect x="20" y="108" width="328" height="16" rx="8" fill="#f1f5f9"/>
+    <rect x="20" y="108" width="328" height="16" rx="8" fill="#dc2626"/>
+    <line x1="91" y1="102" x2="91" y2="130" stroke="#10b981" stroke-width="2" stroke-dasharray="3,2"/>
+    <text x="91" y="142" text-anchor="middle" font-size="10" font-weight="700" fill="#10b981">~25 target</text>
+
+    <text x="20" y="166" font-size="11" fill="#475569">includes re-registrations from retries  ·  net direction: wrong</text>
+  </g>
+
+  <!-- ============== BAND C: DECK FRAMING ============== -->
+  <g transform="translate(40, 724)">
+    <rect width="1520" height="32" rx="6" fill="#312e81"/>
+    <text x="14" y="22" font-size="13" font-weight="700" fill="#fff">C.  HOW TO FRAME THIS IN THE DECK  ·  honesty &gt; theatre  ·  the gap itself is the research finding</text>
+  </g>
+
+  <!-- Two columns -->
+  <g transform="translate(40, 770)" filter="url(#shadow)">
+    <rect width="752" height="290" rx="14" fill="#fff" stroke="#fecaca" stroke-width="1.5"/>
+    <rect width="752" height="42" rx="14" fill="#dc2626"/>
+    <rect y="30" width="752" height="12" fill="#dc2626"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#fff">DON'T claim</text>
+
+    <g transform="translate(20, 60)">
+      <rect width="712" height="46" rx="8" fill="#fef2f2"/>
+      <text x="14" y="20" font-size="12" fill="#475569" font-style="italic">"The agent compositionally reuses tools across questions."</text>
+      <text x="14" y="36" font-size="11" fill="#991b1b" font-weight="600">→ The numbers say 1.0× mean reuse. It's not happening here.</text>
+    </g>
+    <g transform="translate(20, 116)">
+      <rect width="712" height="46" rx="8" fill="#fef2f2"/>
+      <text x="14" y="20" font-size="12" fill="#475569" font-style="italic">"We synthesized a small reusable API surface."</text>
+      <text x="14" y="36" font-size="11" fill="#991b1b" font-weight="600">→ 101 tools for 89 questions is bigger than 1:1, not smaller.</text>
+    </g>
+    <g transform="translate(20, 172)">
+      <rect width="712" height="46" rx="8" fill="#fef2f2"/>
+      <text x="14" y="20" font-size="12" fill="#475569" font-style="italic">"Agent decomposes hard questions into multi-step sequences."</text>
+      <text x="14" y="36" font-size="11" fill="#991b1b" font-weight="600">→ 1 of 67 passing. The architecture supports it; the LLM declines.</text>
+    </g>
+    <g transform="translate(20, 228)">
+      <rect width="712" height="46" rx="8" fill="#fef2f2"/>
+      <text x="14" y="20" font-size="12" fill="#475569" font-style="italic">"Production-ready benchmark dataset."</text>
+      <text x="14" y="36" font-size="11" fill="#991b1b" font-weight="600">→ 25% failure tail; over-fit-to-question tools. Research artifact.</text>
+    </g>
+  </g>
+
+  <g transform="translate(808, 770)" filter="url(#shadow)">
+    <rect width="752" height="290" rx="14" fill="#fff" stroke="#a7f3d0" stroke-width="1.5"/>
+    <rect width="752" height="42" rx="14" fill="#10b981"/>
+    <rect y="30" width="752" height="12" fill="#10b981"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#fff">DO claim</text>
+
+    <g transform="translate(20, 60)">
+      <rect width="712" height="46" rx="8" fill="#ecfdf5"/>
+      <text x="14" y="20" font-size="12" fill="#475569">"Agent capabilities exercised: <tspan font-weight="700" fill="#065f46">stateful multi-turn ReAct, oracle-grounded</tspan></text>
+      <text x="14" y="36" font-size="12" fill="#475569"><tspan font-weight="700" fill="#065f46">synthesis, server-enforced discipline, recoverable failure.</tspan>"</text>
+    </g>
+    <g transform="translate(20, 116)">
+      <rect width="712" height="46" rx="8" fill="#ecfdf5"/>
+      <text x="14" y="20" font-size="12" fill="#475569">"75% pass first-try; <tspan font-weight="700" fill="#065f46">the 25% tail is the next experiment.</tspan>"</text>
+      <text x="14" y="36" font-size="11" fill="#065f46" font-weight="600">→ Honest, technically substantive, points at a roadmap.</text>
+    </g>
+    <g transform="translate(20, 172)">
+      <rect width="712" height="46" rx="8" fill="#ecfdf5"/>
+      <text x="14" y="20" font-size="12" fill="#475569">"Reuse is the next dial — currently 1.0×, lever is</text>
+      <text x="14" y="36" font-size="12" fill="#475569"><tspan font-weight="700" fill="#065f46">prompt + tool_list-first guard.</tspan>"</text>
+    </g>
+    <g transform="translate(20, 228)">
+      <rect width="712" height="46" rx="8" fill="#ecfdf5"/>
+      <text x="14" y="20" font-size="12" fill="#475569">"<tspan font-weight="700" fill="#065f46">The methodology (prompt + 18 tools + 4 guards) is the artifact</tspan> —</text>
+      <text x="14" y="36" font-size="12" fill="#475569">point any agent at it; the discipline holds. That's the moat."</text>
+    </g>
+  </g>
+
+  <!-- footer takeaway -->
+  <text x="800" y="1112" text-anchor="middle" font-size="13" font-weight="600" fill="#475569">The gap between aspiration and reality IS the finding. A measurable agent benchmark beats a polished demo with no instrumentation.</text>
+</svg>

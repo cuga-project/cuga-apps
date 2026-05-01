@@ -1,0 +1,246 @@
+# =========================================================================
+# docker-compose.yml — cuga-apps (MCP edition) full stack.
+#
+# Services:
+#   6 MCP servers  — web, knowledge, geo, finance, code, local
+#   apps           — stage-1 reference apps (web_researcher, paper_scout,
+#                    travel_planner, code_reviewer)
+#   ui             — React/Vite umbrella, served by nginx
+#
+# All container names are prefixed `cuga-apps-*` so this stack coexists
+# with the original `agent-apps` compose project. All ports are shifted
+# to 3001 / 28xxx / 29xxx.
+#
+# Quick start:
+#   cp apps/.env.example apps/.env
+#   docker compose build
+#   docker compose up
+# Then:  http://localhost:3001
+# =========================================================================
+
+name: cuga-apps
+
+services:
+
+  # ── MCP servers ──────────────────────────────────────────────────────
+  mcp-web:
+    container_name: cuga-apps-mcp-web
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.web.server"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+    ports: ["29100:29100"]
+    restart: unless-stopped
+
+  mcp-knowledge:
+    container_name: cuga-apps-mcp-knowledge
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.knowledge.server"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+    ports: ["29101:29101"]
+    restart: unless-stopped
+
+  mcp-geo:
+    container_name: cuga-apps-mcp-geo
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.geo.server"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+    ports: ["29102:29102"]
+    restart: unless-stopped
+
+  mcp-finance:
+    container_name: cuga-apps-mcp-finance
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.finance.server"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+    ports: ["29103:29103"]
+    restart: unless-stopped
+
+  mcp-code:
+    container_name: cuga-apps-mcp-code
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.code.server"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+    ports: ["29104:29104"]
+    restart: unless-stopped
+
+  mcp-local:
+    container_name: cuga-apps-mcp-local
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.local.server"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+    ports: ["29105:29105"]
+    restart: unless-stopped
+
+  mcp-text:
+    container_name: cuga-apps-mcp-text
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.text.server"]
+    ports: ["29106:29106"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    # The remaining mounts let extract_text read files written by the apps
+    # container — same volumes the apps container mounts, RO here.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+      - ./apps/drop_summarizer/inbox:/app/apps/drop_summarizer/inbox:ro
+      - ./apps/box_qa:/app/apps/box_qa:ro
+      - ./apps/deck_forge/data:/app/apps/deck_forge/data:ro
+    restart: unless-stopped
+
+  mcp-invocable_apis:
+    container_name: cuga-apps-mcp-invocable_apis
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    command: ["python", "-m", "mcp_servers.invocable_apis.server"]
+    ports: ["29107:29107"]
+    # Secrets are mounted as a read-only file (sourced by entrypoint.sh)
+    # rather than injected via env_file:, so they never appear in
+    # `docker inspect` or in the image. See entrypoint.sh.
+    # Bird data lives outside the repo — bind-mount read-only via env-driven
+    # host paths. Set BIRD_DEV_JSON_HOST and BIRD_DBS_DIR_HOST in apps/.env.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+      - ${BIRD_DEV_JSON_HOST:-/home/amurthi/work/dev_20240627/dev.json}:/data/bird/dev.json:ro
+      - ${BIRD_DBS_DIR_HOST:-/home/amurthi/work/enterprise-benchmark/data/db}:/data/bird/dbs:ro
+      - ./mcp_servers/invocable_apis/state:/app/mcp_servers/invocable_apis/state
+      - ./apps/bird_invocable_api_creator/output:/app/apps/bird_invocable_api_creator/output
+    environment:
+      BIRD_DEV_JSON: /data/bird/dev.json
+      BIRD_DBS_DIR:  /data/bird/dbs
+    restart: unless-stopped
+
+  # ── Apps (stage 2: all 23 apps) ─────────────────────────────────────
+  apps:
+    container_name: cuga-apps-apps
+    build:
+      context: .
+      dockerfile: Dockerfile.apps
+    mem_limit: 32g
+    ports:
+      - "28793:28793"   # newsletter
+      - "28794:28794"   # drop_summarizer
+      - "28798:28798"   # web_researcher
+      - "28799:28799"   # voice_journal
+      - "28800:28800"   # smart_todo
+      - "28767:28767"   # server_monitor
+      - "28801:28801"   # stock_alert
+      - "28766:28766"   # video_qa
+      - "28090:28090"   # travel_planner
+      - "28802:28802"   # deck_forge
+      - "28803:28803"   # youtube_research
+      - "28804:28804"   # arch_diagram
+      - "28805:28805"   # hiking_research
+      - "28806:28806"   # movie_recommender
+      - "28071:28071"   # webpage_summarizer
+      - "28807:28807"   # code_reviewer
+      - "28808:28808"   # paper_scout
+      - "28809:28809"   # wiki_dive
+      - "28810:28810"   # box_qa
+      - "28811:28811"   # api_doc_gen
+      - "28812:28812"   # ibm_cloud_advisor
+      - "28813:28813"   # ibm_docs_qa
+      - "28814:28814"   # ibm_whats_new
+      - "28815:28815"   # bird_invocable_api_creator
+      - "28816:28816"   # brief_budget
+      - "28817:28817"   # trip_designer
+      # 28818 — code_engine_deployer is local-only (needs host docker + ibmcloud + user's IBM auth)
+      - "28820:28820"   # recipe_composer
+      - "28821:28821"   # city_beat
+    # First mount: secrets are read at runtime (sourced by entrypoint.sh)
+    # instead of being injected via env_file: — keeps them out of `docker
+    # inspect` and out of the image. See entrypoint.sh.
+    volumes:
+      - ./apps/.env:/run/secrets/app.env:ro
+      - ./apps/drop_summarizer/inbox:/app/apps/drop_summarizer/inbox
+      - ./apps/drop_summarizer/data:/app/apps/drop_summarizer/data
+      - ./apps/voice_journal/storage:/app/apps/voice_journal/storage
+      - ./apps/voice_journal/journal:/app/apps/voice_journal/journal
+      - ./apps/bird_invocable_api_creator/output:/app/apps/bird_invocable_api_creator/output
+      - ./apps/smart_todo/storage:/app/apps/smart_todo/storage
+      - ./apps/deck_forge/outputs:/app/apps/deck_forge/outputs
+      - ./apps/deck_forge/data:/app/apps/deck_forge/data
+      - video_qa_cache:/app/apps/video_qa/.cache
+      - ./apps/video_qa/videos:/app/apps/video_qa/videos
+    depends_on:
+      - mcp-web
+      - mcp-knowledge
+      - mcp-geo
+      - mcp-finance
+      - mcp-code
+      - mcp-local
+      - mcp-text
+      - mcp-invocable_apis
+    restart: unless-stopped
+
+  # ── UI (React/Vite → nginx) ─────────────────────────────────────────
+  ui:
+    container_name: cuga-apps-ui
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    # nginx listens on 7860 (non-privileged) so the same image runs on
+    # Hugging Face Spaces; host port 3001 is unchanged for local dev.
+    ports: ["3001:7860"]
+    restart: unless-stopped
+
+  # ── MCP Tool Explorer (browse + invoke every MCP server's tools) ────
+  mcp-tool-explorer:
+    container_name: cuga-apps-mcp-tool-explorer
+    build:
+      context: .
+      dockerfile: mcp_tool_explorer/Dockerfile
+    ports: ["28900:28900"]
+    depends_on:
+      - mcp-web
+      - mcp-knowledge
+      - mcp-geo
+      - mcp-finance
+      - mcp-code
+      - mcp-local
+      - mcp-text
+      - mcp-invocable_apis
+    restart: unless-stopped
+
+# ── Named volumes ──────────────────────────────────────────────────
+volumes:
+  video_qa_cache:

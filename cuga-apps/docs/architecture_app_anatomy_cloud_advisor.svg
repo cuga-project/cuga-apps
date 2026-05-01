@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowL" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1200" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">Anatomy of a cuga-app  —  ibm_cloud_advisor</text>
+  <text x="800" y="72" text-anchor="middle" font-size="15" fill="#64748b">Mixed-mode tools: an inline @tool that talks to a domain API + an MCP tool from mcp-web. The system prompt enforces "catalog before recommendation".</text>
+
+  <!-- ===== TOP ZONE ===== -->
+
+  <g transform="translate(40, 110)" filter="url(#shadow)">
+    <rect width="380" height="220" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="380" height="38" rx="12" fill="#0f172a"/>
+    <rect y="26" width="380" height="12" fill="#0f172a"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">File layout</text>
+
+    <text x="20" y="68" font-size="12.5" fill="#0f172a" font-family="monospace">apps/ibm_cloud_advisor/</text>
+    <text x="36" y="90" font-size="12" fill="#475569" font-family="monospace">├── main.py</text>
+    <text x="280" y="90" font-size="11" fill="#94a3b8" font-style="italic">FastAPI + agent</text>
+    <text x="36" y="110" font-size="12" fill="#475569" font-family="monospace">├── ui.py</text>
+    <text x="280" y="110" font-size="11" fill="#94a3b8" font-style="italic">_HTML chat UI</text>
+    <text x="36" y="130" font-size="12" fill="#475569" font-family="monospace">├── README.md</text>
+    <text x="36" y="150" font-size="12" fill="#475569" font-family="monospace">└── requirements.txt</text>
+
+    <line x1="20" y1="170" x2="360" y2="170" stroke="#e2e8f0"/>
+    <text x="20" y="190" font-size="11.5" font-weight="700" fill="#475569">Domain endpoint hit by inline tool</text>
+    <text x="20" y="207" font-size="10.5" fill="#64748b" font-family="monospace">globalcatalog.cloud.ibm.com/api/v1</text>
+  </g>
+
+  <g transform="translate(440, 110)" filter="url(#shadow)">
+    <rect width="700" height="220" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="700" height="38" rx="12" fill="#312e81"/>
+    <rect y="26" width="700" height="12" fill="#312e81"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">Agent factory  —  inline + MCP tools mixed in one list</text>
+
+    <rect x="20" y="58" width="660" height="146" rx="8" fill="#0f172a"/>
+    <text x="32" y="80" font-size="12" fill="#cbd5e1" font-family="monospace">def _make_tools():</text>
+    <text x="48" y="100" font-size="12" fill="#cbd5e1" font-family="monospace">@</text>
+    <text x="56" y="100" font-size="12" fill="#a5b4fc" font-family="monospace">tool</text>
+    <text x="48" y="118" font-size="12" fill="#cbd5e1" font-family="monospace">def </text>
+    <text x="80" y="118" font-size="12" fill="#fde68a" font-family="monospace">search_ibm_catalog</text>
+    <text x="220" y="118" font-size="12" fill="#cbd5e1" font-family="monospace">(query: str) -&gt; str:  </text>
+    <text x="396" y="118" font-size="11" fill="#9ca3af" font-family="monospace">  # inline (app-specific)</text>
+    <text x="64" y="136" font-size="12" fill="#cbd5e1" font-family="monospace">…hit IBM Cloud Global Catalog directly…</text>
+    <text x="48" y="160" font-size="12" fill="#cbd5e1" font-family="monospace">web_tools = </text>
+    <text x="148" y="160" font-size="12" fill="#a5b4fc" font-family="monospace">load_tools</text>
+    <text x="226" y="160" font-size="12" fill="#cbd5e1" font-family="monospace">([</text>
+    <text x="240" y="160" font-size="12" fill="#86efac" font-family="monospace">"web"</text>
+    <text x="276" y="160" font-size="12" fill="#cbd5e1" font-family="monospace">])  </text>
+    <text x="396" y="160" font-size="11" fill="#9ca3af" font-family="monospace">  # MCP (shared)</text>
+    <text x="48" y="180" font-size="12" fill="#cbd5e1" font-family="monospace">return [search_ibm_catalog, *web_tools]</text>
+    <text x="32" y="198" font-size="11" fill="#94a3b8" font-family="monospace" font-style="italic"># Pattern: inline = app-specific domain · MCP = shared, reusable across apps</text>
+  </g>
+
+  <g transform="translate(1160, 110)" filter="url(#shadow)">
+    <rect width="400" height="220" rx="12" fill="#fff" stroke="#475569" stroke-width="1.5"/>
+    <rect width="400" height="38" rx="12" fill="#475569"/>
+    <rect y="26" width="400" height="12" fill="#475569"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">Tools bound  —  2 sources, 1 catalog</text>
+
+    <text x="20" y="62" font-size="11.5" font-weight="700" fill="#0f172a">Inline @tool (kept local)</text>
+    <g transform="translate(20, 70)">
+      <rect width="360" height="40" rx="8" fill="#f1f5f9" stroke="#475569" stroke-width="1"/>
+      <text x="14" y="18" font-size="11.5" font-family="monospace" font-weight="700" fill="#0f172a">search_ibm_catalog(query)</text>
+      <text x="14" y="32" font-size="10" fill="#64748b">→ IBM Global Catalog · service names, descriptions, URLs</text>
+    </g>
+
+    <text x="20" y="130" font-size="11.5" font-weight="700" fill="#0c4a6e">From mcp-web (29100)</text>
+    <g transform="translate(20, 138)">
+      <rect width="360" height="40" rx="8" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="14" y="18" font-size="11.5" font-family="monospace" font-weight="700" fill="#0c4a6e">web_search(query)</text>
+      <text x="14" y="32" font-size="10" fill="#64748b">→ Tavily · narrowed via "site:ibm.com OR site:cloud.ibm.com"</text>
+    </g>
+
+    <text x="20" y="194" font-size="10.5" fill="#475569" font-style="italic">Why inline? IBM Catalog API doesn't fit any existing</text>
+    <text x="20" y="208" font-size="10.5" fill="#475569" font-style="italic">MCP server theme; only this app uses it.</text>
+  </g>
+
+  <line x1="40" y1="365" x2="1560" y2="365" stroke="#cbd5e1" stroke-dasharray="4,4"/>
+  <text x="800" y="395" text-anchor="middle" font-size="13" font-weight="700" fill="#475569" letter-spacing="0.05em">REQUEST FLOW  —  POST /ask  "Design a HIPAA-compliant queue-based image processor on IBM Cloud"</text>
+
+  <!-- Lane headers -->
+  <g transform="translate(40, 420)">
+    <g transform="translate(0, 0)">
+      <rect width="280" height="48" rx="10" fill="#0f172a"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">User browser</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#cbd5e1">vanilla JS · _HTML from ui.py</text>
+    </g>
+    <g transform="translate(304, 0)">
+      <rect width="280" height="48" rx="10" fill="#10b981"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">FastAPI shell  ·  main.py</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#d1fae5">/ask + inline tool body</text>
+    </g>
+    <g transform="translate(608, 0)">
+      <rect width="280" height="48" rx="10" fill="#6366f1"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">CugaAgent  ·  cuga.sdk</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#e0e7ff">prompt: "catalog FIRST, then web"</text>
+    </g>
+    <g transform="translate(912, 0)">
+      <rect width="280" height="48" rx="10" fill="#475569"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Tool dispatch  (split path)</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#cbd5e1">inline · or · _mcp_bridge</text>
+    </g>
+    <g transform="translate(1216, 0)">
+      <rect width="304" height="48" rx="10" fill="#f59e0b"/>
+      <text x="152" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">External APIs</text>
+      <text x="152" y="38" text-anchor="middle" font-size="11" fill="#fef3c7">IBM Global Catalog  ·  Tavily</text>
+    </g>
+  </g>
+
+  <g stroke="#e2e8f0" stroke-dasharray="2,4">
+    <line x1="332" y1="478" x2="332" y2="1090"/>
+    <line x1="636" y1="478" x2="636" y2="1090"/>
+    <line x1="940" y1="478" x2="940" y2="1090"/>
+    <line x1="1244" y1="478" x2="1244" y2="1090"/>
+  </g>
+
+  <!-- Step 1 -->
+  <g transform="translate(50, 500)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0f172a" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#0f172a"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">1</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#0f172a">User describes app</text>
+    <text x="46" y="42" font-size="11" fill="#475569">queue + processor + HIPAA</text>
+  </g>
+  <line x1="312" y1="528" x2="354" y2="528" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <text x="333" y="520" text-anchor="middle" font-size="9.5" fill="#475569" font-style="italic">POST /ask</text>
+
+  <!-- Step 2 -->
+  <g transform="translate(354, 500)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#10b981"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">2</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#064e3b">Validate AskReq</text>
+    <text x="46" y="42" font-size="11" fill="#475569" font-family="monospace">await agent.invoke(...)</text>
+  </g>
+  <line x1="616" y1="528" x2="658" y2="528" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <!-- Step 3 -->
+  <g transform="translate(658, 500)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">3</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">Read system prompt</text>
+    <text x="46" y="42" font-size="11" fill="#475569">"catalog FIRST, then optional web"</text>
+  </g>
+
+  <!-- Step 4 — first catalog call (INLINE PATH) -->
+  <g transform="translate(658, 580)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">4</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">search_ibm_catalog</text>
+    <text x="46" y="42" font-size="11" fill="#475569">query: "message queue"</text>
+  </g>
+  <line x1="920" y1="608" x2="962" y2="608" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 580)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0f172a">INLINE path</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ urllib.request directly</text>
+  </g>
+  <line x1="1224" y1="608" x2="1266" y2="608" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 580)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">IBM Global Catalog API</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ {messages-for-rabbitmq, event-streams, ...}</text>
+  </g>
+
+  <!-- Step 5 -->
+  <g transform="translate(658, 660)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">5</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">search_ibm_catalog (×2 more)</text>
+    <text x="46" y="42" font-size="11" fill="#475569">"object storage", "serverless functions"</text>
+  </g>
+  <line x1="920" y1="688" x2="962" y2="688" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 660)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0f172a">INLINE path (still)</text>
+    <text x="20" y="42" font-size="11" fill="#475569">same domain, different keywords</text>
+  </g>
+  <line x1="1224" y1="688" x2="1266" y2="688" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 660)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">→ {cloud-object-storage, code-engine, ...}</text>
+    <text x="20" y="42" font-size="11" fill="#16a34a" font-style="italic">candidate services confirmed by catalog</text>
+  </g>
+
+  <!-- Step 6 — web search (MCP PATH) -->
+  <g transform="translate(658, 740)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">6</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">web_search  (MCP path)</text>
+    <text x="46" y="42" font-size="11" fill="#475569">"HIPAA cloud-object-storage site:ibm.com"</text>
+  </g>
+  <line x1="920" y1="768" x2="962" y2="768" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(962, 740)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">MCP path · _mcp_bridge</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ mcp-web on :29100</text>
+  </g>
+  <line x1="1224" y1="768" x2="1266" y2="768" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <g transform="translate(1266, 740)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">Tavily search</text>
+    <text x="20" y="42" font-size="11" fill="#475569">→ FSCloud-certified compliance docs</text>
+  </g>
+
+  <!-- Step 7 — synthesize -->
+  <g transform="translate(658, 820)" filter="url(#shadow)">
+    <rect width="260" height="74" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="37" r="14" fill="#6366f1"/>
+    <text x="22" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">7</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">Synthesize architecture</text>
+    <text x="46" y="40" font-size="11" fill="#475569">3-7 services · roles · data flow</text>
+    <text x="46" y="55" font-size="11" fill="#475569">+ ibmcloud CLI commands</text>
+    <text x="46" y="68" font-size="11" fill="#475569">+ cost indication (Lite vs paid)</text>
+  </g>
+  <line x1="658" y1="857" x2="616" y2="857" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowL)"/>
+  <text x="637" y="848" text-anchor="middle" font-size="9.5" fill="#475569" font-style="italic">result.answer</text>
+
+  <!-- Step 8 -->
+  <g transform="translate(354, 820)" filter="url(#shadow)">
+    <rect width="260" height="74" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+    <circle cx="22" cy="37" r="14" fill="#10b981"/>
+    <text x="22" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">8</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#064e3b">JSON response</text>
+    <text x="46" y="40" font-size="11" fill="#475569" font-family="monospace">{"answer": "...markdown..."}</text>
+    <text x="46" y="55" font-size="11" fill="#475569">structured per system prompt:</text>
+    <text x="46" y="68" font-size="11" fill="#475569">name → services → flow → CLI → cost</text>
+  </g>
+  <line x1="354" y1="857" x2="312" y2="857" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowL)"/>
+
+  <!-- Step 9 -->
+  <g transform="translate(50, 820)" filter="url(#shadow)">
+    <rect width="260" height="74" rx="10" fill="#fff" stroke="#0f172a" stroke-width="1.2"/>
+    <circle cx="22" cy="37" r="14" fill="#0f172a"/>
+    <text x="22" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">9</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#0f172a">UI renders architecture</text>
+    <text x="46" y="40" font-size="11" fill="#475569">markdown → service cards</text>
+    <text x="46" y="55" font-size="11" fill="#475569">copyable CLI block</text>
+    <text x="46" y="68" font-size="11" fill="#475569">cost panel + estimator link</text>
+  </g>
+
+  <!-- Annotation: split path -->
+  <g transform="translate(948, 920)">
+    <rect width="280" height="80" rx="10" fill="#fff" stroke="#475569" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="14" y="20" font-size="11.5" font-weight="700" fill="#0f172a">The split tool path matters</text>
+    <text x="14" y="38" font-size="10.5" fill="#475569">Inline tool runs in main.py's process —</text>
+    <text x="14" y="51" font-size="10.5" fill="#475569">no MCP overhead. MCP tool round-trips</text>
+    <text x="14" y="64" font-size="10.5" fill="#475569">over HTTP. To the LLM, both look</text>
+    <text x="14" y="77" font-size="10.5" fill="#475569">identical via the LangChain interface.</text>
+  </g>
+
+  <!-- ============== KEY TAKEAWAYS ============== -->
+  <g transform="translate(40, 1024)" filter="url(#shadow)">
+    <rect width="1520" height="160" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="30" font-size="14" font-weight="700" fill="#0f172a">Why this matters  —  the mixed-tool pattern, made concrete</text>
+
+    <g transform="translate(20, 46)">
+      <rect width="365" height="100" rx="10" fill="#f1f5f9"/>
+      <text x="14" y="22" font-size="11.5" font-weight="700" fill="#0f172a">Inline vs MCP — the rule</text>
+      <text x="14" y="40" font-size="11" fill="#475569">App-specific domain → inline @tool.</text>
+      <text x="14" y="56" font-size="11" fill="#475569">Shared, stateless, themed → MCP.</text>
+      <text x="14" y="74" font-size="11" fill="#475569">IBM Catalog only this app uses → kept</text>
+      <text x="14" y="90" font-size="11" fill="#475569">inline. web_search → mcp-web (8 apps).</text>
+    </g>
+    <g transform="translate(405, 46)">
+      <rect width="365" height="100" rx="10" fill="#eef2ff"/>
+      <text x="14" y="22" font-size="11.5" font-weight="700" fill="#312e81">Prompt enforces grounding</text>
+      <text x="14" y="40" font-size="11" fill="#475569">"Only recommend services confirmed</text>
+      <text x="14" y="56" font-size="11" fill="#475569">by search_ibm_catalog results."</text>
+      <text x="14" y="74" font-size="11" fill="#475569">→ no hallucinated IBM service names.</text>
+      <text x="14" y="90" font-size="11" fill="#475569">Catalog is the oracle for what exists.</text>
+    </g>
+    <g transform="translate(790, 46)">
+      <rect width="365" height="100" rx="10" fill="#ecfdf5"/>
+      <text x="14" y="22" font-size="11.5" font-weight="700" fill="#065f46">Same LangChain interface</text>
+      <text x="14" y="40" font-size="11" fill="#475569">Inline tool: function with @tool decorator.</text>
+      <text x="14" y="56" font-size="11" fill="#475569">MCP tool: StructuredTool from bridge.</text>
+      <text x="14" y="74" font-size="11" fill="#475569">→ CugaAgent treats them identically.</text>
+      <text x="14" y="90" font-size="11" fill="#475569">[search_ibm_catalog, *web_tools] just works.</text>
+    </g>
+    <g transform="translate(1175, 46)">
+      <rect width="345" height="100" rx="10" fill="#fffbeb"/>
+      <text x="14" y="22" font-size="11.5" font-weight="700" fill="#78350f">Output structure from prompt</text>
+      <text x="14" y="40" font-size="11" fill="#475569">Architecture name → services list →</text>
+      <text x="14" y="56" font-size="11" fill="#475569">connection diagram → ibmcloud CLI →</text>
+      <text x="14" y="74" font-size="11" fill="#475569">cost note. Format dictated, not LLM whim.</text>
+      <text x="14" y="90" font-size="11" fill="#475569">UI renders cleanly because it's predictable.</text>
+    </g>
+  </g>
+</svg>

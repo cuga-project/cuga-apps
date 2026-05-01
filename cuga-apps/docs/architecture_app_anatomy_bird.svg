@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1480" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowL" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowLoop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1480" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">Anatomy of a cuga-app  —  bird_invocable_api_creator (★ standout)</text>
+  <text x="800" y="72" text-anchor="middle" font-size="15" fill="#64748b">Closed-loop synthesis: turn a Bird-SQL question into a validated invocable tool, anchored against gold SQL on real sqlite.</text>
+
+  <!-- ===== TOP ZONE: STATIC STRUCTURE ===== -->
+
+  <!-- File layout -->
+  <g transform="translate(40, 110)" filter="url(#shadow)">
+    <rect width="380" height="220" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="380" height="38" rx="12" fill="#0f172a"/>
+    <rect y="26" width="380" height="12" fill="#0f172a"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">File layout</text>
+
+    <text x="20" y="68" font-size="12.5" fill="#0f172a" font-family="monospace">apps/bird_invocable_api_creator/</text>
+    <text x="36" y="90" font-size="12" fill="#475569" font-family="monospace">├── main.py</text>
+    <text x="280" y="90" font-size="11" fill="#94a3b8" font-style="italic">FastAPI + agent</text>
+    <text x="36" y="110" font-size="12" fill="#475569" font-family="monospace">├── README.md</text>
+    <text x="36" y="130" font-size="12" fill="#475569" font-family="monospace">└── output/&lt;db&gt;/</text>
+    <text x="280" y="130" font-size="11" fill="#94a3b8" font-style="italic">emitted artifacts</text>
+
+    <line x1="20" y1="148" x2="360" y2="148" stroke="#e2e8f0"/>
+    <text x="20" y="166" font-size="11.5" font-weight="700" fill="#475569">External (read-only mounts)</text>
+    <text x="20" y="183" font-size="11" fill="#64748b" font-family="monospace">/data/bird/dev.json   ← 89 NL/SQL pairs</text>
+    <text x="20" y="200" font-size="11" fill="#64748b" font-family="monospace">/data/bird/dbs/*.sqlite</text>
+  </g>
+
+  <!-- Agent factory -->
+  <g transform="translate(440, 110)" filter="url(#shadow)">
+    <rect width="700" height="220" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <rect width="700" height="38" rx="12" fill="#312e81"/>
+    <rect y="26" width="700" height="12" fill="#312e81"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">Agent factory  —  make_agent()</text>
+
+    <rect x="20" y="58" width="660" height="146" rx="8" fill="#0f172a"/>
+    <text x="32" y="80" font-size="12" fill="#cbd5e1" font-family="monospace">CugaAgent(</text>
+    <text x="48" y="100" font-size="12" font-family="monospace" fill="#fde68a">model</text>
+    <text x="98" y="100" font-size="12" fill="#cbd5e1" font-family="monospace">= </text>
+    <text x="116" y="100" font-size="12" fill="#a5b4fc" font-family="monospace">create_llm</text>
+    <text x="194" y="100" font-size="12" fill="#cbd5e1" font-family="monospace">(provider, model),</text>
+    <text x="370" y="100" font-size="11" fill="#64748b" font-family="monospace">← rits/anthropic/openai/...</text>
+
+    <text x="48" y="120" font-size="12" font-family="monospace" fill="#fde68a">tools</text>
+    <text x="98" y="120" font-size="12" fill="#cbd5e1" font-family="monospace">= </text>
+    <text x="116" y="120" font-size="12" fill="#a5b4fc" font-family="monospace">load_tools</text>
+    <text x="194" y="120" font-size="12" fill="#cbd5e1" font-family="monospace">([</text>
+    <text x="206" y="120" font-size="12" fill="#86efac" font-family="monospace">"invocable_apis"</text>
+    <text x="332" y="120" font-size="12" fill="#cbd5e1" font-family="monospace">]),</text>
+    <text x="370" y="120" font-size="11" fill="#64748b" font-family="monospace">← single MCP server, 18 tools</text>
+
+    <text x="48" y="140" font-size="12" font-family="monospace" fill="#fde68a">special_instructions</text>
+    <text x="222" y="140" font-size="12" fill="#cbd5e1" font-family="monospace">= </text>
+    <text x="240" y="140" font-size="12" fill="#a5b4fc" font-family="monospace">_SYSTEM</text>
+    <text x="298" y="140" font-size="12" fill="#cbd5e1" font-family="monospace">,</text>
+    <text x="370" y="140" font-size="11" fill="#64748b" font-family="monospace">← 600+ line synthesis policy</text>
+
+    <text x="48" y="160" font-size="12" font-family="monospace" fill="#fde68a">cuga_folder</text>
+    <text x="146" y="160" font-size="12" fill="#cbd5e1" font-family="monospace">= </text>
+    <text x="164" y="160" font-size="12" fill="#86efac" font-family="monospace">"./.cuga"</text>
+    <text x="32" y="180" font-size="12" fill="#cbd5e1" font-family="monospace">)</text>
+    <text x="32" y="198" font-size="11" fill="#94a3b8" font-family="monospace" font-style="italic"># Per-question thread_id keeps synthesis state isolated across batches.</text>
+  </g>
+
+  <!-- Tools loaded -->
+  <g transform="translate(1160, 110)" filter="url(#shadow)">
+    <rect width="400" height="220" rx="12" fill="#fff" stroke="#8b5cf6" stroke-width="1.5"/>
+    <rect width="400" height="38" rx="12" fill="#8b5cf6"/>
+    <rect y="26" width="400" height="12" fill="#8b5cf6"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#fff">18 tools across 5 groups</text>
+
+    <text x="20" y="60" font-size="11" font-weight="700" fill="#3b0764">db_*  · read-only sqlite introspect</text>
+    <text x="20" y="76" font-size="10.5" fill="#475569" font-family="monospace">db_get_schema, db_sample_rows, db_run_sql</text>
+
+    <text x="20" y="98" font-size="11" font-weight="700" fill="#3b0764">bird_*  · question + oracle</text>
+    <text x="20" y="114" font-size="10.5" fill="#475569" font-family="monospace">bird_list_questions, bird_get_question, bird_run_gold</text>
+
+    <text x="20" y="136" font-size="11" font-weight="700" fill="#3b0764">tool_*  · synthesized-tool registry</text>
+    <text x="20" y="152" font-size="10.5" fill="#475569" font-family="monospace">tool_register, tool_call, tool_list, tool_delete</text>
+
+    <text x="20" y="174" font-size="11" font-weight="700" fill="#3b0764">seq_*  · per-question sequences</text>
+    <text x="20" y="190" font-size="10.5" fill="#475569" font-family="monospace">seq_record, seq_execute, seq_validate</text>
+
+    <text x="20" y="210" font-size="11" font-weight="700" fill="#3b0764">dataset_*  · </text>
+    <text x="98" y="210" font-size="10.5" fill="#475569" font-family="monospace">dataset_emit  </text>
+    <text x="184" y="210" font-size="11" font-weight="700" fill="#3b0764">+ ignore_*</text>
+  </g>
+
+  <!-- Section divider -->
+  <line x1="40" y1="365" x2="1560" y2="365" stroke="#cbd5e1" stroke-dasharray="4,4"/>
+  <text x="800" y="395" text-anchor="middle" font-size="13" font-weight="700" fill="#475569" letter-spacing="0.05em">REQUEST FLOW  —  POST /question/california_schools/28  (qid 28: "schools whose enrollment difference exceeds the avg for locally-funded schools")</text>
+
+  <!-- ===== SWIM LANES ===== -->
+  <!-- Lane headers -->
+  <g transform="translate(40, 420)">
+    <g transform="translate(0, 0)">
+      <rect width="280" height="48" rx="10" fill="#0f172a"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">User browser</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#cbd5e1">tool browser · stats panel</text>
+    </g>
+    <g transform="translate(304, 0)">
+      <rect width="280" height="48" rx="10" fill="#10b981"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">FastAPI shell  ·  main.py</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#d1fae5">/question, /synthesize, /emit</text>
+    </g>
+    <g transform="translate(608, 0)">
+      <rect width="280" height="48" rx="10" fill="#6366f1"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">CugaAgent  ·  synthesis loop</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#e0e7ff">multi-turn ReAct</text>
+    </g>
+    <g transform="translate(912, 0)">
+      <rect width="280" height="48" rx="10" fill="#0ea5e9"/>
+      <text x="140" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">mcp-invocable_apis</text>
+      <text x="140" y="38" text-anchor="middle" font-size="11" fill="#e0f2fe">port 29107  ·  18 tools</text>
+    </g>
+    <g transform="translate(1216, 0)">
+      <rect width="304" height="48" rx="10" fill="#f59e0b"/>
+      <text x="152" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Storage layer</text>
+      <text x="152" y="38" text-anchor="middle" font-size="11" fill="#fef3c7">Bird sqlite (RO) + registry sqlite</text>
+    </g>
+  </g>
+
+  <g stroke="#e2e8f0" stroke-dasharray="2,4">
+    <line x1="332" y1="478" x2="332" y2="1340"/>
+    <line x1="636" y1="478" x2="636" y2="1340"/>
+    <line x1="940" y1="478" x2="940" y2="1340"/>
+    <line x1="1244" y1="478" x2="1244" y2="1340"/>
+  </g>
+
+  <!-- ============= PHASE A: ORIENT ============= -->
+  <g transform="translate(40, 490)">
+    <rect x="0" y="0" width="1520" height="26" rx="6" fill="#312e81"/>
+    <text x="14" y="18" font-size="11.5" font-weight="700" fill="#fff" letter-spacing="0.06em">PHASE A  ·  ORIENT  —  read the schema, sample real values, capture the oracle answer</text>
+  </g>
+
+  <!-- Step 1 (Browser) -->
+  <g transform="translate(50, 530)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0f172a" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#0f172a"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">1</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#0f172a">User selects qid 28</text>
+    <text x="46" y="42" font-size="11" fill="#475569">"Synthesize" button clicked</text>
+  </g>
+  <line x1="312" y1="558" x2="354" y2="558" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <text x="333" y="550" text-anchor="middle" font-size="9.5" fill="#475569" font-style="italic">POST /question/california_schools/28</text>
+
+  <!-- Step 2 (FastAPI) -->
+  <g transform="translate(354, 530)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#10b981"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">2</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#064e3b">Build agent prompt</text>
+    <text x="46" y="42" font-size="11" fill="#475569">agent.invoke(prompt, thread_id)</text>
+  </g>
+  <line x1="616" y1="558" x2="658" y2="558" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <!-- Step 3 (CugaAgent → MCP) bird_get_question -->
+  <g transform="translate(658, 530)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="28" r="14" fill="#6366f1"/>
+    <text x="22" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">3</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">bird_get_question(28)</text>
+    <text x="46" y="42" font-size="11" fill="#475569">→ NL + evidence + gold SQL</text>
+  </g>
+  <line x1="920" y1="558" x2="962" y2="558" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <!-- Step 3' (MCP server) -->
+  <g transform="translate(962, 530)" filter="url(#shadow)">
+    <rect width="260" height="56" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" fill="#0c4a6e">read dev.json[qid=28]</text>
+    <text x="20" y="42" font-size="11" fill="#475569" font-family="monospace">{q, evidence, sql, hard}</text>
+  </g>
+  <line x1="1224" y1="558" x2="1266" y2="558" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <!-- Step 3'' (storage) -->
+  <g transform="translate(1266, 530)" filter="url(#shadow)">
+    <rect width="284" height="56" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">/data/bird/dev.json</text>
+    <text x="20" y="42" font-size="11" fill="#475569">89 records, indexed by question_id</text>
+  </g>
+
+  <!-- Step 4 (CugaAgent → MCP) introspect -->
+  <g transform="translate(658, 610)" filter="url(#shadow)">
+    <rect width="260" height="74" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="37" r="14" fill="#6366f1"/>
+    <text x="22" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">4</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">Introspect schema + values</text>
+    <text x="46" y="40" font-size="10.5" fill="#475569" font-family="monospace">db_get_schema · db_sample_rows</text>
+    <text x="46" y="55" font-size="10.5" fill="#475569" font-family="monospace">db_run_sql("SELECT DISTINCT...")</text>
+    <text x="46" y="68" font-size="10.5" fill="#9333ea" font-style="italic">no guessing of column names</text>
+  </g>
+  <line x1="920" y1="647" x2="962" y2="647" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <line x1="1224" y1="647" x2="1266" y2="647" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(1266, 610)" filter="url(#shadow)">
+    <rect width="284" height="74" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">california_schools.sqlite</text>
+    <text x="20" y="40" font-size="11" fill="#475569">opened mode=ro</text>
+    <text x="20" y="55" font-size="10.5" fill="#475569">→ tables, columns, FKs</text>
+    <text x="20" y="68" font-size="10.5" fill="#475569">→ DISTINCT FundingType: ['Locally funded', 'Directly funded', ...]</text>
+  </g>
+
+  <!-- Step 5 oracle -->
+  <g transform="translate(658, 706)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#6366f1"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">5</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">bird_run_gold(28)  ←  oracle</text>
+    <text x="46" y="40" font-size="11" fill="#475569">execute gold SQL on real DB</text>
+    <text x="46" y="53" font-size="11" fill="#9333ea" font-style="italic">→ 57-row canonical answer</text>
+  </g>
+  <line x1="920" y1="735" x2="962" y2="735" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <line x1="1224" y1="735" x2="1266" y2="735" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(1266, 706)" filter="url(#shadow)">
+    <rect width="284" height="58" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">canonical answer cached</text>
+    <text x="20" y="40" font-size="11" fill="#475569">57 schools meet criterion</text>
+    <text x="20" y="53" font-size="11" fill="#475569">— this is the target the agent must hit</text>
+  </g>
+
+  <!-- ============= PHASE B: DECOMPOSE ============= -->
+  <g transform="translate(40, 786)">
+    <rect x="0" y="0" width="1520" height="26" rx="6" fill="#312e81"/>
+    <text x="14" y="18" font-size="11.5" font-weight="700" fill="#fff" letter-spacing="0.06em">PHASE B  ·  DECOMPOSE  —  reason about the gold SQL's shape; pick the right number of tools</text>
+  </g>
+
+  <g transform="translate(658, 826)" filter="url(#shadow)">
+    <rect width="824" height="58" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#6366f1"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">6</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">LLM reasoning  —  no tool call</text>
+    <text x="46" y="40" font-size="11" fill="#475569">Gold SQL has subquery in WHERE → strong decomposition signal → 2 reusable tools.</text>
+    <text x="46" y="53" font-size="11" fill="#475569">Slot examples must NOT include 'Locally funded' (the answer); pick from other DISTINCT values.</text>
+  </g>
+
+  <!-- ============= PHASE C: SYNTHESIZE ============= -->
+  <g transform="translate(40, 906)">
+    <rect x="0" y="0" width="1520" height="26" rx="6" fill="#312e81"/>
+    <text x="14" y="18" font-size="11.5" font-weight="700" fill="#fff" letter-spacing="0.06em">PHASE C  ·  SYNTHESIZE  —  register tools, smoke-test against real sqlite, record the sequence</text>
+  </g>
+
+  <!-- Step 7 register tool 1 -->
+  <g transform="translate(658, 946)" filter="url(#shadow)">
+    <rect width="260" height="74" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="37" r="14" fill="#6366f1"/>
+    <text x="22" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">7</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">tool_register  +  tool_call</text>
+    <text x="46" y="40" font-size="10.5" fill="#475569" font-family="monospace">avg_enrollment_diff_</text>
+    <text x="46" y="53" font-size="10.5" fill="#475569" font-family="monospace">  by_funding_type(...)</text>
+    <text x="46" y="68" font-size="10.5" fill="#9333ea" font-style="italic">smoke test → {avg: 16.7}</text>
+  </g>
+  <line x1="920" y1="983" x2="962" y2="983" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(962, 946)" filter="url(#shadow)">
+    <rect width="260" height="74" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">Registry guards check</text>
+    <text x="20" y="40" font-size="10.5" fill="#475569">✗ forbidden patterns? no</text>
+    <text x="20" y="55" font-size="10.5" fill="#475569">✗ SQL-skeleton dup? no</text>
+    <text x="20" y="68" font-size="10.5" fill="#475569">✗ name-token Jaccard ≥ 0.85? no</text>
+  </g>
+  <line x1="1224" y1="983" x2="1266" y2="983" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(1266, 946)" filter="url(#shadow)">
+    <rect width="284" height="74" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">registry sqlite</text>
+    <text x="20" y="40" font-size="11" fill="#475569">tool persisted with</text>
+    <text x="20" y="55" font-size="11" fill="#475569">params_schema, code, slots</text>
+    <text x="20" y="68" font-size="10.5" fill="#475569" font-family="monospace">code: def run(conn, **kw)</text>
+  </g>
+
+  <!-- Step 8 register tool 2 -->
+  <g transform="translate(658, 1042)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#6366f1"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">8</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">tool_register  +  tool_call (2nd)</text>
+    <text x="46" y="40" font-size="10.5" fill="#475569" font-family="monospace">schools_with_diff_above(threshold,...)</text>
+    <text x="46" y="53" font-size="10.5" fill="#9333ea" font-style="italic">smoke test → 57 schools</text>
+  </g>
+  <line x1="920" y1="1071" x2="962" y2="1071" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+  <line x1="1224" y1="1071" x2="1266" y2="1071" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(1266, 1042)" filter="url(#shadow)">
+    <rect width="284" height="58" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">2 tools now in registry</text>
+    <text x="20" y="40" font-size="11" fill="#475569">composable across other qids</text>
+    <text x="20" y="53" font-size="11" fill="#475569">(reuse counter starts incrementing)</text>
+  </g>
+
+  <!-- Step 9 seq_record -->
+  <g transform="translate(658, 1118)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#6366f1"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">9</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">seq_record(qid=28, [...])</text>
+    <text x="46" y="40" font-size="10.5" fill="#475569" font-family="monospace">step1 bind:"avg"</text>
+    <text x="46" y="53" font-size="10.5" fill="#475569" font-family="monospace">step2 args.threshold = "{{avg.avg}}"</text>
+  </g>
+  <line x1="920" y1="1147" x2="962" y2="1147" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(962, 1118)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">sequence persisted</text>
+    <text x="20" y="40" font-size="11" fill="#475569">2 steps, with binding</text>
+    <text x="20" y="53" font-size="11" fill="#475569">→ ground-truth tool-call chain</text>
+  </g>
+
+  <!-- ============= PHASE D: VALIDATE ============= -->
+  <g transform="translate(40, 1198)">
+    <rect x="0" y="0" width="1520" height="26" rx="6" fill="#312e81"/>
+    <text x="14" y="18" font-size="11.5" font-weight="700" fill="#fff" letter-spacing="0.06em">PHASE D  ·  VALIDATE  —  re-run the recorded sequence and compare set-equal to the gold result</text>
+  </g>
+
+  <!-- Step 10 seq_validate -->
+  <g transform="translate(658, 1238)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#fff" stroke="#6366f1" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#6366f1"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">10</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#1e1b4b">seq_validate(28)</text>
+    <text x="46" y="40" font-size="11" fill="#475569">execute sequence end-to-end</text>
+    <text x="46" y="53" font-size="11" fill="#475569">comparator: set-equal vs gold</text>
+  </g>
+  <line x1="920" y1="1267" x2="962" y2="1267" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(962, 1238)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#0c4a6e">composed result vs gold</text>
+    <text x="20" y="40" font-size="11" fill="#475569" font-family="monospace">{passed: true, diff: []}</text>
+    <text x="20" y="53" font-size="11" fill="#16a34a" font-style="italic">trustworthy by construction</text>
+  </g>
+  <line x1="1224" y1="1267" x2="1266" y2="1267" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowR)"/>
+
+  <g transform="translate(1266, 1238)" filter="url(#shadow)">
+    <rect width="284" height="58" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="20" y="22" font-size="11.5" font-weight="700" fill="#78350f">re-run on real sqlite</text>
+    <text x="20" y="40" font-size="11" fill="#475569">composed → 57 rows</text>
+    <text x="20" y="53" font-size="11" fill="#475569">gold → 57 rows · ✓ match</text>
+  </g>
+
+  <!-- Step 11 return -->
+  <g transform="translate(354, 1238)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#fff" stroke="#10b981" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#10b981"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#064e3b">return JSON to UI</text>
+    <text x="46" y="40" font-size="11" fill="#475569" font-family="monospace">{recorded:true, passed:true,</text>
+    <text x="46" y="53" font-size="11" fill="#475569" font-family="monospace"> transcript:[...11 steps...]}</text>
+  </g>
+  <line x1="354" y1="1267" x2="312" y2="1267" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowL)"/>
+  <line x1="658" y1="1267" x2="616" y2="1267" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowL)"/>
+
+  <g transform="translate(50, 1238)" filter="url(#shadow)">
+    <rect width="260" height="58" rx="10" fill="#fff" stroke="#0f172a" stroke-width="1.2"/>
+    <circle cx="22" cy="29" r="14" fill="#0f172a"/>
+    <text x="22" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">12</text>
+    <text x="46" y="22" font-size="12" font-weight="700" fill="#0f172a">UI shows ✓ pass</text>
+    <text x="46" y="40" font-size="11" fill="#475569">tool browser updated</text>
+    <text x="46" y="53" font-size="11" fill="#475569">stats panel reuse counter +2</text>
+  </g>
+
+  <!-- Retry loop indicator -->
+  <g>
+    <path d="M 1080 1296 Q 1080 1320 1050 1320 L 700 1320 Q 670 1320 670 1296 L 670 1190"
+          fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowLoop)"/>
+    <rect x="800" y="1308" width="160" height="22" rx="11" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+    <text x="880" y="1322" text-anchor="middle" font-size="10.5" font-weight="700" fill="#991b1b">↻ retry on validation fail (≤2x)</text>
+  </g>
+
+  <!-- ============== KEY TAKEAWAYS ============== -->
+  <g transform="translate(40, 1356)" filter="url(#shadow)">
+    <rect width="1520" height="100" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="30" font-size="14" font-weight="700" fill="#0f172a">Why this matters  —  what the loop delivers that a one-shot LLM script cannot</text>
+
+    <g transform="translate(20, 46)">
+      <rect width="365" height="44" rx="10" fill="#f5f3ff"/>
+      <text x="14" y="18" font-size="11.5" font-weight="700" fill="#3b0764">Closed-loop validation</text>
+      <text x="14" y="34" font-size="11" fill="#475569">Every emitted tool has run vs. gold. Trustworthy by construction.</text>
+    </g>
+    <g transform="translate(405, 46)">
+      <rect width="365" height="44" rx="10" fill="#f5f3ff"/>
+      <text x="14" y="18" font-size="11.5" font-weight="700" fill="#3b0764">Hard server-side guards</text>
+      <text x="14" y="34" font-size="11" fill="#475569">Forbidden names + SQL-skeleton dup + Jaccard ≥0.85 → reject.</text>
+    </g>
+    <g transform="translate(790, 46)">
+      <rect width="365" height="44" rx="10" fill="#f5f3ff"/>
+      <text x="14" y="18" font-size="11.5" font-weight="700" fill="#3b0764">State accumulates</text>
+      <text x="14" y="34" font-size="11" fill="#475569">Tool registered for q28 visible to q47 → reuse, smaller API surface.</text>
+    </g>
+    <g transform="translate(1175, 46)">
+      <rect width="345" height="44" rx="10" fill="#f5f3ff"/>
+      <text x="14" y="18" font-size="11.5" font-weight="700" fill="#3b0764">Output is a runnable MCP server</text>
+      <text x="14" y="34" font-size="11" fill="#475569">dataset_emit → &lt;db&gt;_mcp_server.py — point any agent at it.</text>
+    </g>
+  </g>
+</svg>

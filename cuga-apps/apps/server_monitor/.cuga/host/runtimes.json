@@ -1,0 +1,10 @@
+[
+  {
+    "id": "server-briefing",
+    "factory": "briefing",
+    "config": {
+      "schedule": "0 8 * * *",
+      "email": null
+    }
+  }
+]

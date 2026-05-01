@@ -1,0 +1,12 @@
+# stock_alert — app dependencies
+
+# cuga framework
+git+ssh://git@github.com/cuga-project/cuga-agent.git@main
+langchain-core
+
+# market data
+requests
+
+# web UI
+fastapi
+uvicorn

@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 920" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="920" fill="#fafbfc"/>
+
+  <!-- TITLE -->
+  <text x="800" y="42" text-anchor="middle" font-size="28" font-weight="700" fill="#0f172a">Agent capabilities tested across cuga-apps</text>
+  <text x="800" y="70" text-anchor="middle" font-size="14" fill="#64748b">8 capabilities  ·  24 apps  ·  one app per capability is the deep exemplar (★); others exercise it more lightly</text>
+
+  <!-- LEGEND -->
+  <g transform="translate(50, 96)">
+    <g transform="translate(0, 0)">
+      <rect width="14" height="14" rx="3" fill="#6366f1"/>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">Foundational reasoning</tspan></text>
+    </g>
+    <g transform="translate(280, 0)">
+      <rect width="14" height="14" rx="3" fill="#0ea5e9"/>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#0c4a6e">Grounding &amp; input</tspan></text>
+    </g>
+    <g transform="translate(540, 0)">
+      <rect width="14" height="14" rx="3" fill="#8b5cf6"/>
+      <text x="22" y="12" font-size="11" fill="#475569"><tspan font-weight="700" fill="#3b0764">Advanced synthesis</tspan></text>
+    </g>
+    <g transform="translate(820, 0)">
+      <text x="0" y="12" font-size="14" fill="#f59e0b" font-weight="700">★</text>
+      <text x="18" y="12" font-size="11" fill="#475569">deep exemplar — exercises it most heavily</text>
+    </g>
+  </g>
+
+  <!-- ============ ROW 1 ============ -->
+
+  <!-- 1. Multi-turn ReAct loop -->
+  <g transform="translate(50, 144)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#c7d2fe" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#6366f1"/>
+    <rect y="28" width="360" height="12" fill="#6366f1"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#6366f1">1</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Multi-turn ReAct loop</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#e0e7ff">all 24</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Agent emits a tool call · sees observation ·</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">decides next action · repeats until done.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">CugaAgent.invoke(thread_id) — every app uses it.</text>
+    <text x="14" y="140" font-size="11" fill="#475569">Loop depth varies: 3-4 turns (paper_scout) up</text>
+    <text x="14" y="156" font-size="11" fill="#475569">to 13+ turns (bird).</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">DEEP EXEMPLAR</text>
+    <g transform="translate(14, 196)">
+      <rect width="200" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+      <text x="100" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">★ bird_invocable_api</text>
+    </g>
+    <text x="14" y="240" font-size="10.5" fill="#64748b" font-style="italic">13 MCP calls per question on the trace shown.</text>
+    <text x="14" y="256" font-size="10.5" fill="#64748b" font-style="italic">Up to 2 retry rounds on validation failure.</text>
+  </g>
+
+  <!-- 2. Multi-tool orchestration -->
+  <g transform="translate(430, 144)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#c7d2fe" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#6366f1"/>
+    <rect y="28" width="360" height="12" fill="#6366f1"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#6366f1">2</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Multi-tool orchestration</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#e0e7ff">single server</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Pick the right tool from a small toolkit</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">based on what the question needs.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">load_tools([single_server]) → 3+ tools bound</text>
+    <text x="14" y="140" font-size="11" fill="#475569">to the agent. LLM picks per turn.</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">EXEMPLAR APPS</text>
+    <g transform="translate(14, 196)">
+      <rect width="160" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">★ paper_scout · 4 tools</text>
+    </g>
+    <g transform="translate(180, 196)">
+      <rect width="160" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">wiki_dive · 4 tools</text>
+    </g>
+    <g transform="translate(14, 224)">
+      <rect width="160" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">code_reviewer · 3 tools</text>
+    </g>
+    <g transform="translate(180, 224)">
+      <rect width="160" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">webpage_summarizer</text>
+    </g>
+  </g>
+
+  <!-- 3. Web grounding -->
+  <g transform="translate(810, 144)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#a5f3fc" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#0ea5e9"/>
+    <rect y="28" width="360" height="12" fill="#0ea5e9"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#0ea5e9">3</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Web grounding</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#cffafe">live retrieval</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Real-time web search + page fetch +</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">synthesis with citations.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">mcp-web — Tavily search, fetch_webpage,</text>
+    <text x="14" y="140" font-size="11" fill="#475569">RSS, YouTube oEmbed/transcripts.</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">EXEMPLAR APPS</text>
+    <g transform="translate(14, 196)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">★ web_researcher</text>
+    </g>
+    <g transform="translate(180, 196)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">ibm_docs_qa</text>
+    </g>
+    <g transform="translate(14, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">ibm_whats_new</text>
+    </g>
+    <g transform="translate(180, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">ibm_cloud_advisor</text>
+    </g>
+  </g>
+
+  <!-- 4. Multi-modal input -->
+  <g transform="translate(1190, 144)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#a5f3fc" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#0ea5e9"/>
+    <rect y="28" width="360" height="12" fill="#0ea5e9"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#0ea5e9">4</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Multi-modal input</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#cffafe">PDF · audio · video</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Accept files of different types; agent</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">dispatches to the right extractor in-loop.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">pdfplumber · python-pptx · faster-whisper</text>
+    <text x="14" y="140" font-size="11" fill="#475569">(audio + video) · transcription is in-agent.</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">EXEMPLAR APPS</text>
+    <g transform="translate(14, 196)">
+      <rect width="200" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="100" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">★ deck_forge · 6 modalities</text>
+    </g>
+    <g transform="translate(14, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">video_qa</text>
+    </g>
+    <g transform="translate(180, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">drop_summarizer</text>
+    </g>
+  </g>
+
+  <!-- ============ ROW 2 ============ -->
+
+  <!-- 5. RAG over private corpus -->
+  <g transform="translate(50, 440)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#a5f3fc" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#0ea5e9"/>
+    <rect y="28" width="360" height="12" fill="#0ea5e9"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#0ea5e9">5</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">RAG over private corpus</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#cffafe">semantic search</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Index user-supplied content, retrieve top-k</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">chunks, ground generation in retrievals.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">ChromaDB + sentence-transformers</text>
+    <text x="14" y="140" font-size="11" fill="#475569">(all-MiniLM-L6-v2) · 400/80 chunking</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">EXEMPLAR APPS</text>
+    <g transform="translate(14, 196)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">★ deck_forge</text>
+    </g>
+    <g transform="translate(180, 196)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">video_qa</text>
+    </g>
+    <g transform="translate(14, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">box_qa</text>
+    </g>
+    <g transform="translate(180, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">voice_journal</text>
+    </g>
+  </g>
+
+  <!-- 6. Citation / source tracking -->
+  <g transform="translate(430, 440)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#a5f3fc" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#0ea5e9"/>
+    <rect y="28" width="360" height="12" fill="#0ea5e9"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#0ea5e9">6</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Citation tracking</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#cffafe">attributable</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Output must cite which source produced</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">each claim — never fabricate references.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">System prompt enforces [Title](url) format ·</text>
+    <text x="14" y="140" font-size="11" fill="#475569">"never fabricate citation counts."</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">EXEMPLAR APPS</text>
+    <g transform="translate(14, 196)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">★ paper_scout</text>
+    </g>
+    <g transform="translate(180, 196)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">web_researcher</text>
+    </g>
+    <g transform="translate(14, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">wiki_dive</text>
+    </g>
+    <g transform="translate(180, 224)">
+      <rect width="160" height="22" rx="4" fill="#ecfeff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="80" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">hiking_research</text>
+    </g>
+  </g>
+
+  <!-- 7. Code synthesis + closed-loop validation -->
+  <g transform="translate(810, 440)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#8b5cf6"/>
+    <rect y="28" width="360" height="12" fill="#8b5cf6"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5cf6">7</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Code synthesis + validation</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#ede9fe">closed loop</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Agent writes runnable Python; system</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">runs it against a known oracle.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">tool_register → exec sandbox (sqlite3,</text>
+    <text x="14" y="140" font-size="11" fill="#475569">json, re only) → tool_call (mode=ro) →</text>
+    <text x="14" y="156" font-size="11" fill="#475569">seq_validate (set-equality vs gold SQL).</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">DEEP EXEMPLAR</text>
+    <g transform="translate(14, 196)">
+      <rect width="200" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="100" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">★ bird_invocable_api</text>
+    </g>
+    <text x="14" y="240" font-size="10.5" fill="#64748b" font-style="italic">Only app in the suite that does this.</text>
+    <text x="14" y="256" font-size="10.5" fill="#64748b" font-style="italic">75% pass rate on california_schools.</text>
+  </g>
+
+  <!-- 8. Self-correction / retry -->
+  <g transform="translate(1190, 440)" filter="url(#shadow)">
+    <rect width="360" height="276" rx="12" fill="#fff" stroke="#ddd6fe" stroke-width="1.5"/>
+    <rect width="360" height="40" rx="12" fill="#8b5cf6"/>
+    <rect y="28" width="360" height="12" fill="#8b5cf6"/>
+    <circle cx="22" cy="20" r="13" fill="#fff"/>
+    <text x="22" y="25" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5cf6">8</text>
+    <text x="44" y="25" font-size="13" font-weight="700" fill="#fff">Self-correction loop</text>
+    <text x="318" y="25" text-anchor="end" font-size="10" fill="#ede9fe">retry on failure</text>
+
+    <text x="14" y="64" font-size="11.5" fill="#475569" font-style="italic">Agent reads failure_msg → identifies the</text>
+    <text x="14" y="80" font-size="11.5" fill="#475569" font-style="italic">offending step → fixes → re-validates.</text>
+
+    <text x="14" y="108" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">TEST SURFACE</text>
+    <text x="14" y="124" font-size="11" fill="#475569">seq_validate returns failure_msg with diff;</text>
+    <text x="14" y="140" font-size="11" fill="#475569">prompt instructs ≤2 retries before</text>
+    <text x="14" y="156" font-size="11" fill="#475569">falling back to a single-tool sequence.</text>
+
+    <text x="14" y="184" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="0.06em">DEEP EXEMPLAR</text>
+    <g transform="translate(14, 196)">
+      <rect width="200" height="22" rx="4" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="100" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#3b0764">★ bird_invocable_api</text>
+    </g>
+    <text x="14" y="240" font-size="10.5" fill="#64748b" font-style="italic">Also forbidden_name + near-duplicate</text>
+    <text x="14" y="256" font-size="10.5" fill="#64748b" font-style="italic">guards push back; agent renames + retries.</text>
+  </g>
+
+  <!-- ============ FOOTER ============ -->
+  <g transform="translate(50, 740)" filter="url(#shadow)">
+    <rect width="1500" height="100" rx="14" fill="#fff" stroke="#cbd5e1"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#0f172a">What this matrix tells you about the suite</text>
+
+    <g transform="translate(20, 44)">
+      <text x="0" y="14" font-size="11.5" fill="#475569"><tspan font-weight="700" fill="#10b981">Caps 1–2</tspan> are universal — every app loops + picks tools. That's the baseline "does CUGA work" check; table stakes.</text>
+      <text x="0" y="34" font-size="11.5" fill="#475569"><tspan font-weight="700" fill="#0ea5e9">Caps 3–6</tspan> (web · multi-modal · RAG · citations) split the apps into the substantive groups: <tspan font-style="italic">research-flavored</tspan>, <tspan font-style="italic">document-flavored</tspan>, <tspan font-style="italic">media-flavored</tspan>.</text>
+      <text x="0" y="54" font-size="11.5" fill="#475569"><tspan font-weight="700" fill="#8b5cf6">Caps 7–8</tspan> (code synthesis + self-correction) are the deepest agent stress-test — and only <tspan font-family="monospace" font-weight="700">bird_invocable_api</tspan> exercises them. Single biggest IP in the suite.</text>
+    </g>
+  </g>
+
+  <!-- TAKEAWAY -->
+  <text x="800" y="890" text-anchor="middle" font-size="13" font-weight="600" fill="#475569">If a future evaluator asks "what does this suite actually exercise about an agent?" — this matrix is the answer. Each cap is reproducible, measurable, and testable in isolation.</text>
+</svg>

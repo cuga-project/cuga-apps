@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel Planner — CUGAAgent Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+
+    /* markdown output */
+    .prose h1, .prose h2 { font-size: 1.15rem; font-weight: 700; margin: 1.2rem 0 0.4rem; color: #1e3a5f; }
+    .prose h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.3rem; color: #1e3a5f; }
+    .prose p  { margin: 0.4rem 0; line-height: 1.65; color: #374151; }
+    .prose ul, .prose ol { padding-left: 1.4rem; margin: 0.4rem 0; }
+    .prose li { margin: 0.2rem 0; color: #374151; }
+    .prose strong { color: #1e3a5f; }
+    .prose hr { border-color: #e5e7eb; margin: 1rem 0; }
+    .prose table { width: 100%; border-collapse: collapse; margin: 0.6rem 0; font-size: 0.875rem; }
+    .prose th { background: #eff6ff; padding: 0.4rem 0.7rem; text-align: left; font-weight: 600; color: #1e3a5f; border: 1px solid #dbeafe; }
+    .prose td { padding: 0.35rem 0.7rem; border: 1px solid #e5e7eb; }
+
+    .tag { display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; color: #1d4ed8; border-radius: 9999px; padding: 2px 10px; font-size: 0.8rem; cursor: pointer; border: 1px solid #bfdbfe; }
+    .tag:hover { background: #dbeafe; }
+    .tag.active { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+
+    .dot-pulse::after { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .chat-msg-user { background: #eff6ff; border-radius: 12px 12px 4px 12px; }
+    .chat-msg-agent { background: #f9fafb; border-radius: 12px 12px 12px 4px; border: 1px solid #e5e7eb; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+  <!-- Config modal -->
+  <div id="config-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <div class="flex items-center gap-3 mb-5">
+        <span class="text-2xl">⚙️</span>
+        <div>
+          <h2 class="font-bold text-slate-800 text-base">Configure</h2>
+          <p class="text-xs text-slate-400">Set your API keys to get started</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">RITS — LLM provider</p>
+          <label class="block text-xs text-slate-500 mb-1">API Key *</label>
+          <input id="cfg-rits-key" type="password" placeholder="RITS_API_KEY"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Model</label>
+          <select id="cfg-rits-model" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="llama-3-3-70b-instruct">Llama 3.3 70B Instruct</option>
+            <option value="gpt-oss-120b">GPT-OSS 120B</option>
+            <option value="qwen3-5-397b-a17b-fp8">Qwen 3.5 397B FP8</option>
+            <option value="mistral-large-3-675b-2512-fp4">Mistral Large 3 675B FP4</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Base URL <span class="text-slate-400">(optional — uses default RITS endpoint)</span></label>
+          <input id="cfg-rits-url" type="text" placeholder="https://inference-3scale-apicast-production.apps.rits…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
+        </div>
+
+        <hr class="border-slate-100" />
+
+        <div>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Travel data keys</p>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-slate-500">Tavily API Key <span class="text-red-400">*</span></label>
+            <span id="cfg-tavily-status" class="hidden text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">✓ Pre-configured</span>
+          </div>
+          <input id="cfg-tavily-key" type="password" placeholder="tvly-… (required for web search)"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
+          <p class="text-xs text-slate-400 mt-1">Used for visa requirements, transport info, and local events. Get a free key at <a href="https://tavily.com" target="_blank" class="text-blue-500 hover:underline">tavily.com</a>.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">OpenTripMap API Key <span class="text-slate-400">(optional — attractions may be limited without it)</span></label>
+          <input id="cfg-otm-key" type="password" placeholder="5ae2e3f0…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
+        </div>
+      </div>
+
+      <div id="cfg-error" class="hidden mt-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2"></div>
+
+      <button onclick="submitConfig()"
+        class="w-full mt-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-semibold transition-colors">
+        Connect
+      </button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">✈️</span>
+      <div>
+        <h1 class="font-bold text-slate-800 text-lg leading-tight">Travel Planner</h1>
+        <p class="text-xs text-slate-400">Powered by CUGAAgent</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="status-pill" class="hidden items-center gap-2 text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+        <span class="dot-pulse"></span>
+        <span id="status-text">Thinking…</span>
+      </div>
+      <div id="conn-badge" class="hidden items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-100">
+        <span>●</span> <span id="conn-model">Connected</span>
+      </div>
+      <button onclick="openConfig()" class="text-slate-400 hover:text-slate-600 transition-colors" title="Configure">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto p-6 flex gap-6">
+
+    <!-- ── Left: Planning form ── -->
+    <div class="w-80 flex-shrink-0 space-y-4">
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="font-semibold text-slate-700 mb-4 text-sm uppercase tracking-wide">Plan a Trip</h2>
+
+        <div class="space-y-3">
+
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Destination *</label>
+            <input id="destination" type="text" placeholder="e.g. Kyoto, Japan"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+
+          <div class="flex gap-2">
+            <div class="flex-1">
+              <label class="block text-xs font-medium text-slate-500 mb-1">Days</label>
+              <input id="days" type="number" value="5" min="1" max="21"
+                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div class="flex-1">
+              <label class="block text-xs font-medium text-slate-500 mb-1">Month</label>
+              <select id="month" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option>January</option><option>February</option><option>March</option>
+                <option>April</option><option>May</option><option selected>June</option>
+                <option>July</option><option>August</option><option>September</option>
+                <option>October</option><option>November</option><option>December</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Travel style</label>
+            <div class="flex gap-2">
+              <button onclick="setStyle('budget')" data-style="budget"
+                class="style-btn flex-1 border border-slate-200 rounded-lg py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">💰 Budget</button>
+              <button onclick="setStyle('mid-range')" data-style="mid-range"
+                class="style-btn flex-1 border border-blue-400 bg-blue-50 rounded-lg py-1.5 text-xs font-medium text-blue-700">✈️ Mid</button>
+              <button onclick="setStyle('luxury')" data-style="luxury"
+                class="style-btn flex-1 border border-slate-200 rounded-lg py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">💎 Luxury</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Interests <span class="text-slate-400 font-normal">(click to toggle)</span></label>
+            <div id="interest-tags" class="flex flex-wrap gap-1.5">
+              <!-- tags injected by JS -->
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Flying from <span class="text-slate-400 font-normal">(optional)</span></label>
+            <input id="origin" type="text" placeholder="e.g. New York"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+
+          <button onclick="planTrip()"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-semibold transition-colors mt-1">
+            Generate Itinerary
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Tips card -->
+      <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-xs text-amber-800 space-y-1.5">
+        <p class="font-semibold text-amber-900">💡 Try asking…</p>
+        <p>• "Make Day 3 more outdoorsy"</p>
+        <p>• "What's the visa situation for US citizens?"</p>
+        <p>• "Add a day trip from the city"</p>
+        <p>• "Suggest cheaper accommodation options"</p>
+        <p>• "What should I pack for this trip?"</p>
+      </div>
+
+    </div>
+
+    <!-- ── Right: Output panel ── -->
+    <div class="flex-1 flex flex-col gap-4 min-w-0">
+
+      <!-- Itinerary output -->
+      <div id="output-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm flex-1 min-h-[420px]">
+
+        <!-- Empty state -->
+        <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center p-12">
+          <div class="text-5xl mb-4">🗺️</div>
+          <p class="text-slate-600 font-medium">Your itinerary will appear here</p>
+          <p class="text-slate-400 text-sm mt-1">Fill in the form and hit <strong>Generate Itinerary</strong></p>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loading-state" class="hidden h-full flex flex-col items-center justify-center text-center p-12">
+          <div class="text-4xl mb-4 animate-bounce">🔍</div>
+          <p class="text-slate-600 font-medium" id="loading-msg">Researching your destination…</p>
+          <div class="mt-4 space-y-2 text-left max-w-xs w-full">
+            <div id="step-overview"  class="loading-step flex items-center gap-2 text-xs text-slate-400"><span>⚪</span> Getting city overview</div>
+            <div id="step-weather"   class="loading-step flex items-center gap-2 text-xs text-slate-400"><span>⚪</span> Checking weather</div>
+            <div id="step-geocode"   class="loading-step flex items-center gap-2 text-xs text-slate-400"><span>⚪</span> Geocoding location</div>
+            <div id="step-attract"   class="loading-step flex items-center gap-2 text-xs text-slate-400"><span>⚪</span> Finding attractions</div>
+            <div id="step-search"    class="loading-step flex items-center gap-2 text-xs text-slate-400"><span>⚪</span> Searching web for tips</div>
+            <div id="step-write"     class="loading-step flex items-center gap-2 text-xs text-slate-400"><span>⚪</span> Writing itinerary</div>
+          </div>
+        </div>
+
+        <!-- Result -->
+        <div id="result-state" class="hidden p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <div class="flex items-center gap-2 mb-0.5">
+                <h2 id="result-title" class="font-bold text-slate-800 text-lg"></h2>
+              </div>
+              <p id="result-meta" class="text-xs text-slate-400"></p>
+            </div>
+            <button onclick="copyItinerary()" class="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors">Copy</button>
+          </div>
+          <div id="itinerary-content" class="prose text-sm overflow-y-auto max-h-[480px] pr-1"></div>
+        </div>
+      </div>
+
+      <!-- Chat section -->
+      <div id="chat-card" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <p class="text-sm font-semibold text-slate-700">Follow-up</p>
+          <p class="text-xs text-slate-400">Refine or expand your itinerary</p>
+        </div>
+        <div id="chat-messages" class="px-5 py-3 space-y-3 max-h-64 overflow-y-auto"></div>
+        <div class="px-5 pb-4 pt-2 flex gap-2">
+          <input id="chat-input" type="text" placeholder="Ask a follow-up question…"
+            class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            onkeydown="if(event.key==='Enter') sendChat()" />
+          <button onclick="sendChat()"
+            class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">Send</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  // ── Config ─────────────────────────────────────────────────────────────────
+  function openConfig() {
+    document.getElementById('config-modal').classList.remove('hidden');
+    document.getElementById('config-modal').classList.add('flex');
+  }
+  function closeConfig() {
+    document.getElementById('config-modal').classList.add('hidden');
+    document.getElementById('config-modal').classList.remove('flex');
+  }
+
+  async function submitConfig() {
+    const ritsKey  = document.getElementById('cfg-rits-key').value.trim();
+    const model    = document.getElementById('cfg-rits-model').value;
+    const ritsUrl  = document.getElementById('cfg-rits-url').value.trim() || null;
+    const tavily   = document.getElementById('cfg-tavily-key').value.trim() || null;
+    const otm      = document.getElementById('cfg-otm-key').value.trim() || null;
+    const errEl    = document.getElementById('cfg-error');
+
+    if (!ritsKey) { showCfgError('RITS API Key is required.'); return; }
+
+    errEl.classList.add('hidden');
+    const btn = document.querySelector('#config-modal button');
+    btn.textContent = 'Connecting…';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rits_api_key: ritsKey,
+          rits_model: model,
+          rits_base_url: ritsUrl,
+          tavily_api_key: tavily,
+          opentripmap_api_key: otm,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Configuration failed');
+      }
+
+      const data = await res.json();
+      closeConfig();
+
+      // Show connected badge
+      const badge = document.getElementById('conn-badge');
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+      document.getElementById('conn-model').textContent = data.model;
+
+    } catch (e) {
+      showCfgError(e.message);
+    } finally {
+      btn.textContent = 'Connect';
+      btn.disabled = false;
+    }
+  }
+
+  function showCfgError(msg) {
+    const el = document.getElementById('cfg-error');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  // On load: pre-populate form from env, then check if already configured
+  window.addEventListener('DOMContentLoaded', async () => {
+    // Pre-populate config form with whatever is already in the environment
+    try {
+      const prefill = await fetch('/config/prefill').then(r => r.json());
+      if (prefill.rits_api_key)        document.getElementById('cfg-rits-key').value   = prefill.rits_api_key;
+      if (prefill.rits_base_url)       document.getElementById('cfg-rits-url').value   = prefill.rits_base_url;
+      if (prefill.tavily_api_key) {
+        document.getElementById('cfg-tavily-key').value = prefill.tavily_api_key;
+        const s = document.getElementById('cfg-tavily-status');
+        s.classList.remove('hidden');
+      }
+      if (prefill.opentripmap_api_key) document.getElementById('cfg-otm-key').value    = prefill.opentripmap_api_key;
+      if (prefill.rits_model) {
+        const sel = document.getElementById('cfg-rits-model');
+        const opt = [...sel.options].find(o => o.value === prefill.rits_model);
+        if (opt) sel.value = prefill.rits_model;
+      }
+    } catch (_) {}
+
+    // If the server already initialised agents at startup, skip the modal
+    const status = await fetch('/config/status').then(r => r.json());
+    if (status.configured) {
+      closeConfig();
+      const badge = document.getElementById('conn-badge');
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+      const label = status.model ? `${status.provider} / ${status.model}` : status.provider || 'Connected';
+      document.getElementById('conn-model').textContent = label;
+    }
+  });
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let selectedStyle = 'mid-range';
+  let selectedInterests = new Set();
+  let currentThreadId = null;
+  const INTERESTS = ['temples','food','museums','nature','architecture',
+                     'nightlife','shopping','hiking','beaches','art',
+                     'history','street food','technology','sport'];
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  const tagsEl = document.getElementById('interest-tags');
+  INTERESTS.forEach(i => {
+    const el = document.createElement('span');
+    el.className = 'tag';
+    el.textContent = i;
+    el.onclick = () => toggleInterest(i, el);
+    tagsEl.appendChild(el);
+  });
+
+  function toggleInterest(i, el) {
+    if (selectedInterests.has(i)) { selectedInterests.delete(i); el.classList.remove('active'); }
+    else { selectedInterests.add(i); el.classList.add('active'); }
+  }
+
+  function setStyle(s) {
+    selectedStyle = s;
+    document.querySelectorAll('.style-btn').forEach(b => {
+      const active = b.dataset.style === s;
+      b.className = 'style-btn flex-1 border rounded-lg py-1.5 text-xs font-medium transition-colors ' +
+        (active ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50');
+    });
+  }
+
+  // ── Status pill ────────────────────────────────────────────────────────────
+  function setStatus(msg) {
+    const pill = document.getElementById('status-pill');
+    if (msg) { pill.classList.remove('hidden'); pill.classList.add('flex'); document.getElementById('status-text').textContent = msg; }
+    else { pill.classList.add('hidden'); pill.classList.remove('flex'); }
+  }
+
+  // ── Loading steps animation ────────────────────────────────────────────────
+  const STEPS = ['step-overview','step-weather','step-geocode','step-attract','step-search','step-write'];
+  let stepTimer = null;
+  function animateSteps() {
+    let idx = 0;
+    STEPS.forEach(id => {
+      const el = document.getElementById(id);
+      el.querySelector('span').textContent = '⚪';
+      el.className = 'loading-step flex items-center gap-2 text-xs text-slate-400';
+    });
+    stepTimer = setInterval(() => {
+      if (idx > 0) {
+        const prev = document.getElementById(STEPS[idx-1]);
+        prev.querySelector('span').textContent = '✅';
+        prev.className = 'loading-step flex items-center gap-2 text-xs text-green-600';
+      }
+      if (idx < STEPS.length) {
+        const cur = document.getElementById(STEPS[idx]);
+        cur.querySelector('span').textContent = '🔄';
+        cur.className = 'loading-step flex items-center gap-2 text-xs text-blue-600 font-medium';
+        idx++;
+      } else {
+        clearInterval(stepTimer);
+      }
+    }, 2800);
+  }
+
+  function stopStepAnimation() {
+    clearInterval(stepTimer);
+    STEPS.forEach(id => {
+      const el = document.getElementById(id);
+      el.querySelector('span').textContent = '✅';
+      el.className = 'loading-step flex items-center gap-2 text-xs text-green-600';
+    });
+  }
+
+  // ── Show / hide panels ─────────────────────────────────────────────────────
+  function showEmpty()   { show('empty-state'); hide('loading-state'); hide('result-state'); }
+  function showLoading() { hide('empty-state'); show('loading-state'); hide('result-state'); }
+  function showResult()  { hide('empty-state'); hide('loading-state'); show('result-state'); }
+  function show(id) { document.getElementById(id).classList.remove('hidden'); }
+  function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+  // ── Plan trip ──────────────────────────────────────────────────────────────
+  async function planTrip() {
+    const dest = document.getElementById('destination').value.trim();
+    if (!dest) { document.getElementById('destination').focus(); return; }
+
+    const days    = parseInt(document.getElementById('days').value) || 5;
+    const month   = document.getElementById('month').value;
+    const origin  = document.getElementById('origin').value.trim() || null;
+    const interests = [...selectedInterests];
+
+    currentThreadId = 'plan-' + dest.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
+
+    showLoading();
+    animateSteps();
+    setStatus('Researching ' + dest + '…');
+
+    try {
+      const res = await fetch('/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destination: dest, days, travel_month: month,
+          travel_style: selectedStyle, interests, origin_city: origin,
+          agent_type: 'cuga',
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Server error');
+      }
+
+      const data = await res.json();
+      stopStepAnimation();
+
+      document.getElementById('result-title').textContent = `${days}-Day ${dest} Itinerary`;
+      document.getElementById('result-meta').textContent =
+        `${month} · ${selectedStyle} · ${interests.length ? interests.join(', ') : 'general'}`;
+      document.getElementById('itinerary-content').innerHTML = marked.parse(data.itinerary || '');
+
+      // Store thread_id for follow-ups (scoped per agent by server)
+      currentThreadId = `cuga-plan-${dest.toLowerCase().replace(/\s+/g, '-')}`;
+
+      showResult();
+      show('chat-card');
+      document.getElementById('chat-messages').innerHTML = '';
+      setStatus(null);
+
+    } catch (e) {
+      stopStepAnimation();
+      showEmpty();
+      setStatus(null);
+      alert('Error: ' + e.message);
+    }
+  }
+
+  // ── Chat ───────────────────────────────────────────────────────────────────
+  async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg || !currentThreadId) return;
+    input.value = '';
+
+    appendChat('user', msg);
+    const thinkingId = appendChat('agent', '…thinking…', true);
+    setStatus('Thinking…');
+
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, thread_id: currentThreadId, agent_type: 'cuga' })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Server error');
+      }
+
+      const data = await res.json();
+      const el = document.getElementById(thinkingId);
+      el.innerHTML = marked.parse(data.response || '');
+      setStatus(null);
+
+    } catch (e) {
+      document.getElementById(thinkingId).textContent = 'Error: ' + e.message;
+      setStatus(null);
+    }
+  }
+
+  function appendChat(role, text, isLoading = false) {
+    const id = 'msg-' + Date.now() + Math.random().toString(36).slice(2);
+    const wrap = document.createElement('div');
+    wrap.className = 'flex ' + (role === 'user' ? 'justify-end' : 'justify-start');
+    const bubble = document.createElement('div');
+    bubble.id = id;
+    bubble.className = 'max-w-[85%] px-4 py-2.5 text-sm prose ' +
+      (role === 'user' ? 'chat-msg-user text-slate-700' : 'chat-msg-agent text-slate-700');
+    bubble.innerHTML = isLoading ? '<span class="text-slate-400 italic">thinking…</span>' : marked.parse(text);
+    wrap.appendChild(bubble);
+    const msgs = document.getElementById('chat-messages');
+    msgs.appendChild(wrap);
+    msgs.scrollTop = msgs.scrollHeight;
+    return id;
+  }
+
+  // ── Copy ───────────────────────────────────────────────────────────────────
+  function copyItinerary() {
+    const text = document.getElementById('itinerary-content').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = event.target;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  }
+</script>
+</body>
+</html>

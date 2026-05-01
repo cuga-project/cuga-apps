@@ -1,0 +1,126 @@
+# =========================================================================
+# chief_of_staff/docker-compose.yml
+#
+# Five services:
+#   chief-of-staff-adapter   wraps cuga.sdk + tools, port 8000  (swappable)
+#   chief-of-staff-toolsmith LangGraph ReAct agent, port 8001   (durable)
+#   chief-of-staff-browser   Playwright runner, port 8002       (phase 4)
+#   chief-of-staff-backend   FastAPI shell + registry, port 8765
+#   chief-of-staff-frontend  built React UI, port 5174          (dumb)
+#
+# Joins the parent cuga-apps compose network so the adapter can reach
+# mcp-web, mcp-knowledge, … via service DNS. The parent stack must
+# already be running.
+# =========================================================================
+
+name: cuga-apps-chief-of-staff
+
+services:
+  chief-of-staff-adapter:
+    container_name: cuga-apps-cos-adapter
+    build:
+      context: ..
+      dockerfile: chief_of_staff/Dockerfile.adapter
+    env_file:
+      - ../apps/.env
+    environment:
+      MCP_SERVERS: "web,local,code"
+      CUGA_IN_DOCKER: "1"
+      BROWSER_RUNNER_URL: "http://chief-of-staff-browser:8002"
+      # Bumped from default 4096 — the post-acquisition retry path was
+      # producing empty responses because the second turn's prompt
+      # (containing more conversation context) crowded out generation
+      # tokens when capped at 4k.
+      COS_LLM_MAX_TOKENS: "8192"
+    ports:
+      - "8000:8000"
+    networks:
+      - cuga-apps
+      - cos
+    restart: unless-stopped
+
+  chief-of-staff-toolsmith:
+    container_name: cuga-apps-cos-toolsmith
+    build:
+      context: ..
+      dockerfile: chief_of_staff/toolsmith/Dockerfile
+    env_file:
+      - ../apps/.env
+    environment:
+      TOOLSMITH_LLM_PROVIDER: "rits"
+      TOOLSMITH_LLM_MODEL: "gpt-oss-120b"
+      TOOLSMITH_CODER: "${TOOLSMITH_CODER:-gpt_oss}"   # override to "claude" via shell env
+      BACKEND_NOTIFY_URL: "http://chief-of-staff-backend:8765/internal/artifacts_changed"
+      CUGA_IN_DOCKER: "1"
+    ports:
+      - "8001:8001"
+    volumes:
+      # Persistent artifact store — survives container recreation.
+      - cos-toolsmith-tools:/app/chief_of_staff/data/tools
+    networks:
+      - cuga-apps
+      - cos
+    restart: unless-stopped
+
+  chief-of-staff-browser:
+    container_name: cuga-apps-cos-browser
+    build:
+      context: ..
+      dockerfile: chief_of_staff/browser_runner/Dockerfile
+    environment:
+      BROWSER_PROFILES_DIR: /data/profiles
+      # Webhook the runner posts to when a user_confirm step fires. The
+      # backend can wire this to a UI prompt; default deny if not configured.
+      CONFIRM_WEBHOOK_URL: "http://chief-of-staff-backend:8765/internal/browser_confirm"
+    ports:
+      - "8002:8002"
+    volumes:
+      - cos-browser-profiles:/data/profiles
+    networks:
+      - cos
+    restart: unless-stopped
+
+  chief-of-staff-backend:
+    container_name: cuga-apps-cos-backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      CUGA_URL: "http://chief-of-staff-adapter:8000"
+      TOOLSMITH_URL: "http://chief-of-staff-toolsmith:8001"
+      BROWSER_RUNNER_URL: "http://chief-of-staff-browser:8002"
+      MCP_SERVERS: "web,local,code"
+    ports:
+      - "8765:8765"
+    depends_on:
+      - chief-of-staff-adapter
+      - chief-of-staff-toolsmith
+      - chief-of-staff-browser
+    networks:
+      - cos
+    restart: unless-stopped
+
+  chief-of-staff-frontend:
+    container_name: cuga-apps-cos-frontend
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+    ports:
+      - "5174:80"
+    depends_on:
+      - chief-of-staff-backend
+    networks:
+      - cos
+    restart: unless-stopped
+
+networks:
+  cuga-apps:
+    name: cuga-apps_default
+    external: true
+  cos:
+    name: cuga-apps-cos
+    driver: bridge
+
+volumes:
+  cos-toolsmith-tools:
+  cos-browser-profiles:

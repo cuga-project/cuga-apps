@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+# =====================================================================
+# Dockerfile.mcp — one image used by all six MCP servers. Each service
+# in docker-compose.yml overrides CMD with the module it runs:
+#   python -m mcp_servers.web.server
+#   python -m mcp_servers.knowledge.server
+#   …
+# =====================================================================
+FROM python:3.13-slim
+
+# lsof is used by nothing in the MCP layer today but is a 50kb install
+# and useful for debugging "who's on port X" inside the container.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        lsof \
+        ffmpeg \
+        libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.mcp.txt ./
+RUN pip install --no-cache-dir -r requirements.mcp.txt
+
+# Pre-download the whisper base model so mcp-local's first transcribe_audio
+# call doesn't stall on a cold HuggingFace download. ~150MB.
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('base', compute_type='int8')"
+
+# Pre-download docling models so mcp-text's first extract_text call doesn't
+# stall on a cold HuggingFace download. ~250MB.
+RUN python -c "from docling.document_converter import DocumentConverter; DocumentConverter()"
+
+# Pre-cache tiktoken's cl100k_base + o200k_base BPE files so first count_tokens
+# call doesn't fetch them at runtime.
+RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base'); tiktoken.get_encoding('o200k_base')"
+
+# apps/_ports.py is the single port registry — servers import it.
+COPY apps/_ports.py ./apps/_ports.py
+COPY apps/__init__.py ./apps/__init__.py
+COPY mcp_servers/ ./mcp_servers/
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Secrets are mounted at /run/secrets/app.env at runtime (read-only volume in
+# docker-compose.yml). The entrypoint sources them into the process env at
+# startup so they never appear in `docker inspect` or in the image itself.
+ENTRYPOINT ["/entrypoint.sh"]
+# Default command is overridden per-service; this is a safety fallback.
+CMD ["python", "-m", "mcp_servers.web.server"]
