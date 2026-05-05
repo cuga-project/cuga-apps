@@ -149,7 +149,12 @@ If you'd rather install once and switch between many apps without
 reinstalling, the umbrella file covers every app at once:
 
 ```bash
-cd cuga-apps && pip install -r requirements.apps.txt && pip install cuga
+cd cuga-apps && uv pip install -r requirements.apps.txt
+```
+OR
+
+```bash
+cd cuga-apps && pip install -r requirements.apps.txt
 ```
 
 Set your LLM credentials once in your shell — every app inherits these.
