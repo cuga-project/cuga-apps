@@ -1,21 +1,16 @@
-# video_qa — app dependencies
+# video_qa — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
+#
+# This app is one of two heavyweight ones (the other is deck_forge). It needs
+# chromadb + sentence-transformers + faster-whisper for local video RAG +
+# transcription — install will be ~+700 MB on top of the base cuga venv.
 
-# cuga framework
-git+ssh://git@github.com/cuga-project/cuga-agent.git@main
-langchain-core
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
 
-# transcription — faster-whisper is recommended (~4x faster than openai-whisper)
-# falls back to openai-whisper automatically if faster-whisper is not installed
-faster-whisper
-# openai-whisper  # uncomment as fallback if faster-whisper is unavailable
-
-# vector index + semantic search
-chromadb
-sentence-transformers
-
-# web UI (only needed for --web mode)
-fastapi
-uvicorn
-
-# supported audio formats: .wav  .mp3  .m4a  .flac  .ogg  .aac
-# no ffmpeg required — audio is fed directly to Whisper
+# app-specific
+chromadb                        # local RAG over video transcripts
+sentence-transformers           # embeddings for chromadb
+faster-whisper                  # local audio transcription

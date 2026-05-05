@@ -1,5 +1,15 @@
-boxsdk[jwt]>=3.9.0
-docling>=2.0.0
-fastapi>=0.110.0
-uvicorn>=0.29.0
-pydantic>=2.0.0
+# box_qa — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
+
+# MCP bridge — calls hosted `text` MCP for docling extraction
+mcp>=1.0
+langchain-mcp-adapters
+
+# app-specific
+boxsdk[jwt]                     # Box JWT auth
+python-dotenv

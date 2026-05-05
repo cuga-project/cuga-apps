@@ -16,8 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.apps.txt ./
-RUN pip install --no-cache-dir -r requirements.apps.txt
+COPY requirements.apps.txt requirements.apps.heavy.txt ./
+# Lite deps are required by every app. Heavy deps (chromadb, sentence-transformers)
+# are only used by video_qa and deck_forge, but the Docker image is the "full"
+# install so the whole stack works out of the box. Local dev can skip the
+# heavy file — see README.md.
+RUN pip install --no-cache-dir -r requirements.apps.txt -r requirements.apps.heavy.txt
 
 # Mark the container so _mcp_bridge resolves service DNS automatically.
 ENV CUGA_IN_DOCKER=1

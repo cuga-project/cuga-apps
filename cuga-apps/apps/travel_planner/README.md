@@ -155,13 +155,13 @@ cp .env.example .env
 
 ```bash
 # From this directory
-uv run --project . main.py
+python main.py
 ```
 
 Or with uvicorn directly:
 
 ```bash
-uv run --project . uvicorn main:app --host 0.0.0.0 --port 28090 --reload
+uvicorn main:app --host 0.0.0.0 --port 28090 --reload
 ```
 
 Server starts at `http://localhost:28090`.  

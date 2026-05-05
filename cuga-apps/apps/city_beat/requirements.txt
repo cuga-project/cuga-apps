@@ -1,9 +1,11 @@
-# City Beat — only what main.py + ui.py import directly. The cuga-apps
-# Docker image already provides fastapi/uvicorn/pydantic/langchain through
-# requirements.apps.txt, plus langchain-mcp-adapters for _mcp_bridge.
+# city_beat — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27
 pydantic>=2.0
 langchain-core>=0.3
-langchain-mcp-adapters>=0.1
+
+# MCP bridge — calls hosted `geo`, `web`, `knowledge`, `finance` MCPs
+mcp>=1.0
+langchain-mcp-adapters

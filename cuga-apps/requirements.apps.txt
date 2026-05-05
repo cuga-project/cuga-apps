@@ -36,8 +36,9 @@ requests
 psutil
 
 # video_qa / deck_forge    — local RAG + slide generation
-chromadb
-sentence-transformers
+# The two heavy ones (chromadb + sentence-transformers, which pulls torch)
+# live in requirements.apps.heavy.txt — install that file in addition to this
+# one if you need video_qa or deck_forge. Dockerfile.apps installs both.
 python-pptx
 pdfplumber
 

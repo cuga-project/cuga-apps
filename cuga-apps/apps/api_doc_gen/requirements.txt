@@ -1,7 +1,13 @@
-fastapi
-uvicorn[standard]
-pydantic
-python-multipart
+# api_doc_gen — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
+python-multipart>=0.0.7         # FastAPI file upload (OpenAPI spec upload)
+
+# app-specific
+httpx
 pyyaml
 python-dotenv
-langchain-core

@@ -38,6 +38,85 @@ Then open:
 - **MCP Tool Explorer** — http://localhost:28900
 - Individual apps — see the umbrella UI, or `apps/_ports.py`
 
+### Local dev (no Docker)
+
+You can use either `pip` or [`uv`](https://docs.astral.sh/uv/). **uv is
+~8× faster** on this requirements file (~10 s vs ~85 s, warm cache) because
+it parallelizes downloads + extraction and hardlinks wheels from a global
+cache. Pick whichever you prefer — they install the same packages.
+
+#### Option A — uv (recommended)
+
+```bash
+cd cuga-apps
+uv venv --python 3.13                            # creates ./.venv
+uv pip install -r requirements.apps.txt          # lite — covers 21 of 23 apps
+source .venv/bin/activate
+```
+
+#### Option B — pip
+
+```bash
+cd cuga-apps
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.apps.txt             # lite — covers 21 of 23 apps
+```
+
+The lite install **skips `chromadb` and `sentence-transformers`**. Only two
+apps need them:
+
+- `apps/video_qa` — local RAG over video transcripts
+- `apps/deck_forge` — slide-deck RAG + embeddings
+
+If you want those, install the heavy file too:
+
+```bash
+uv pip install -r requirements.apps.heavy.txt    # or: pip install -r ...
+                                                  # ~100 MB extra (chromadb + onnxruntime)
+```
+
+> **Note on torch.** Even the lite install includes `torch` (~400 MB) — it's a
+> hard dep of the `cuga` framework itself and of `docling-ibm-models`, so the
+> split can't avoid it. Expect the venv to weigh in at **~1.5–1.9 GB** either
+> way. The heavy file's incremental cost is mostly chromadb's native stack
+> (onnxruntime, ~67 MB) plus the sentence-transformers wrapper.
+
+#### uv day-to-day
+
+```bash
+# rebuild the venv from scratch (fast — wheels come from the cache)
+rm -rf .venv && uv venv --python 3.13 && uv pip install -r requirements.apps.txt
+
+# add or remove a single package without re-resolving everything
+uv pip install psutil
+uv pip uninstall psutil
+
+# list what's installed
+uv pip list
+uv pip show cuga                                 # see what cuga pulls in
+
+# clean the global wheel cache (frees disk; next install re-downloads)
+uv cache clean                                   # nukes ~/.cache/uv entirely
+uv cache prune                                   # keeps cache, drops unused wheels
+uv cache dir                                     # show where the cache lives
+
+# pin Python explicitly (defaults to whatever uv finds on PATH)
+uv venv --python 3.13                            # this repo targets 3.13
+```
+
+> **When to `uv cache clean`.** Almost never — uv hardlinks from the cache, so
+> a 1.9 GB venv only costs disk *once*, and a fresh `uv pip install` is
+> seconds when wheels are cached. Reach for it only if you're chasing a
+> corrupted wheel or a stale resolver result.
+
+Once installed, launch any app via `apps/launch.py` (the MCP servers still
+need to be running — start them with `docker compose up -d` for the `mcp-*`
+services, or run `mcp_servers/run_all.py`).
+
+The Docker image always installs both files, so `docker compose` users get
+the full stack regardless.
+
 To verify everything's healthy:
 
 ```bash
@@ -83,7 +162,8 @@ cuga-apps/
 ├── docker-compose.yml
 ├── Dockerfile.apps
 ├── Dockerfile.mcp           one image, 7 entrypoints
-├── requirements.apps.txt
+├── requirements.apps.txt        lite — every app except video_qa/deck_forge
+├── requirements.apps.heavy.txt  chromadb + sentence-transformers (video_qa, deck_forge)
 ├── requirements.mcp.txt
 ├── requirements.test.txt
 ├── start.sh                 apps container entrypoint
@@ -126,3 +206,48 @@ make test-all            everything
 **36 MCP tools across 7 servers.** Browse them at http://localhost:28900 or
 read [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md#what-each-mcp-server-exposes)
 for the full list.
+
+## Docker compose — full reference
+
+The Quick start above covers the happy path (`docker compose up -d --build`).
+Day-to-day commands once the stack is built:
+
+```bash
+# Bring everything up in the background (rebuild changed images first)
+docker compose up -d --build
+
+# Tail logs for one service or all services
+docker compose logs -f apps                # the FastAPI apps container
+docker compose logs -f mcp-web mcp-text    # specific MCP servers
+docker compose logs -f                     # everything, multiplexed
+
+# Stop the stack (containers stay around, restart is fast)
+docker compose stop
+
+# Stop and remove containers/networks (keeps named volumes like video_qa_cache)
+docker compose down
+
+# Nuke everything including named volumes (forces re-download of video caches)
+docker compose down -v
+
+# Rebuild a single image (e.g. after changing requirements.apps.txt)
+docker compose build apps
+
+# Restart one service without rebuilding
+docker compose restart apps
+
+# One-off shell inside the apps container for debugging
+docker compose exec apps bash
+
+# Check what's running and on which ports
+docker compose ps
+```
+
+Subsequent builds reuse the cached pip-install layer unless
+`requirements.apps.txt`, `requirements.apps.heavy.txt`, or
+`requirements.mcp.txt` change.
+
+Environment / secrets are read at runtime from `apps/.env` — see the Quick
+start at the top. They're mounted read-only as `/run/secrets/app.env` and
+sourced by `entrypoint.sh`, so they never appear in `docker inspect` or in
+the image itself.

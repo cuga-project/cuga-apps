@@ -1,12 +1,11 @@
-# newsletter_new — app dependencies
+# newsletter — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
 
-# cuga framework
-git+ssh://git@github.com/cuga-project/cuga-agent.git@main
-langchain-core
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
 
-# RSS feed parsing
-feedparser
-
-# web UI
-fastapi
-uvicorn
+# MCP bridge — calls hosted `web` MCP for fetch_feed (RSS)
+mcp>=1.0
+langchain-mcp-adapters

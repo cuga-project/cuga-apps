@@ -1,10 +1,14 @@
-# server_monitor — app dependencies
-git+ssh://git@github.com/cuga-project/cuga-agent.git@main
-langchain-core
+# server_monitor — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
 
-# System metrics (cross-platform CPU / RAM / disk / process info)
-psutil
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
 
-# Web UI
-fastapi
-uvicorn
+# MCP bridge — calls hosted `local` MCP for system metrics
+mcp>=1.0
+langchain-mcp-adapters
+
+# app-specific
+psutil                          # local fallback when MCP server is unreachable

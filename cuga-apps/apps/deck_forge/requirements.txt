@@ -1,11 +1,20 @@
-fastapi
-uvicorn[standard]
-pydantic
-pdfplumber
-python-pptx
-chromadb
-sentence-transformers
-langchain-core
-langgraph
-faster-whisper
+# deck_forge — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
+#
+# This app is one of two heavyweight ones (the other is video_qa). It needs
+# chromadb + sentence-transformers + faster-whisper for slide RAG and audio
+# transcription — install will be ~+700 MB on top of the base cuga venv.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
+
+# app-specific
+python-pptx                     # build the .pptx output
+pdfplumber                      # extract text from uploaded PDFs
+chromadb                        # local RAG over slide transcripts
+sentence-transformers           # embeddings for chromadb
+faster-whisper                  # local audio transcription
+langgraph                       # ReAct agent runtime
 httpx

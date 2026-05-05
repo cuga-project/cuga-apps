@@ -1,3 +1,9 @@
-fastapi
-uvicorn[standard]
-git+ssh://git@github.com/cuga-project/cuga-agent.git@main
+# smart_todo — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
+#
+# Inline tools only — no MCP servers needed. Uses sqlite for the todo store.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3

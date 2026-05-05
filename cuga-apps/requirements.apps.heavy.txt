@@ -1,0 +1,18 @@
+# Optional dependencies for the cuga-apps stack — only video_qa and deck_forge
+# need them:
+#   - apps/video_qa     — local RAG over video transcripts (chromadb)
+#   - apps/deck_forge   — slide RAG + embeddings (chromadb + sentence-transformers)
+#
+# Cost (incremental over requirements.apps.txt): ~100 MB on disk, mostly
+# chromadb's native stack (onnxruntime ~67 MB). Note that torch itself is
+# already pulled by the cuga framework via requirements.apps.txt, so the split
+# can't avoid that cost.
+#
+# Install in addition to requirements.apps.txt:
+#
+#     pip install -r requirements.apps.txt -r requirements.apps.heavy.txt
+#
+# Dockerfile.apps installs both so the full stack works out of the box.
+
+chromadb
+sentence-transformers

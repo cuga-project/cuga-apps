@@ -1,12 +1,11 @@
-# stock_alert — app dependencies
+# stock_alert — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
 
-# cuga framework
-git+ssh://git@github.com/cuga-project/cuga-agent.git@main
-langchain-core
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
 
-# market data
-requests
-
-# web UI
-fastapi
-uvicorn
+# MCP bridge — calls hosted `finance` MCP for Alpha Vantage + CoinGecko
+mcp>=1.0
+langchain-mcp-adapters

@@ -1,6 +1,14 @@
-fastapi>=0.111
-httpx>=0.27
-langchain-core>=0.2
+# movie_recommender — standalone Python deps.
+# Install: pip install -r requirements.txt && pip install cuga
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
 pydantic>=2.0
-uvicorn[standard]>=0.29
-cuga
+langchain-core>=0.3
+
+# MCP bridge — calls hosted `knowledge` MCP for Wikipedia
+mcp>=1.0
+langchain-mcp-adapters
+
+# app-specific
+httpx                           # OMDb API lookups

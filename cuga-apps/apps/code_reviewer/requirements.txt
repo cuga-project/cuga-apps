@@ -1,4 +1,4 @@
-# brief_budget — standalone Python deps.
+# code_reviewer — standalone Python deps.
 # Install: pip install -r requirements.txt && pip install cuga
 
 fastapi>=0.110
@@ -6,6 +6,6 @@ uvicorn[standard]>=0.27
 pydantic>=2.0
 langchain-core>=0.3
 
-# MCP bridge — calls hosted `web`, `knowledge` MCPs
+# MCP bridge — calls hosted `code` MCP for static analysis
 mcp>=1.0
 langchain-mcp-adapters
