@@ -15,7 +15,7 @@ generic capabilities, and define inline `@tool`s for their own state.
 ## Live demo
 
 The full umbrella UI — every app, with launch buttons — is at
-**[http://m3bench.vpc.cloud9.ibm.com:3001/](http://m3bench.vpc.cloud9.ibm.com:3001/)**.
+**([CUGA APPS)](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/)**.
 Filter by **✦ Ship-ready** to see the polished demo set.
 
 ---
