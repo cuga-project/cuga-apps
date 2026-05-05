@@ -58,13 +58,14 @@ running services on Code Engine, Docker Hub, or Hugging Face Spaces).
 
 | Layer | Build (image) | Deploy (running service) |
 |---|---|---|
-| MCP servers + tool-explorer | [build_mcp_image.sh](build_mcp_image.sh) → `icr.io/<ns>/mcp` and `icr.io/<ns>/mcp-tool-explorer` | [deploy_mcp.sh](deploy_mcp.sh) → 7 CE apps + tool-explorer |
-| 19 cuga-apps (one shared image) | [build_apps_image.sh](build_apps_image.sh) → `icr.io/<ns>/apps` | [deploy_apps.sh](deploy_apps.sh) → 19 CE apps |
-| Umbrella UI | [build_ui_image.sh](build_ui_image.sh) → Docker Hub `<user>/cuga-apps-ui` | [deploy_ui.sh](deploy_ui.sh) → Docker Hub push + HF Space sync |
+| MCP servers + tool-explorer | [build_mcp_image.sh](../build_mcp_image.sh) → `icr.io/<ns>/mcp` and `icr.io/<ns>/mcp-tool-explorer` | [deploy_mcp.sh](../deploy_mcp.sh) → 7 CE apps + tool-explorer |
+| 19 cuga-apps (one shared image) | [build_apps_image.sh](../build_apps_image.sh) → `icr.io/<ns>/apps` | [deploy_apps.sh](../deploy_apps.sh) → 19 CE apps |
+| Umbrella UI — Docker Hub push (and HF Space sync, currently disabled) | [build_ui_image.sh](../build_ui_image.sh) → Docker Hub `<user>/cuga-apps-ui` | [deploy_ui.sh](../deploy_ui.sh) → Docker Hub push (+ HF Space sync) |
+| Umbrella UI — Code Engine | (reuses `build_ui_image.sh`) | [deploy_umbrella_ui_to_ce.sh](../deploy_umbrella_ui_to_ce.sh) → CE app `cuga-apps-ui` pulling from Docker Hub |
 
 All three builders default to `--platform linux/amd64`, default tag `latest`,
 default ICR namespace `routing_namespace` (apps + MCP) or Docker Hub user
-`amurthi44g1wd` (UI). All three accept `--no-push` to build only. All three
+`amurthi44g1wd` (UI). All three accept `--no-push` to build only. All four
 deployers are idempotent (create-or-update) and continue past per-service
 failures with a summary at the end.
 
@@ -79,15 +80,19 @@ The end-to-end order, when changing anything:
 
 ```bash
 # Build
-./build_mcp_image.sh         # MCPs + tool-explorer
-./build_apps_image.sh        # 19 cuga-apps
-./build_ui_image.sh          # umbrella UI (to Docker Hub)
+./build_mcp_image.sh                # MCPs + tool-explorer
+./build_apps_image.sh               # 19 cuga-apps
+./build_ui_image.sh                 # umbrella UI (to Docker Hub)
 
 # Deploy
-./deploy_mcp.sh              # MCPs (must come before apps — apps need MCP URLs)
-./deploy_apps.sh             # 19 apps
-HF_TOKEN=hf_xxx ./deploy_ui.sh   # UI to HF Space (or skip and serve UI from CE — see Step 6)
+./deploy_mcp.sh                     # MCPs (must come before apps — apps need MCP URLs)
+./deploy_apps.sh                    # 19 apps
+./deploy_umbrella_ui_to_ce.sh       # UI to CE (option A — internal/private)
+HF_TOKEN=hf_xxx ./deploy_ui.sh      # UI to HF Space (option B — public demo)
 ```
+
+You can pick UI option A, option B, or both — the same Docker Hub image
+serves both contexts.
 
 The rest of this doc walks each step in detail.
 
@@ -108,10 +113,68 @@ docker version
 
 ### Authenticate
 
+You log into IBM Cloud once, then "target" a region + resource group + CE
+project. Pick the login flow that matches how your account is set up.
+
+#### Option A — Federated / SSO accounts (most IBMer accounts)
+
 ```bash
 ibmcloud login --sso
-ibmcloud target -r us-south -g <your-resource-group>   # change region/RG
+# → opens a browser, copy the one-time code, paste it back into the terminal
+ibmcloud target -r us-south -g <your-resource-group>
 ```
+
+If your account belongs to multiple IBM Cloud accounts (most IBMers do), the
+login picks one for you. Switch with:
+
+```bash
+ibmcloud account list                              # find the account ID/name you want
+ibmcloud target -c <account-id>                    # switch to it
+```
+
+#### Option B — API key (CI / scripts / non-SSO accounts)
+
+```bash
+# One-time: create an API key in the IBM Cloud console
+#   https://cloud.ibm.com/iam/apikeys → "Create" → save the JSON
+ibmcloud login --apikey "$(cat ~/ibmcloud-apikey.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["apikey"])')" -r us-south
+ibmcloud target -g <your-resource-group>
+```
+
+Or pass the key directly via env:
+
+```bash
+export IBMCLOUD_API_KEY=<your-key>
+ibmcloud login -r us-south -g <your-resource-group>
+```
+
+#### Verify and select your CE project
+
+After either flow, confirm everything's set, then point the CLI at the
+specific Code Engine project these scripts will deploy into:
+
+```bash
+ibmcloud target                                    # shows account + region + RG
+# Account: ... 
+# Region:  us-south
+# Resource group: <your-RG>
+
+ibmcloud ce project list                           # show CE projects in this RG
+ibmcloud ce project select --name <your-project>   # the deploy scripts read this
+ibmcloud ce project current                        # confirm — should print your project
+```
+
+> **Footgun.** Every `deploy_*.sh` script reads the *currently selected* CE
+> project; there's no `--project` flag. If you `ce project select` a
+> different project, your next `./deploy_apps.sh` lands there. Run
+> `ibmcloud ce project current` before any deploy.
+
+#### Sessions expire
+
+`ibmcloud login --sso` sessions expire after a few hours. If a deploy fails
+with `not logged in` or `User credentials are required`, just re-run
+`ibmcloud login --sso` and re-`ce project select`. The deploy scripts are
+idempotent — re-run from where you left off.
 
 ### Decide on three values you'll reuse
 
@@ -318,17 +381,39 @@ The image carries **no secrets** (build context is `ui/` only,
 
 ### 6a — Code Engine (private, internal only)
 
-If you only want CE-internal access, deploy the UI image straight to CE
-alongside everything else:
+If you want CE-internal access (or both CE *and* HF — the same image works
+for both), use [deploy_umbrella_ui_to_ce.sh](../deploy_umbrella_ui_to_ce.sh).
+It pulls the public Docker Hub image into your CE project as an app named
+`cuga-apps-ui`:
 
 ```bash
-ibmcloud ce app create \
-  --name cuga-apps-ui \
-  --image "amurthi44g1wd/cuga-apps-ui:latest" \
-  --port 7860 \
-  --cpu 0.5 --memory 512M \
-  --min-scale 0 --max-scale 1
+cd "$REPO_ROOT"
+
+./deploy_umbrella_ui_to_ce.sh                   # deploy :latest from Docker Hub
+./deploy_umbrella_ui_to_ce.sh --build           # rebuild + push first, then deploy
+./deploy_umbrella_ui_to_ce.sh --dry-run         # plan only, no I/O
+
+IMAGE_TAG=v3 ./deploy_umbrella_ui_to_ce.sh      # versioned tag
+APP_CPU=0.5 APP_MEM=1G ./deploy_umbrella_ui_to_ce.sh   # bigger sizing
 ```
+
+The script defaults are tuned for a static SPA: **CPU 0.25, memory 0.5G,
+min-scale 0, max-scale 1** (cold-start when idle, save cost). It's
+idempotent — first run creates the app, subsequent runs roll the image
+with `ce app update --force`.
+
+Three things worth knowing:
+
+- **No registry-secret needed.** The image lives at
+  `docker.io/amurthi44g1wd/cuga-apps-ui:latest` (public Docker Hub), so CE
+  pulls anonymously. That's why this script is shorter than `deploy_apps.sh`
+  / `deploy_mcp.sh`, which both pull from your private ICR and need
+  `--registry-secret icr-secret-1`.
+- **No env-var or secret mounting.** The umbrella UI is a static React SPA
+  served by nginx — no LLM keys, no API keys, nothing to inject at runtime.
+- **Build with `--target huggingface`** (the script does this automatically
+  on `--build`). The same flag the HF deploy uses also makes CE-hosted UI
+  link rewriting deterministic — see the next bullet.
 
 > **Why port 7860 and not 80?** The image's nginx listens on 7860 (a
 > non-privileged port) because Hugging Face Spaces rejects `app_port < 1025`
@@ -336,6 +421,30 @@ ibmcloud ce app create \
 > still maps host `:3001` → container `:7860`, so nothing changes for local
 > dev. See the troubleshooting entry
 > [HF Space rejects "app_port must be greater than or equal to 1025"](#hf-space-rejects-app_port-must-be-greater-than-or-equal-to-1025).
+
+> **Why `--target huggingface` for a CE deploy?** The SPA's URL-rewriting
+> code in [ui/src/data/deployment.ts](../ui/src/data/deployment.ts) decides
+> whether to rewrite the tile `localhost:28xxx` links to public CE app URLs.
+> It triggers on either (a) a build-time flag (`huggingface` or `ce`) or
+> (b) a runtime hostname ending in `.hf.space`. CE hostnames end in
+> `.codeengine.appdomain.cloud`, which doesn't match (b), so the build flag
+> is what makes the rewriting fire reliably on CE. The `--build` flag of
+> `deploy_umbrella_ui_to_ce.sh` sets this for you; if you reuse an image
+> previously built without `--target huggingface`, link rewriting will fall
+> back to "local" mode and "Launch App" buttons will produce broken URLs.
+
+If you'd rather deploy by hand without the script (e.g. to set custom CPU/
+memory or to deploy under a different name), the equivalent IBMCloud CLI
+command is:
+
+```bash
+ibmcloud ce app create \
+  --name cuga-apps-ui \
+  --image "docker.io/amurthi44g1wd/cuga-apps-ui:latest" \
+  --port 7860 \
+  --cpu 0.25 --memory 0.5G \
+  --min-scale 0 --max-scale 1
+```
 
 ### 6b — Hugging Face Space (public, recommended for demos)
 
@@ -615,6 +724,49 @@ storage-migration project.
 ---
 
 ## Troubleshooting
+
+### `User credentials are required` / `Not logged in` from any deploy script
+
+Your `ibmcloud login` session expired (SSO sessions live for a few hours).
+Re-authenticate and re-target:
+
+```bash
+ibmcloud login --sso                              # or --apikey ...
+ibmcloud target -r us-south -g <your-resource-group>
+ibmcloud ce project select --name <your-project>
+```
+
+Then re-run the failed `./deploy_*.sh` — it'll skip whatever already
+succeeded.
+
+### `ibmcloud ce project current` returns nothing / `no Code Engine project selected`
+
+Every `deploy_*.sh` script reads the *currently selected* CE project — there's
+no `--project` flag. Set it explicitly:
+
+```bash
+ibmcloud ce project list                          # find the right name
+ibmcloud ce project select --name <your-project>
+ibmcloud ce project current                       # confirm
+```
+
+If `project list` returns nothing, you're targeted at the wrong region or
+resource group. Run `ibmcloud target` to see what's currently set, then
+`ibmcloud target -r <region> -g <RG>` to fix it.
+
+### `Authentication failed: ... not authorized to perform action`
+
+You're logged in but targeting an account or resource group you don't have
+CE permissions on. Switch:
+
+```bash
+ibmcloud account list                             # show all accounts you have access to
+ibmcloud target -c <account-id>                   # switch to the right one
+ibmcloud target -g <resource-group>               # switch RG
+```
+
+For IBMer accounts, CE projects are typically scoped to a specific RG —
+check with whoever owns the project.
 
 ### `ImagePullBackOff` — `failed to resolve image to digest: ... EOF`
 
