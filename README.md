@@ -229,7 +229,7 @@ Hand the spec to Claude (or any capable LLM) with a prompt like:
 
 ```
 You are an expert in creating Cuga web applications using Cuga Agent.
-Follow the spec here: /home/amurthi/work/cuga_external_app_spec.md
+Follow the spec here: [cuga_external_app_spec.md](https://github.com/cuga-project/cuga-apps/blob/main/cuga_external_app_spec.md)
 
 Create a new web app to <fill in what you want the app to do> that is
 powered by Cuga Agent.
