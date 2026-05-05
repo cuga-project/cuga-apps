@@ -1,6 +1,6 @@
 # cuga-apps
 
-A showcase of conversational and pipeline apps built on **CUGA** — a planner /
+A showcase of conversational and pipeline apps built on **CUGA** http://github.com/cuga-project/cuga-agent — a planner /
 executor agent runtime. Each app is a single-file FastAPI server wrapping a
 `CugaAgent` with a tool list and a system prompt; the right-hand panel of every
 app shows live structured state pushed from the agent.
