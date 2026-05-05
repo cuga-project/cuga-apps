@@ -1,28 +1,25 @@
 /**
  * deployment.ts — single source of truth for URL rewriting in the umbrella UI.
  *
- * The umbrella UI is a static SPA. The app URLs in usecases.ts are written
- * for local docker-compose (`http://localhost:28xxx`). When the UI runs in
- * a different deployment context (Hugging Face Space, served from a remote
- * machine), those localhost URLs need to be rewritten so a visitor's browser
- * actually reaches the running app.
+ * Two modes:
+ *   local  — rewrite `localhost` → window.location.hostname (works for
+ *            `docker compose up` on laptop or a remote VM).
+ *   remote — rewrite to the corresponding Code Engine deployment URL.
+ *            Used when the umbrella UI itself is hosted somewhere the
+ *            local docker apps aren't reachable (Hugging Face Space,
+ *            Code Engine, custom CDN).
  *
- * We support three contexts, detected in this order:
+ * Detected in this order:
+ *   1. Build-time   VITE_DEPLOYMENT_TARGET=remote (or legacy `huggingface`/
+ *                   `ce`) baked in via Dockerfile build-arg. Always wins.
+ *   2. Runtime      hostname ends in `.hf.space`, `.huggingface.co`, or
+ *                   `.codeengine.appdomain.cloud` → remote.
+ *   3. Otherwise    local.
  *
- *   1. Build-time:   VITE_DEPLOYMENT_TARGET=huggingface  (baked in via the
- *                    Dockerfile build-arg). Always wins when set.
- *   2. Runtime:      hostname ends in `.hf.space` — Hugging Face Spaces
- *                    auto-detected without rebuild.
- *   3. Otherwise:    rewrite `localhost` → window.location.hostname so the
- *                    UI works when accessed via remote IP / proxy.
+ * In remote mode, only apps in CE_APP_BY_ID get a working URL; others
+ * return null so the "Launch App" button can be suppressed.
  *
- * On HF, `appUrl` localhost links get rewritten to the corresponding Code
- * Engine deployment URL (https://cuga-apps-<name>.<hash>.<region>.code
- * engine.appdomain.cloud). Only apps actually deployed to CE (the 19 in
- * tier 1 + tier 2) are rewritten — others have their links suppressed
- * because they have no public CE URL.
- *
- * No secrets here. The CE project hash + region are public info.
+ * No secrets here. CE project hash + region are public info.
  */
 import type { UseCase } from './usecases'
 
@@ -70,20 +67,25 @@ const CE_APP_BY_ID: Record<string, string> = {
 
 
 // ── Deployment-target detection ────────────────────────────────────────
-type DeploymentTarget = 'local' | 'huggingface'
+type DeploymentTarget = 'local' | 'remote'
+
+const REMOTE_HOST_SUFFIXES = [
+  '.hf.space',
+  '.huggingface.co',
+  '.codeengine.appdomain.cloud',
+]
 
 function detectTarget(): DeploymentTarget {
-  // Build-time override wins.
-  // (Vite replaces import.meta.env.VITE_* at build time.)
+  // Build-time override wins. `huggingface` and `ce` accepted as legacy
+  // aliases for `remote` so existing build pipelines keep working.
   const buildTarget = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET
-  if (buildTarget === 'huggingface' || buildTarget === 'ce') {
-    return 'huggingface'
+  if (buildTarget === 'remote' || buildTarget === 'huggingface' || buildTarget === 'ce') {
+    return 'remote'
   }
-  // Runtime hostname check — works for HF without any rebuild.
   if (typeof window !== 'undefined') {
     const host = window.location.hostname
-    if (host.endsWith('.hf.space') || host.endsWith('.huggingface.co')) {
-      return 'huggingface'
+    if (REMOTE_HOST_SUFFIXES.some(s => host.endsWith(s))) {
+      return 'remote'
     }
   }
   return 'local'
@@ -99,22 +101,20 @@ const TARGET = detectTarget()
 /**
  * Resolve the right `appUrl` for the current deployment context.
  *
- *   local       → rewrite `localhost` to the page's own hostname so the UI
- *                 works when accessed via remote IP, tunnel, or proxy.
- *   huggingface → rewrite to the CE deployment URL for this app, IF the
- *                 app is in the deployed set. If not (tier 3 apps without
- *                 a CE deployment), return null so callers can suppress
- *                 the "Launch App" button.
+ *   local  → rewrite `localhost` to the page's own hostname so the UI
+ *            works when accessed via remote IP, tunnel, or proxy.
+ *   remote → rewrite to the CE deployment URL for this app, IF the app
+ *            is in CE_APP_BY_ID. If not, return null so callers can
+ *            suppress the "Launch App" button.
  *
  * Returns null when the app has no usable URL in the current context.
  */
 export function resolveAppUrl(uc: Pick<UseCase, 'id' | 'appUrl'>): string | null {
   if (!uc.appUrl) return null
 
-  if (TARGET === 'huggingface') {
+  if (TARGET === 'remote') {
     const ceName = CE_APP_BY_ID[uc.id]
     if (!ceName) {
-      // App not deployed to CE — no working URL on Hugging Face.
       return null
     }
     return `https://${ceName}.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud`
@@ -130,7 +130,8 @@ export function resolveAppUrl(uc: Pick<UseCase, 'id' | 'appUrl'>): string | null
 
 
 /**
- * True when this build/runtime is targeting Hugging Face. Useful for
- * conditionally showing CE-aware copy elsewhere in the UI.
+ * True when this build/runtime is hosted somewhere CE-rewriting is
+ * needed (Hugging Face Space, Code Engine, etc). Useful for conditionally
+ * showing CE-aware copy elsewhere in the UI.
  */
-export const isHuggingFace = (): boolean => TARGET === 'huggingface'
+export const isRemote = (): boolean => TARGET === 'remote'
