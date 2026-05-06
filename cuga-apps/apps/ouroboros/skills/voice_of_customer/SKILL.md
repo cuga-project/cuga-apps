@@ -51,6 +51,16 @@ Return:
       "quote":      "tried calling 4 times during lunch and never got through",
       "source_url": "https://www.zomato.com/..."
     }
+  ],
+  "reviews_seen": [
+    {
+      "title":   "Aroma Pure Veg — Zomato",
+      "url":     "https://www.zomato.com/..."
+    },
+    {
+      "title":   "Aroma Pure Veg — Google reviews",
+      "url":     "https://www.google.com/maps/..."
+    }
   ]
 }
 ```
@@ -60,7 +70,14 @@ Return:
 - **Never fabricate a complaint.** If reviewers genuinely have nothing
   bad to say, return `friction: []`. An honest empty result is more
   useful than a made-up grievance.
+- **Always populate `reviews_seen`** with `{title, url}` for every
+  search hit you actually looked at — even when `friction` is empty.
+  These URLs give the writer something to cite as "evidence" even when
+  no friction quote is available. The writer uses friction's
+  `source_url` first and falls back to `reviews_seen` when friction
+  is empty.
 - The `quote` must appear as-is in one of the snippet `snippet` fields
   you got back from search_reviews. If a quote is paraphrased, drop it.
-- Cap at 4 friction items. After 4 it's diminishing returns.
-- Don't include positive quotes — that's for marketing, not lead-gen.
+- Cap `friction` at 4 items. Cap `reviews_seen` at 5 hits.
+- Don't include positive quotes in `friction` — that's for marketing,
+  not lead-gen. (But positive-review URLs are fine in `reviews_seen`.)

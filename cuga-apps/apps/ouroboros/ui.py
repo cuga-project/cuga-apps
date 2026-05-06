@@ -139,6 +139,62 @@ _HTML = r"""<!DOCTYPE html>
     overflow: hidden; text-overflow: ellipsis;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
+  .run-item .trace-row {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+  }
+  .agent-pill {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1px 8px; font-size: 10px;
+    color: var(--accent2); font-weight: 600;
+  }
+  .agent-pill.scout      { color: var(--accent);  border-color: rgba(52,211,153,0.4); }
+  .agent-pill.writer     { color: var(--accent3); border-color: rgba(250,204,21,0.4); }
+  .agent-pill.no-output  { opacity: 0.45; text-decoration: line-through; }
+
+  .trace-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; z-index: 50; align-items: center; justify-content: center;
+  }
+  .trace-modal-backdrop.open { display: flex; }
+  .trace-modal {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 14px; width: min(720px, 92vw); max-height: 85vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .trace-modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .trace-modal-head h3 {
+    margin: 0; font-size: 14px; color: var(--text); font-weight: 700;
+  }
+  .trace-modal-body {
+    flex: 1; overflow-y: auto; padding: 14px 18px;
+  }
+  .trace-step {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px dashed var(--border);
+    font-size: 12px;
+  }
+  .trace-step:last-child { border-bottom: none; }
+  .trace-step .num {
+    color: var(--muted); font-variant-numeric: tabular-nums;
+    min-width: 28px; text-align: right; font-weight: 700;
+  }
+  .trace-step .agent {
+    color: var(--accent); font-weight: 700;
+    min-width: 130px;
+  }
+  .trace-step .preview {
+    color: #c0c8d8; flex: 1; white-space: pre-wrap;
+    overflow-wrap: anywhere; line-height: 1.5;
+    max-height: 4.5em; overflow: hidden; text-overflow: ellipsis;
+  }
+  .trace-step .badge {
+    background: rgba(248,113,113,0.12); border: 1px solid var(--danger);
+    color: var(--danger); padding: 1px 8px; border-radius: 8px;
+    font-size: 10px; font-weight: 700;
+  }
 
   .msg .meta {
     display: block; margin-top: 6px;
@@ -544,9 +600,10 @@ _HTML = r"""<!DOCTYPE html>
 
     <div class="runs-drawer" id="runsDrawer">
       <div class="head">
-        <span>Saved turns · this thread</span>
-        <button class="runs-btn" style="margin-left:auto"
-          onclick="refreshRunsList()">Refresh</button>
+        <span id="runsScopeLabel">Saved turns · this thread</span>
+        <button class="runs-btn" id="scopeToggleBtn"
+          style="margin-left:auto" onclick="toggleRunsScope()">All threads</button>
+        <button class="runs-btn" onclick="refreshRunsList()">Refresh</button>
       </div>
       <div id="runsList" class="empty">No runs yet — ask a question first.</div>
     </div>
@@ -588,6 +645,17 @@ _HTML = r"""<!DOCTYPE html>
   </div>
 </main>
 
+<div class="trace-modal-backdrop" id="traceBackdrop" onclick="if(event.target===this) closeTrace()">
+  <div class="trace-modal" role="dialog" aria-modal="true" aria-labelledby="traceTitle">
+    <div class="trace-modal-head">
+      <h3 id="traceTitle">Agent trace</h3>
+      <span id="traceMeta" style="color: var(--muted); font-size: 11px; margin-left: auto;"></span>
+      <button class="modal-close" onclick="closeTrace()" aria-label="Close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;">×</button>
+    </div>
+    <div class="trace-modal-body" id="traceBody"></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="emailBackdrop" onclick="if(event.target===this) closeEmail()">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
     <div class="modal-head">
@@ -615,7 +683,12 @@ _HTML = r"""<!DOCTYPE html>
 </div>
 
 <script>
-  let SESSION_ID = sessionStorage.getItem('ouroboros_session');
+  // Persist the thread_id in localStorage (NOT sessionStorage) so the
+  // user's runs survive tab close, browser restart, and server restart.
+  // sessionStorage was clearing on every new tab — meaning every new tab
+  // got a fresh thread_id and the past-runs drawer looked empty even
+  // though the JSON files were still on disk under the old thread.
+  let SESSION_ID = localStorage.getItem('ouroboros_session');
   if (!SESSION_ID) {
     SESSION_ID = (crypto.randomUUID
       ? crypto.randomUUID()
@@ -623,7 +696,7 @@ _HTML = r"""<!DOCTYPE html>
           const r = Math.random() * 16 | 0;
           return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
         }));
-    sessionStorage.setItem('ouroboros_session', SESSION_ID);
+    localStorage.setItem('ouroboros_session', SESSION_ID);
   }
 
   const messagesEl = document.getElementById('messages');
@@ -1026,9 +1099,63 @@ _HTML = r"""<!DOCTYPE html>
     return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ' UTC';
   }
 
+  function agentPillsHtml(counts) {
+    if (!counts) return '';
+    const order = ['scout', 'voice_of_customer', 'site_auditor',
+                   'revenue_estimator', 'person_finder', 'stack_scanner',
+                   'pitch_email_writer'];
+    const seen = new Set();
+    let html = '';
+    order.forEach(name => {
+      const n = counts[name];
+      if (!n) return;
+      seen.add(name);
+      const cls = name === 'scout' ? 'scout'
+                : name === 'pitch_email_writer' ? 'writer'
+                : '';
+      const short = name === 'voice_of_customer' ? 'voc'
+                  : name === 'site_auditor'      ? 'audit'
+                  : name === 'revenue_estimator' ? 'revenue'
+                  : name === 'person_finder'     ? 'person'
+                  : name === 'stack_scanner'     ? 'stack'
+                  : name === 'pitch_email_writer' ? 'writer'
+                  : name;
+      html += '<span class="agent-pill ' + cls + '">'
+            + esc(short) + '×' + n + '</span>';
+    });
+    // Any other agents we didn't sort.
+    Object.entries(counts).forEach(([name, n]) => {
+      if (seen.has(name)) return;
+      html += '<span class="agent-pill">' + esc(name) + '×' + n + '</span>';
+    });
+    return html;
+  }
+
+  // Drawer scope: 'thread' (default — runs for the current thread_id)
+  // or 'all' (every run on disk across every thread).
+  let _runsScope = 'thread';
+  const scopeLabel    = document.getElementById('runsScopeLabel');
+  const scopeToggleBtn = document.getElementById('scopeToggleBtn');
+
+  function toggleRunsScope() {
+    _runsScope = (_runsScope === 'thread') ? 'all' : 'thread';
+    scopeLabel.textContent = (_runsScope === 'thread')
+      ? 'Saved turns · this thread'
+      : 'Saved turns · all threads on disk';
+    scopeToggleBtn.textContent = (_runsScope === 'thread')
+      ? 'All threads'
+      : 'This thread';
+    refreshRunsList();
+  }
+
   async function refreshRunsList() {
     try {
-      const res = await fetch('/runs/' + SESSION_ID);
+      // /runs       → all threads (defensive: localStorage may be wiped)
+      // /runs/<id>  → just the current thread
+      const url = (_runsScope === 'all')
+        ? '/runs'
+        : '/runs/' + SESSION_ID;
+      const res = await fetch(url);
       if (!res.ok) {
         runsList.className = 'empty';
         runsList.textContent = 'Could not load runs.';
@@ -1038,35 +1165,44 @@ _HTML = r"""<!DOCTYPE html>
       const runs = data.runs || [];
       if (!runs.length) {
         runsList.className = 'empty';
-        runsList.textContent = 'No runs yet — ask a question first.';
+        runsList.textContent = (_runsScope === 'all')
+          ? 'No runs found anywhere on disk.'
+          : 'No runs yet for this thread — ask a question, or click "All threads" to see prior sessions.';
         return;
       }
       runsList.className = '';
-      // Hydrate each run's summary lazily — fetch detail per item to show
-      // question + elapsed + leads count. Keep it cheap: fetch in parallel.
       runsList.innerHTML = '';
-      const reversed = runs.slice().reverse();    // newest first
-      const details = await Promise.all(
-        reversed.map(r => fetch(r.url).then(x => x.ok ? x.json() : null)
-                          .catch(_ => null))
-      );
-      reversed.forEach((r, i) => {
-        const d = details[i] || {};
+      // The /runs (all) endpoint already returns newest-first; the
+      // per-thread endpoint sorts oldest-first, so we reverse there.
+      const ordered = (_runsScope === 'all') ? runs : runs.slice().reverse();
+      ordered.forEach((r) => {
         const item = document.createElement('div');
         item.className = 'run-item';
+        const pills = agentPillsHtml(r.agent_counts);
+        const threadTag = (_runsScope === 'all' && r.thread_id)
+          ? '<span class="agent-pill" style="margin-left:6px;color:var(--muted)">'
+            + esc(r.thread_id.slice(0, 8)) + '</span>'
+          : '';
         item.innerHTML =
           '<div class="row">' +
           '  <span class="ts">' + esc(fmtTs(r.file)) + '</span>' +
-          (d.elapsed_human
-            ? '<span class="elapsed">' + esc(d.elapsed_human) + '</span>'
+          (r.elapsed_human
+            ? '<span class="elapsed">' + esc(r.elapsed_human) + '</span>'
             : '') +
-          (d.leads_count != null
-            ? '<span class="leads-pill">' + d.leads_count + ' leads</span>'
+          (r.leads_count != null
+            ? '<span class="leads-pill">' + r.leads_count + ' leads</span>'
             : '') +
+          threadTag +
           '</div>' +
           '<div class="question">' +
-            esc(d.question || '(no question saved)') +
-          '</div>';
+            esc(r.question || '(no question saved)') +
+          '</div>' +
+          (pills
+            ? '<div class="trace-row">' + pills +
+              '<span class="agent-pill" style="margin-left:auto;cursor:pointer;color:var(--accent3)" '
+              + 'onclick="event.stopPropagation();openTrace(\'' + r.url + '\')">'
+              + 'view trace</span></div>'
+            : '');
         item.onclick = () => loadRun(r.url);
         runsList.appendChild(item);
       });
@@ -1074,6 +1210,56 @@ _HTML = r"""<!DOCTYPE html>
       runsList.className = 'empty';
       runsList.textContent = 'Error loading runs: ' + err.message;
     }
+  }
+
+  // ── Agent trace modal ──────────────────────────────────────────
+  const traceBackdrop = document.getElementById('traceBackdrop');
+  const traceBody     = document.getElementById('traceBody');
+  const traceMeta     = document.getElementById('traceMeta');
+
+  async function openTrace(runUrl) {
+    try {
+      const res = await fetch(runUrl);
+      if (!res.ok) return;
+      const r = await res.json();
+      const trace = (r.agent_trace || {}).calls || [];
+      const counts = (r.agent_trace || {}).counts || {};
+      traceMeta.textContent =
+        (r.elapsed_human ? r.elapsed_human + ' · ' : '') +
+        (trace.length + ' calls');
+      let html = '';
+      if (!trace.length) {
+        html = '<div style="color:var(--muted);font-size:12px;padding:10px 0;">'
+             + 'No agent calls recorded for this run.</div>';
+      } else {
+        trace.forEach((s) => {
+          html +=
+            '<div class="trace-step">' +
+            '<span class="num">' + s.step + '.</span>' +
+            '<span class="agent">' + esc(s.agent) + '</span>' +
+            (s.has_output
+              ? '<div class="preview">' + esc(s.output_preview || '') + '</div>'
+              : '<div class="preview"><span class="badge">no output</span></div>') +
+            '</div>';
+        });
+      }
+      // Per-agent fan-out summary at the bottom.
+      const summary = Object.entries(counts)
+        .map(([k, v]) => esc(k) + ' × ' + v).join(' · ');
+      if (summary) {
+        html += '<div style="margin-top:14px;padding-top:10px;'
+              + 'border-top:1px solid var(--border);font-size:11px;'
+              + 'color:var(--muted);">Fan-out: ' + summary + '</div>';
+      }
+      traceBody.innerHTML = html;
+      traceBackdrop.classList.add('open');
+    } catch (err) {
+      addMessage('Could not load trace: ' + err.message, 'error');
+    }
+  }
+
+  function closeTrace() {
+    traceBackdrop.classList.remove('open');
   }
 
   async function loadRun(url) {

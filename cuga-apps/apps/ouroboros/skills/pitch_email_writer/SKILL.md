@@ -146,3 +146,27 @@ sees this in the chat; the JSON populates the right panel.
   `pitch` from the OSM data alone.
 - **The output JSON is the contract with the UI.** Don't drop fields.
   Empty arrays / null values are fine; missing keys break rendering.
+
+## Evidence sourcing — populate `evidence[]` reliably
+
+The `evidence[]` array on each lead is what the UI shows as "proof we
+looked at real sources." It must NOT be empty for top-3 (deep-dived)
+leads — find at least 1–2 URLs even if no friction was found.
+
+Priority order for filling `evidence[]`:
+
+1. **Review-friction citations** — for every entry in `voc.friction`,
+   add `{title: "<pattern> — <site>", url: friction.source_url}`.
+2. **Reviews seen, no friction** — if `voc.friction` is empty but
+   `voc.reviews_seen` has entries, add the first 1–2 of them as
+   `{title: reviews_seen[i].title, url: reviews_seen[i].url}`. These
+   are honest "we searched for reviews and these are what we found,
+   no obvious complaints."
+3. **Person evidence** — if `person.evidence` exists (URLs that named
+   the owner/title), add 1 of them.
+4. **Stack evidence** — if `stack.third_parties` has named tools with
+   evidence URLs, add them.
+
+If after all four steps `evidence[]` is still empty, that's a signal
+the deep-dive truly produced nothing — leave it empty rather than
+fabricate a URL. But for top-3 leads this should be rare.

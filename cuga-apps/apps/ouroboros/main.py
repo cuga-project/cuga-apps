@@ -184,6 +184,70 @@ def _coerce(value):
     return repr(value)
 
 
+_DELEGATE_RE = re.compile(r"\bdelegate_to_([a-zA-Z0-9_]+)\s*\(")
+
+
+def _agent_call_trace(supervisor) -> dict:
+    """Extract an ordered trace of which specialist agents were called.
+
+    The supervisor's planner emits `delegate_to_<agent>(...)` calls in
+    AIMessage code blocks; each delegation produces an `Execution
+    output:` HumanMessage immediately after. Walk the chat history and
+    pair them up so we have:
+
+      [ {step, agent, has_output, output_len, output_preview}, ... ]
+
+    plus a per-agent count summary. Best-effort — if the supervisor
+    state isn't available we return an empty trace.
+    """
+    trace: list[dict] = []
+    counts: dict[str, int] = {}
+    try:
+        state = supervisor._supervisor_state
+        messages = (
+            state.get("supervisor_chat_messages", [])
+            if isinstance(state, dict)
+            else getattr(state, "supervisor_chat_messages", []) or []
+        )
+        step = 0
+        for i, msg in enumerate(messages):
+            role    = type(msg).__name__
+            content = getattr(msg, "content", "") or ""
+            if not isinstance(content, str):
+                content = str(content)
+            if role != "AIMessage":
+                continue
+            # Find every delegate_to_<name>( in this planner code block.
+            for m in _DELEGATE_RE.finditer(content):
+                agent = m.group(1)
+                step += 1
+                # The Execution output that follows this AIMessage is the
+                # next HumanMessage with content starting "Execution output:".
+                exec_out = ""
+                for j in range(i + 1, len(messages)):
+                    later = messages[j]
+                    if type(later).__name__ != "HumanMessage":
+                        continue
+                    later_content = getattr(later, "content", "") or ""
+                    if not isinstance(later_content, str):
+                        later_content = str(later_content)
+                    if later_content.startswith("Execution output:"):
+                        exec_out = later_content[len("Execution output:"):].lstrip("\n")
+                        break
+                trace.append({
+                    "step":           step,
+                    "msg_index":      i,
+                    "agent":          agent,
+                    "has_output":     bool(exec_out),
+                    "output_len":     len(exec_out),
+                    "output_preview": exec_out[:300],
+                })
+                counts[agent] = counts.get(agent, 0) + 1
+    except Exception as exc:
+        log.debug("agent trace extraction failed: %s", exc)
+    return {"calls": trace, "counts": counts, "total_calls": len(trace)}
+
+
 def _harvest_supervisor_state(supervisor) -> dict:
     """Pull variables + chat messages out of the supervisor's last state.
     The supervisor's variables_manager preserves every variable created
@@ -298,6 +362,7 @@ def _save_run(thread_id: str, question: str, answer: str,
         run_dir.mkdir(parents=True, exist_ok=True)
         fname    = ts.strftime("%Y%m%dT%H%M%SZ") + ".json"
         path     = run_dir / fname
+        agent_trace = _agent_call_trace(supervisor)
         record = {
             "thread_id":         thread_id,
             "timestamp":         ts.isoformat(),
@@ -310,11 +375,18 @@ def _save_run(thread_id: str, question: str, answer: str,
             "leads_extracted":   bool(leads),
             "leads_count":       len(leads.get("leads", []) or []) if leads else 0,
             "leads":             leads,
+            "agent_trace":       agent_trace,
             "supervisor_state":  _harvest_supervisor_state(supervisor),
         }
         path.write_text(json.dumps(record, indent=2, default=str, ensure_ascii=False))
-        log.info("[%s] run saved: %s (%s, stages=%d, vars=%d)",
+        # Build a compact "agent fan-out" summary like
+        # "scout×1, voc×3, audit×2, writer×1" for the log line.
+        fanout = ", ".join(
+            f"{a}×{n}" for a, n in agent_trace.get("counts", {}).items()
+        ) or "(none)"
+        log.info("[%s] run saved: %s (%s, agents=[%s], stages=%d, vars=%d)",
                  thread_id[:8], path, record["elapsed_human"],
+                 fanout,
                  len(record["supervisor_state"].get("stages", [])),
                  len(record["supervisor_state"].get("variables", {})))
         return str(path)
@@ -830,22 +902,77 @@ def _web(port: int) -> None:
     async def health():
         return {"ok": True}
 
+    @app.get("/runs")
+    async def api_all_runs():
+        """List every saved run across every thread on disk.
+
+        Defensive fallback for the UI's past-runs drawer: even if the
+        browser's localStorage thread_id was wiped, the user can still
+        browse runs from prior sessions. Returns the same per-row
+        summary shape as /runs/<thread_id>, plus a `thread_id` field on
+        each row so the UI can scope-load that run.
+        """
+        if not _RUNS_DIR.exists():
+            return {"runs": []}
+        all_runs = []
+        for thread_dir in sorted(_RUNS_DIR.iterdir()):
+            if not thread_dir.is_dir():
+                continue
+            thread_id = thread_dir.name
+            for f in sorted(thread_dir.glob("*.json")):
+                entry = {
+                    "file":      f.name,
+                    "thread_id": thread_id,
+                    "size":      f.stat().st_size,
+                    "url":       f"/runs/{thread_id}/{f.name}",
+                }
+                try:
+                    data = json.loads(f.read_text())
+                    entry["question"]      = data.get("question")
+                    entry["elapsed_human"] = data.get("elapsed_human")
+                    entry["elapsed_ms"]    = data.get("elapsed_ms")
+                    entry["leads_count"]   = data.get("leads_count")
+                    trace = data.get("agent_trace") or {}
+                    entry["agent_counts"]  = trace.get("counts") or {}
+                    entry["total_calls"]   = trace.get("total_calls") or 0
+                    entry["timestamp"]     = data.get("timestamp")
+                except Exception:
+                    pass
+                all_runs.append(entry)
+        # Newest first across all threads.
+        all_runs.sort(key=lambda r: r.get("timestamp") or r["file"], reverse=True)
+        return {"runs": all_runs}
+
     @app.get("/runs/{thread_id}")
     async def api_runs(thread_id: str):
-        """List saved per-turn metadata for a thread."""
+        """List saved per-turn metadata for a thread, with a trace summary."""
         safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", thread_id)[:64]
         run_dir = _RUNS_DIR / safe
         if not run_dir.exists():
             return {"thread_id": thread_id, "runs": []}
         files = sorted(run_dir.glob("*.json"))
-        return {
-            "thread_id": thread_id,
-            "runs": [
-                {"file": f.name, "size": f.stat().st_size,
-                 "url": f"/runs/{thread_id}/{f.name}"}
-                for f in files
-            ],
-        }
+        runs = []
+        for f in files:
+            entry = {
+                "file":  f.name,
+                "size":  f.stat().st_size,
+                "url":   f"/runs/{thread_id}/{f.name}",
+            }
+            # Cheap peek for a summary — load the file and pull a few
+            # top-level fields. The full record is at the detail URL.
+            try:
+                data = json.loads(f.read_text())
+                entry["question"]      = data.get("question")
+                entry["elapsed_human"] = data.get("elapsed_human")
+                entry["elapsed_ms"]    = data.get("elapsed_ms")
+                entry["leads_count"]   = data.get("leads_count")
+                trace = data.get("agent_trace") or {}
+                entry["agent_counts"]  = trace.get("counts") or {}
+                entry["total_calls"]   = trace.get("total_calls") or 0
+            except Exception:
+                pass
+            runs.append(entry)
+        return {"thread_id": thread_id, "runs": runs}
 
     @app.get("/runs/{thread_id}/{filename}")
     async def api_run_detail(thread_id: str, filename: str):

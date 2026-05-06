@@ -39,78 +39,146 @@ ranked, actionable next step."
 - Per-candidate enrichment bundles map cleanly: each candidate build
   has its own `{steps, missing_pieces, render, difficulty}` dict.
 
-## Idea 2 — "Real-world photo → LEGO replica → BrickLink order"
+## Idea 2 — "See it → build it in LEGO → order what's missing"
 
-**Input:** a photo of a real-world object — coffee mug, bicycle, the
-user's house, their dog, a Eiffel Tower postcard.
+**Input:** a photo of a real-world object — coffee mug, chair, small
+house, bookshelf, vintage camera.
 
 **Output:**
-1. A LEGO-ified 3D model of that thing, buildable at a chosen scale.
-2. A complete bill of materials (brick IDs, colors, counts).
+1. A buildable LEGO model representing what was in the photo (not a
+   pixel-faithful voxelization — a *recognizable LEGO version*).
+2. Complete bill of materials (brick IDs, colors, counts).
 3. Stepwise assembly instructions.
 4. A pre-filled BrickLink Wanted List for any pieces the user doesn't
    already own — one click to "order missing parts."
 
 **Why it's interesting:** the friction here is the gap between "I want
-to LEGO-ify *that* thing" and "what bricks do I actually need." Existing
-tools cover slices of the pipeline (Mecabricks, BrickLink Studio,
-LegoMosaic, Brixel) but no one has stitched them end-to-end into a
-"photo in, parcel at your door" loop.
+to LEGO-ify *that* thing" and "what bricks do I need to do it." Pieces
+of the pipeline exist in isolation (mosaic generators, MOC libraries,
+LegoGPT, BrickLink ordering) but **no one has stitched them end-to-end
+into a "photo in, parcel at your door" loop**. That stitched loop is
+the actual product.
+
+### What changed the feasibility math: LegoGPT (May 2025)
+
+The previously-hard middle of this pipeline — "go from a noun to a
+buildable LEGO model" — now has an open-source solution. Carnegie
+Mellon's **LegoGPT** is an autoregressive model that takes a text prompt
+("small red car", "blue chair with a tall back") and emits a
+**physically stable, buildable** LDraw `.ldr` file. Trained on 47K real
+LEGO designs. MIT-licensed, public weights and code. Outputs a render,
+a brick-by-brick text file, and an LDraw file.
+
+That collapses the hardest step from "month of work" to "one model
+call." The remaining work is glue.
+
+LegoGPT's limitations to plan around:
+- 20×20×20 brick grid only.
+- 8 standard rectangular brick types — no curves, no Technic, no
+  hinges, no studs-not-on-top.
+- Text prompt input — so we still need a vision step *before* it that
+  produces a clean caption ("small red car"), not the raw photo.
+
+In practice that means **blocky, microscale-ish LEGO versions**: chairs,
+cars, houses, mugs, bookshelves, simple animals — yes; roses, dogs,
+detailed minifig-scale anything — no.
+
+### The two paths (and the hybrid)
+
+There's more than one way to "go from recognized object to buildable
+model." The agent should try both:
+
+1. **Retrieval** — search **Rebrickable's MOC database** (40K+ fan-built
+   designs, all with full parts lists and instructions) for a matching
+   design. If someone already designed a great LEGO truck, use theirs.
+   Cheap, fast, often higher quality than generation. Has an API.
+2. **Generative (LegoGPT)** — fall back when retrieval misses or when
+   the user wants something custom.
+3. **Hybrid (recommended)** — retrieval first, LegoGPT second. Best of
+   both: production-grade community designs when they exist, generative
+   tail when they don't.
 
 ### Multi-agent decomposition
 
 | Specialist             | What it does                                                                 |
 |------------------------|------------------------------------------------------------------------------|
-| `subject_segmenter`    | Photo → cleaned subject mask + estimated dimensions / depth.                 |
-| `scale_chooser`        | User intent ("display piece", "minifig-scale", "mosaic") + subject → target voxel resolution. |
-| `lego_modeler`         | 3D shape → voxelized brick layout. Picks brick granularity vs fidelity.      |
-| `parts_extractor`      | Voxel model → `{brick_id, color, count}` bill of materials.                  |
-| `inventory_diff`       | Parts list − user's existing inventory → missing parts list.                 |
-| `bricklink_orderer`    | Missing parts → BrickLink Wanted List XML + checkout link.                   |
-| `step_planner`         | Voxel model + parts → ordered assembly steps (bottom-up, support-first).     |
+| `vision_recognizer`    | Photo → object class + 1–2 attributes ("small red car"). Vision-LM call.    |
+| `moc_retriever`        | Caption + attributes → Rebrickable MOC search. Returns ranked candidates with parts lists. |
+| `legogpt_generator`    | Caption → LDraw `.ldr` file. Fallback when retrieval fails or user wants custom. |
+| `parts_extractor`      | LDraw model → `{brick_id, color, count}` bill of materials.                  |
+| `inventory_diff`       | Parts list − user's existing inventory = missing parts list.                 |
+| `shop_optimizer`       | Missing parts → "split across N BrickLink shops to minimize total cost+shipping." (v2) |
+| `bricklink_orderer`    | Missing parts → BrickLink Wanted List XML + push-to-BrickLink URL.           |
+| `step_planner`         | LDraw model → ordered assembly steps (bottom-up, support-first).             |
 | `visual_writer`        | Renders the final model + per-step previews.                                 |
 
-### Three flavors of "LEGO-ify"
+Map onto Ouroboros's pattern: `vision_recognizer` is the scout;
+retrieval/generation/parts/diff are the deep-dive sweeps; `step_planner`
++ `visual_writer` are the writer.
 
-The single hardest design decision. The `scale_chooser` picks one:
+### Pipeline shape
 
-- **2D mosaic** (easiest). Photo → pixel art → tiled flat plate. Tools
-  exist (LegoMosaic, brickit). Works for portraits, logos, pets.
-- **Microscale sculpture** (medium). 3D voxelization at ~1cm³ per brick.
-  Recognizable but stylized. Best for buildings, vehicles, animals.
-- **Minifig-scale** (hardest). Real proportional model with hinges,
-  Technic, decorative tiles. Mostly creative work, hard to automate.
-
-Recommend shipping the 2D mosaic flavor first — it's the only one where
-the "creative" step (voxelization) is mostly solved, so the differentiator
-becomes the inventory-diff + BrickLink-order glue.
-
-### BrickLink integration
-
-BrickLink has a documented Wanted List XML format and a "Push to
-BrickLink" URL pattern that pre-loads a cart. So the order step is real:
-emit XML, hand the user a clickable link, they review and pay on
-BrickLink. We don't handle money or inventory — BrickLink does.
+```
+photo
+  │
+  ▼
+[vision_recognizer]    ── "this is a small red car"
+  │
+  ├─► [moc_retriever]      ── Rebrickable MOC search (try first)
+  │     │
+  │     └── if good match → ldr file
+  │
+  └─► [legogpt_generator]  ── fallback if retrieval misses
+        │
+        └── generated ldr file
+              │
+              ▼
+        [parts_extractor]   ── ldr → parts list
+              │
+        [inventory_diff]    ── - your inventory = missing parts
+              │
+        ┌─────┴─────┐
+        ▼           ▼
+  [shop_optimizer]  [step_planner]
+        │           │
+  [bricklink_orderer]  [visual_writer]
+```
 
 ### Risks / open questions specific to Idea 2
 
-- **3D recognition fidelity.** A coffee mug is solvable; the user's
-  dog is not (LEGO has no organic curve vocabulary at most scales).
-  Constrain the input class up front: "objects that are mostly boxes,
-  cylinders, and right angles" → houses, vehicles, furniture, cameras.
-- **Color matching.** Real photos have thousands of colors; LEGO has
-  ~60 official palette colors. Need a quantization step that's
-  faithful but parts-aware (don't pick a color that comes in 3 brick
-  shapes).
+- **Vision step needs a clean caption, not a free description.** "Small
+  red car" works; "the second-floor balcony of my apartment building"
+  doesn't. Prompt engineering on the vision-LM matters; consider
+  constraining to a fixed taxonomy of recognizable object classes.
+- **LegoGPT's box of 8 brick types is small.** Out-of-distribution
+  prompts (organic shapes, very large/small scales) will produce
+  ugly results. Plan to filter aggressively in the retrieval step
+  before falling through to LegoGPT.
 - **BrickLink shop fragmentation.** Even with a Wanted List, the user
-  ends up ordering from 4–8 different sellers + 4–8 shipping fees.
-  An optimizer step ("here's the 3-shop split that minimizes total
-  cost") is the difference between a toy and a tool.
+  lands on BrickLink staring at 4–8 different sellers each with their
+  own shipping fee. Without a "split this list across N shops to
+  minimize total cost" optimizer the experience feels broken. That
+  optimizer is the genuinely hard piece, but it's deferrable to v2.
 - **Cost transparency before clicking.** Show estimated total cost +
-  shipping count *before* generating the LEGO model. "This will be
-  $84 from 3 shops" is the qualifying gate.
-- **Spending real money** raises the stakes vs. all the other ideas in
-  this doc. Want explicit user confirmation between every step.
+  shop count *before* generating the model. "This will be $84 from 3
+  shops" is the qualifying gate.
+- **Spending real money** raises the stakes vs. all the other ideas
+  here. Explicit user confirmation between every step.
+
+### Effort estimate (with LegoGPT in the picture)
+
+- **Weekend MVP:** vision-LM caption + LegoGPT call + LDraw parser +
+  BrickLink XML output. No retrieval, no shop optimizer, no inventory
+  diff. End-to-end demo: photo in, parts list out, BrickLink link to
+  click. Real, but rough.
+- **2-week v1:** add Rebrickable MOC retrieval + inventory diff +
+  step_planner + a basic visual_writer.
+- **Month-ish v2:** add the multi-shop cost optimizer (the actual
+  UX-defining piece for adult AFOLs).
+
+The hardest engineering pieces are commodity now (LegoGPT, LDraw
+parsing, BrickLink XML). The real work is the integration, the agent
+loop, and the shop optimizer.
 
 ### Combo with Idea 1 — "build what you see, with what you have"
 
@@ -142,6 +210,62 @@ inventory (idea 1's scout)        target (idea 2's modeler)
                        ▼
                  visual_writer
 ```
+
+## API & tooling landscape
+
+What exists, verified May 2026:
+
+### Catalog / metadata APIs
+
+- **LEGO Group itself: NO public catalog API.** They have developer
+  programs for MINDSTORMS / Powered Up hardware, not for sets/parts/
+  colors data.
+- **Rebrickable API** — the de-facto standard for LEGO data. Free with
+  an API key. Comprehensive parts / sets / colors / inventories. Hosts
+  40K+ MOCs with parts lists and instructions. Auto-updated daily.
+  Also offers full CSV downloads if you want to avoid the API.
+- **Brickset API v3** — set/theme metadata, free with key.
+- **BrickOwl API** — secondary marketplace (BrickLink competitor),
+  cleaner API (no OAuth1 dance).
+
+### Marketplace / ordering APIs
+
+- **BrickLink Store API** — REST + OAuth1 (consumer-key, IP-locked
+  tokens). Operational (acquired by LEGO Group 2019, API kept alive).
+  Maintained Python / C# / JS client libraries.
+- **BrickLink Wanted List XML upload** — no auth required. Generate
+  XML, hand the user a `https://www.bricklink.com/v2/wanted/upload.page`
+  URL, they review and pay on BrickLink. **This is the v1 path.** We
+  never touch money or inventory.
+
+### Photo → LEGO tooling
+
+- **LegoGPT** (Carnegie Mellon, May 2025) — text → buildable LDraw,
+  physically stable, MIT-licensed, public. Constrained to 20³ grid +
+  8 brick types but covers the common case. **Best generative option
+  for Idea 2.**
+- **Image2Lego** — academic, photo → voxel → bricks pipeline.
+- **Brick-a-Pic, Brickmos, DemiBrick, Lego Art Remix, Brickwork** — 2D
+  mosaic generators, several with BrickLink Wanted List export.
+- **Mecabricks / BrickLink Studio / LDraw + LeoCAD** — 3D editors and
+  renderers, canonical formats.
+
+### File formats
+
+- **LDraw** — open text format for LEGO models. Documented, parser
+  libraries exist in every language.
+- **BrickLink XML** — the Wanted List upload format. Documented on
+  BrickLink's site.
+
+### What this means for picking a stack
+
+- **Idea 1 (inventory → plan):** Rebrickable for catalog metadata,
+  LDraw for model representation, optional BrickLink for "if you had
+  these 3 extra bricks…" upsell.
+- **Idea 2 (photo → replica → order):** Vision-LM (Claude / GPT-4V /
+  Gemini) for recognition + caption, Rebrickable MOC API for
+  retrieval, LegoGPT for generative fallback, LDraw for model rep,
+  BrickLink XML for ordering. **No piece of this stack is missing.**
 
 ## Adjacent ideas
 
@@ -220,15 +344,36 @@ If we want to validate the engine on this domain in a weekend:
 3. Render previews via Mecabricks or LDraw image export.
 4. Demo on 3 fixed inventories + a shared "build chain" example.
 
-**For Idea 2 (2D mosaic flavor):**
-1. Photo → quantized pixel art using a fixed LEGO color palette.
-2. Pixel art → 1×1 / 2×2 / plate-only bill of materials (small parts
-   universe — keeps the parts_extractor trivial).
-3. `inventory_diff` against a sample inventory.
-4. Emit BrickLink Wanted List XML + push-to-BrickLink URL.
-5. Demo on 4 fixed photos (a face, a logo, a city skyline, a pet).
+**For Idea 2 (recognition + LegoGPT flavor):**
+1. Vision-LM call: photo → caption ("small red car"). Use a constrained
+   prompt that forces a clean noun + 1–2 attributes.
+2. LegoGPT call: caption → LDraw `.ldr` file.
+3. LDraw parser: `.ldr` → `[{brick_id, color, count}]`.
+4. Skip retrieval, skip inventory_diff, skip shop optimizer for this
+   pass — emit a BrickLink Wanted List XML + push-to-BrickLink URL.
+5. Demo on 4 fixed photos: a chair, a small house, a coffee mug, a
+   simple car. (Avoid organic shapes — they're outside LegoGPT's
+   distribution.)
+
+That's the full minimum loop: photo in → BrickLink link out. The
+v1/v2 increments add MOC retrieval, inventory diff, and the shop
+optimizer.
 
 Both share the same architectural pattern as Ouroboros — different
 cast of specialists, same scout / sweep / writer shape. The combined
 "photo in + use what you have first" version is the most defensible
 product, but is also the most plumbing.
+
+## Sources / reference links
+
+- [LegoGPT project page (CMU, MIT-licensed)](https://avalovelace1.github.io/LegoGPT/)
+- [LegoGPT paper — "Generating Physically Stable and Buildable LEGO Designs from Text"](https://arxiv.org/html/2505.05469v1)
+- [Rebrickable API docs](https://rebrickable.com/api/)
+- [Rebrickable MOC database](https://rebrickable.com/mocs/)
+- [Rebrickable bulk CSV downloads](https://rebrickable.com/downloads/)
+- [BrickLink Store API](https://www.bricklink.com/v2/api/welcome.page)
+- [Brickset API v3](https://brickset.com/article/52664/api-version-3-documentation)
+- [Brick Owl API](https://www.brickowl.com/api_docs)
+- [Brick-a-Pic mosaic generator (open source)](https://brick-a-pic.github.io/)
+- [Brickmos — image-to-LEGO with BrickLink integration](https://github.com/merschformann/brickmos)
+- [Awesome LEGO machine-learning curated list](https://github.com/360er0/awesome-lego-machine-learning)
