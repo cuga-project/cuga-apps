@@ -275,8 +275,20 @@ def _writer_output_from_state(supervisor) -> str | None:
     return None
 
 
+def _format_elapsed(ms: int) -> str:
+    s = ms / 1000.0
+    if s < 1:
+        return f"{ms} ms"
+    if s < 60:
+        return f"{s:.1f} s"
+    m = int(s // 60)
+    rem = s - m * 60
+    return f"{m}m {rem:.0f}s"
+
+
 def _save_run(thread_id: str, question: str, answer: str,
-              leads: dict | None, supervisor) -> str | None:
+              leads: dict | None, supervisor,
+              started_at: datetime, elapsed_ms: int) -> str | None:
     """Persist this turn's metadata to runs/<thread_id>/<ts>.json so we
     can pick apart what each stage actually produced. Best-effort —
     failure here must never break the /ask response."""
@@ -289,6 +301,9 @@ def _save_run(thread_id: str, question: str, answer: str,
         record = {
             "thread_id":         thread_id,
             "timestamp":         ts.isoformat(),
+            "started_at":        started_at.isoformat(),
+            "elapsed_ms":        elapsed_ms,
+            "elapsed_human":     _format_elapsed(elapsed_ms),
             "question":          question,
             "answer_full":       answer or "",
             "answer_len":        len(answer or ""),
@@ -298,8 +313,8 @@ def _save_run(thread_id: str, question: str, answer: str,
             "supervisor_state":  _harvest_supervisor_state(supervisor),
         }
         path.write_text(json.dumps(record, indent=2, default=str, ensure_ascii=False))
-        log.info("[%s] run saved: %s (stages=%d, vars=%d)",
-                 thread_id[:8], path,
+        log.info("[%s] run saved: %s (%s, stages=%d, vars=%d)",
+                 thread_id[:8], path, record["elapsed_human"],
                  len(record["supervisor_state"].get("stages", [])),
                  len(record["supervisor_state"].get("variables", {})))
         return str(path)
@@ -729,9 +744,15 @@ def _web(port: int) -> None:
             f"[session:{session_brief}] "
             f"[thread:{thread_id}]"
         )
+        import time as _time
+        started_at = datetime.now(timezone.utc)
+        t0 = _time.monotonic()
         try:
             supervisor = await _get_supervisor()
             result = await supervisor.invoke(augmented, thread_id=thread_id)
+            elapsed_ms = int((_time.monotonic() - t0) * 1000)
+            log.info("[%s] supervisor.invoke completed in %s",
+                     thread_id[:8], _format_elapsed(elapsed_ms))
             answer = (
                 result.answer if hasattr(result, "answer") else str(result)
             )
@@ -778,14 +799,27 @@ def _web(port: int) -> None:
 
             # Persist per-turn metadata for debugging — every stage's
             # output, all supervisor variables, the extracted leads.
-            _save_run(thread_id, req.question, answer, leads, supervisor)
+            _save_run(thread_id, req.question, answer, leads, supervisor,
+                      started_at=started_at, elapsed_ms=elapsed_ms)
 
-            return {"answer": answer, "thread_id": thread_id}
+            return {
+                "answer":        answer,
+                "thread_id":     thread_id,
+                "elapsed_ms":    elapsed_ms,
+                "elapsed_human": _format_elapsed(elapsed_ms),
+            }
         except Exception as exc:
-            log.exception("Supervisor invocation failed")
+            elapsed_ms = int((_time.monotonic() - t0) * 1000)
+            log.exception("Supervisor invocation failed after %s",
+                          _format_elapsed(elapsed_ms))
             return JSONResponse(
                 status_code=500,
-                content={"answer": f"Error: {exc}", "thread_id": thread_id},
+                content={
+                    "answer":        f"Error: {exc}",
+                    "thread_id":     thread_id,
+                    "elapsed_ms":    elapsed_ms,
+                    "elapsed_human": _format_elapsed(elapsed_ms),
+                },
             )
 
     @app.get("/session/{thread_id}")

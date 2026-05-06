@@ -90,6 +90,60 @@ _HTML = r"""<!DOCTYPE html>
     padding: 12px 18px; font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 1.2px;
     color: var(--muted); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title .runs-btn {
+    margin-left: auto; background: var(--bg);
+    border: 1px solid var(--border); color: var(--muted);
+    border-radius: 14px; padding: 4px 10px; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1px;
+    cursor: pointer; transition: all 0.15s; font-weight: 700;
+  }
+  .panel-title .runs-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  .runs-drawer {
+    position: absolute; right: 14px; top: 56px; z-index: 25;
+    width: 380px; max-height: 70vh; overflow-y: auto;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 32px rgba(0,0,0,0.6);
+    display: none;
+  }
+  .runs-drawer.open { display: block; }
+  .runs-drawer .head {
+    padding: 12px 16px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .runs-drawer .empty { padding: 18px; color: var(--muted); font-size: 12px; }
+  .run-item {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .run-item:hover { background: var(--bg); }
+  .run-item .row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .run-item .ts { font-size: 11px; color: var(--accent2); font-weight: 700; }
+  .run-item .elapsed {
+    font-size: 10px; color: var(--accent3); font-weight: 600;
+    background: rgba(250,204,21,0.08); padding: 1px 6px; border-radius: 8px;
+  }
+  .run-item .leads-pill {
+    font-size: 10px; color: var(--accent); font-weight: 600;
+    margin-left: auto;
+  }
+  .run-item .question {
+    font-size: 13px; color: var(--text); line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+
+  .msg .meta {
+    display: block; margin-top: 6px;
+    font-size: 10px; color: var(--muted); opacity: 0.7;
+    text-transform: uppercase; letter-spacing: 0.8px;
   }
   .chips {
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -482,8 +536,20 @@ _HTML = r"""<!DOCTYPE html>
 </header>
 
 <main>
-  <div class="chat-panel">
-    <div class="panel-title">Hunt with the agent</div>
+  <div class="chat-panel" style="position: relative;">
+    <div class="panel-title">
+      <span>Hunt with the agent</span>
+      <button class="runs-btn" id="runsBtn" onclick="toggleRunsDrawer()">Past runs ▾</button>
+    </div>
+
+    <div class="runs-drawer" id="runsDrawer">
+      <div class="head">
+        <span>Saved turns · this thread</span>
+        <button class="runs-btn" style="margin-left:auto"
+          onclick="refreshRunsList()">Refresh</button>
+      </div>
+      <div id="runsList" class="empty">No runs yet — ask a question first.</div>
+    </div>
 
     <div class="chips">
       <div class="chip" onclick="sendChip(this)">Find leads in Westchester, NY</div>
@@ -573,10 +639,16 @@ _HTML = r"""<!DOCTYPE html>
     statusText.textContent = label;
   }
 
-  function addMessage(text, cls) {
+  function addMessage(text, cls, meta) {
     const div = document.createElement('div');
     div.className = 'msg ' + cls;
     div.textContent = text;
+    if (meta) {
+      const span = document.createElement('span');
+      span.className = 'meta';
+      span.textContent = meta;
+      div.appendChild(span);
+    }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
@@ -912,11 +984,16 @@ _HTML = r"""<!DOCTYPE html>
       });
       const data = await res.json();
       thinking.remove();
+      const elapsedLabel = data.elapsed_human
+        ? ('answered in ' + data.elapsed_human)
+        : null;
       if (!res.ok) {
-        addMessage('Error: ' + (data.answer || res.statusText), 'error');
+        addMessage('Error: ' + (data.answer || res.statusText), 'error',
+          elapsedLabel);
       } else {
-        addMessage(data.answer, 'agent');
+        addMessage(data.answer, 'agent', elapsedLabel);
         await fetchSession();
+        await refreshRunsList();
       }
     } catch (err) {
       thinking.remove();
@@ -932,6 +1009,112 @@ _HTML = r"""<!DOCTYPE html>
     inputEl.value = el.textContent.trim();
     sendMessage();
   }
+
+  // ── Past runs drawer ───────────────────────────────────────────
+  const runsDrawer = document.getElementById('runsDrawer');
+  const runsList   = document.getElementById('runsList');
+
+  function toggleRunsDrawer() {
+    const isOpen = runsDrawer.classList.toggle('open');
+    if (isOpen) refreshRunsList();
+  }
+
+  function fmtTs(filename) {
+    // 20260506T160919Z.json → 2026-05-06 16:09 UTC
+    const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(filename || '');
+    if (!m) return filename;
+    return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ' UTC';
+  }
+
+  async function refreshRunsList() {
+    try {
+      const res = await fetch('/runs/' + SESSION_ID);
+      if (!res.ok) {
+        runsList.className = 'empty';
+        runsList.textContent = 'Could not load runs.';
+        return;
+      }
+      const data = await res.json();
+      const runs = data.runs || [];
+      if (!runs.length) {
+        runsList.className = 'empty';
+        runsList.textContent = 'No runs yet — ask a question first.';
+        return;
+      }
+      runsList.className = '';
+      // Hydrate each run's summary lazily — fetch detail per item to show
+      // question + elapsed + leads count. Keep it cheap: fetch in parallel.
+      runsList.innerHTML = '';
+      const reversed = runs.slice().reverse();    // newest first
+      const details = await Promise.all(
+        reversed.map(r => fetch(r.url).then(x => x.ok ? x.json() : null)
+                          .catch(_ => null))
+      );
+      reversed.forEach((r, i) => {
+        const d = details[i] || {};
+        const item = document.createElement('div');
+        item.className = 'run-item';
+        item.innerHTML =
+          '<div class="row">' +
+          '  <span class="ts">' + esc(fmtTs(r.file)) + '</span>' +
+          (d.elapsed_human
+            ? '<span class="elapsed">' + esc(d.elapsed_human) + '</span>'
+            : '') +
+          (d.leads_count != null
+            ? '<span class="leads-pill">' + d.leads_count + ' leads</span>'
+            : '') +
+          '</div>' +
+          '<div class="question">' +
+            esc(d.question || '(no question saved)') +
+          '</div>';
+        item.onclick = () => loadRun(r.url);
+        runsList.appendChild(item);
+      });
+    } catch (err) {
+      runsList.className = 'empty';
+      runsList.textContent = 'Error loading runs: ' + err.message;
+    }
+  }
+
+  async function loadRun(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const r = await res.json();
+      // Replay the turn into the chat panel + lead board.
+      messagesEl.innerHTML = '';
+      addMessage('▶ Replaying saved run from ' + fmtTs(url.split('/').pop()),
+                 'thinking');
+      if (r.question) addMessage(r.question, 'user');
+      if (r.answer_full) {
+        const meta = r.elapsed_human ? ('answered in ' + r.elapsed_human) : null;
+        addMessage(r.answer_full, 'agent', meta);
+      }
+      // Replay into the right panel via refreshPanel.
+      _lastHash = '';   // force re-render
+      if (r.leads) {
+        refreshPanel({ leads: r.leads });
+      } else {
+        emptyState.style.display = '';
+        dataScroll.innerHTML = '';
+        dataScroll.appendChild(emptyState);
+      }
+      runsDrawer.classList.remove('open');
+    } catch (err) {
+      addMessage('Could not load saved run: ' + err.message, 'error');
+    }
+  }
+
+  // Close drawer on outside click.
+  document.addEventListener('click', (e) => {
+    if (!runsDrawer.classList.contains('open')) return;
+    if (runsDrawer.contains(e.target)) return;
+    if (e.target.id === 'runsBtn') return;
+    runsDrawer.classList.remove('open');
+  });
+
+  // Initial population so the drawer isn't stale on first open.
+  refreshRunsList();
 </script>
 </body>
 </html>
