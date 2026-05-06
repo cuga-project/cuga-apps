@@ -1,44 +1,42 @@
 """
-Ouroboros — CUGA looks for its next client
-==========================================
+Ouroboros — CUGA finds its next client (multi-agent edition)
+============================================================
 
-Lead generation for CUGA itself. The agent scouts a location for local
-businesses that would benefit from an enterprise-grade conversational AI
-agent (chat-bot order taker for restaurants, appointment booker for
-salons, FAQ + lead-capture for clinics, etc.) and assembles a ranked
-shortlist with a tailored CUGA pitch for each.
+A CugaSupervisor orchestrating 7 specialist CugaAgents. Each specialist is
+backed by one skill (SKILL.md + tools.py) under ./skills/. The supervisor's
+planner decides which specialist to delegate to, each runs in its own
+context, and the pitch+email writer specialist returns the final structured
+leads JSON which the server parses and stores per-thread.
 
-Tool surface:
-  - mcp-geo.geocode                   place → lat/lon
-  - mcp-web.web_search                public mentions, recent news
-  - mcp-web.fetch_webpage             website read for signals
-  - mcp-knowledge.search_wikipedia    background on the area
-  - inline.find_local_businesses      Overpass API — shops / amenities
-                                      (no key, OSM-backed)
-  - inline.set_target_location, add_business_category, set_pitch_focus
-  - inline.save_leads                 the structured card the right panel renders
+CUGA capabilities tapped (skills-branch SDK):
+  • CugaSupervisor        — A2A multi-agent orchestration
+  • CugaAgent             — per-specialist plan/execute graph
+  • CugaLite step limits  — bounded planner per agent
+  • Policies              — intent_guard, tool_guide, output_formatter
+  • Skills (declarative)  — SKILL.md + tools.py, host-loaded at startup
 
 Run:
-    python main.py
     python main.py --port 28822
     python main.py --provider anthropic
+    python main.py --provider rits --model gpt-oss-120b
 
 Then open: http://127.0.0.1:28822
 
-Environment variables:
+Env vars:
     LLM_PROVIDER          rits | anthropic | openai | watsonx | litellm | ollama
     LLM_MODEL             model name override
-    AGENT_SETTING_CONFIG  CUGA settings TOML (defaulted in make_agent)
-    TAVILY_API_KEY        used by mcp-web.web_search (set on the MCP host)
+    AGENT_SETTING_CONFIG  CUGA settings TOML (defaulted in main)
     CUGA_TARGET=ce        forces public Code Engine MCP URLs
     MCP_<NAME>_URL        per-server URL override
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -51,9 +49,67 @@ for _p in (str(_DIR), str(_DEMOS_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-# Default to the hosted Code Engine MCP servers — Ouroboros uses geo / web /
-# knowledge tools that ship there. A user-supplied CUGA_TARGET still wins.
+# Default to the hosted Code Engine MCP servers; user-set value still wins.
 os.environ.setdefault("CUGA_TARGET", "ce")
+
+# CUGA's `cuga.config` module reads AGENT_SETTING_CONFIG once at import
+# time and pins the agent-internal LLM TOML. Setting it inside
+# make_supervisor() is too late — by then specialists.py has already
+# imported cuga.sdk indirectly. So we resolve it here, before the first
+# cuga import in this process.
+_AGENT_SETTING_CONFIG = {
+    "rits":      "settings.rits.toml",
+    "watsonx":   "settings.watsonx.toml",
+    "openai":    "settings.openai.toml",
+    "groq":      "settings.groq.toml",
+    "litellm":   "settings.litellm.toml",
+    "anthropic": "settings.openai.toml",   # cuga has no "anthropic"
+                                            # platform; openai TOML is the
+                                            # closest fallback. Internal
+                                            # nodes will fail unless the
+                                            # user runs a proxy or we
+                                            # monkey-patch LLMManager.
+    "ollama":    "settings.openai.toml",
+}
+_provider = (os.getenv("LLM_PROVIDER") or "rits").lower()
+os.environ.setdefault(
+    "AGENT_SETTING_CONFIG",
+    _AGENT_SETTING_CONFIG.get(_provider, "settings.rits.toml"),
+)
+
+
+def _patch_executor_timeout(seconds: int = 180) -> None:
+    """Bump CUGA's hardcoded 30s code-executor timeout.
+
+    `code_executor.py:148` calls
+        await executor.execute(..., timeout=30)
+    with no env / config override. A specialist's CugaLite graph runs
+    multiple LLM steps for one delegation, and 30s is too tight for
+    them — scout-on-cold-LLM regularly takes 30–60s. We monkey-patch
+    LocalExecutor.execute so any caller-provided timeout < `seconds`
+    is bumped up. Idempotent.
+    """
+    try:
+        from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local import (
+            local_executor as _le,
+        )
+    except ImportError:
+        return
+    if getattr(_le.LocalExecutor.execute, "_ouroboros_patched", False):
+        return
+    _orig = _le.LocalExecutor.execute
+
+    async def _patched(self, *args, timeout: int = 30, **kwargs):
+        bumped = max(int(timeout or 30), seconds)
+        return await _orig(self, *args, timeout=bumped, **kwargs)
+
+    _patched._ouroboros_patched = True   # type: ignore[attr-defined]
+    _le.LocalExecutor.execute = _patched   # type: ignore[assignment]
+    log = __import__("logging").getLogger(__name__)
+    log.info("patched LocalExecutor.execute timeout floor to %ds", seconds)
+
+
+_patch_executor_timeout(180)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,708 +126,551 @@ from pydantic import BaseModel
 from ui import _HTML
 
 
-# ── Per-thread session store ────────────────────────────────────────────
+# ── Per-thread server-side session ──────────────────────────────────────
+# The supervisor itself doesn't have inline session-state hooks on this
+# branch, so the server holds the cross-turn memory: location, categories,
+# pitch_focus, plus the most recent leads board parsed from the writer
+# specialist's output.
+
 _sessions: dict[str, dict] = {}
 
 
 def _get_session(thread_id: str) -> dict:
     if thread_id not in _sessions:
         _sessions[thread_id] = {
-            "target_location":   "",
-            "target_lat":        None,
-            "target_lon":        None,
-            "categories":        [],     # business categories the user is hunting
-            "pitch_focus":       "",     # e.g. "order-taking chat bot", "appointment booking"
-            "leads":             None,   # the structured card
-            "history":           [],     # prior shortlists
+            "target_location": "",
+            "categories":      [],
+            "pitch_focus":     "",
+            "leads":           None,
+            "history":         [],
         }
     return _sessions[thread_id]
 
 
-def _append_unique(lst: list[str], value: str) -> None:
-    if value and value.lower() not in [v.lower() for v in lst]:
-        lst.append(value)
+def _format_session_brief(session: dict) -> str:
+    parts = []
+    if session["target_location"]:
+        parts.append(f'location={session["target_location"]!r}')
+    if session["categories"]:
+        parts.append(f'categories={session["categories"]}')
+    if session["pitch_focus"]:
+        parts.append(f'pitch_focus={session["pitch_focus"]!r}')
+    return "; ".join(parts) if parts else "(empty)"
 
 
-# ── Overpass query for local businesses ─────────────────────────────────
-# Categories the agent can pass to find_local_businesses. Each maps to a
-# bag of OSM tags. Keep this list small and intentional — the prompt
-# references the keys verbatim.
-_CATEGORY_TAGS: dict[str, list[tuple[str, str]]] = {
-    "restaurants":     [("amenity", "restaurant")],
-    "cafes":           [("amenity", "cafe")],
-    "bars":            [("amenity", "bar"), ("amenity", "pub")],
-    "salons":          [("shop", "hairdresser"), ("shop", "beauty")],
-    "fitness":         [("leisure", "fitness_centre"), ("leisure", "sports_centre")],
-    "clinics":         [("amenity", "clinic"), ("amenity", "doctors"), ("amenity", "dentist")],
-    "veterinary":      [("amenity", "veterinary")],
-    "auto":            [("shop", "car_repair"), ("amenity", "car_wash")],
-    "boutiques":       [("shop", "clothes"), ("shop", "shoes"), ("shop", "jewelry")],
-    "real_estate":     [("office", "estate_agent")],
-    "lawyers":         [("office", "lawyer")],
-    "accountants":     [("office", "accountant"), ("office", "financial")],
-    "hotels":          [("tourism", "hotel"), ("tourism", "guest_house"), ("tourism", "motel")],
-    "bakeries":        [("shop", "bakery"), ("shop", "pastry")],
-    "florists":        [("shop", "florist")],
-    "tutoring":        [("amenity", "language_school"), ("amenity", "tutoring")],
-}
+# ── Extract the structured leads JSON from the supervisor's text answer ──
+# The pitch_email_writer specialist is instructed to emit a fenced ```json
+# block. We strip that off, parse it, and store it in the session.
+
+_JSON_FENCE_RE = re.compile(r"```json\s*\n?(.*?)\n?```", re.DOTALL | re.IGNORECASE)
 
 
-def _overpass_query(lat: float, lon: float, radius_m: int, category: str) -> str:
-    tags = _CATEGORY_TAGS[category]
-    blocks = []
-    for k, v in tags:
-        for kind in ("node", "way", "relation"):
-            blocks.append(f'{kind}["{k}"="{v}"](around:{radius_m},{lat},{lon});')
-    return f"[out:json][timeout:25];({' '.join(blocks)});out tags center 60;"
+# ── Per-turn run metadata (so we can debug what each stage actually produced) ─
+_RUNS_DIR = _DIR / "runs"
+try:
+    _RUNS_DIR.mkdir(exist_ok=True)
+except Exception:
+    pass
 
 
-# ── Website signal classifier ───────────────────────────────────────────
-# Keywords mapped to the agent capability they imply. These are intentionally
-# crude — the agent does the synthesis. We just give it pre-extracted hooks
-# so the pitch can reference concrete features instead of vague generalities.
-_SIGNAL_PATTERNS: dict[str, list[str]] = {
-    "has_online_ordering":  ["order online", "order now", "place an order", "place order",
-                             "online ordering", "doordash", "ubereats", "deliveroo",
-                             "swiggy", "zomato order", "add to cart", "checkout"],
-    "has_online_booking":   ["book online", "book now", "book a table", "reserve a table",
-                             "make a reservation", "book an appointment", "schedule appointment",
-                             "schedule a visit", "book your", "reserve now", "opentable",
-                             "calendly", "squareup.com/appointments"],
-    "has_contact_form":     ["contact form", "send us a message", "send a message",
-                             "get in touch", "request a quote", "request a callback",
-                             "leave us a message", "drop us a line"],
-    "has_chat_widget":      ["live chat", "chat with us", "chat now", "ask a question",
-                             "we're online", "intercom.com", "drift.com", "tawk.to"],
-    "phone_first":          ["call us", "call to book", "call to order", "call to make",
-                             "call ahead", "call for", "phone orders only", "by phone"],
-    "appointment_required": ["by appointment only", "appointment required",
-                             "by appointment", "walk-ins not"],
-    "has_faq":              ["faq", "frequently asked", "questions and answers"],
-    "lists_languages":      ["se habla", "español", "english spoken", "français",
-                             "mandarin", "हिंदी", "we speak"],
-    "has_response_promise": ["we will respond", "respond within", "get back to you",
-                             "reply within", "24-hour response"],
-}
+def _coerce(value):
+    """Best-effort coerce a supervisor variable to JSON-safe form."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list):
+        return [_coerce(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _coerce(v) for k, v in value.items()}
+    return repr(value)
 
 
-_HTML_TAG_RE   = None
-_SCRIPT_RE     = None
-_STYLE_RE      = None
-_WHITESPACE_RE = None
+def _harvest_supervisor_state(supervisor) -> dict:
+    """Pull variables + chat messages out of the supervisor's last state.
+    The supervisor's variables_manager preserves every variable created
+    during code execution (including `final` from phase 3); the chat
+    messages preserve every `Execution output:` line.
+    """
+    out: dict = {"variables": {}, "stages": []}
 
+    try:
+        vm = supervisor.variables_manager
+        for name in vm.get_variable_names():
+            try:
+                out["variables"][name] = _coerce(vm.get_variable(name))
+            except Exception as exc:
+                out["variables"][name] = f"<unreadable: {exc}>"
+    except Exception as exc:
+        out["variables"]["__error__"] = str(exc)
 
-def _strip_html(html: str) -> str:
-    """Tiny HTML-to-text shim. Good enough to mine keyword hits; we are not
-    rendering the page, just classifying it."""
-    import re
-    global _HTML_TAG_RE, _SCRIPT_RE, _STYLE_RE, _WHITESPACE_RE
-    if _HTML_TAG_RE is None:
-        _SCRIPT_RE     = re.compile(r"<script[^>]*>.*?</script>", re.IGNORECASE | re.DOTALL)
-        _STYLE_RE      = re.compile(r"<style[^>]*>.*?</style>",   re.IGNORECASE | re.DOTALL)
-        _HTML_TAG_RE   = re.compile(r"<[^>]+>")
-        _WHITESPACE_RE = re.compile(r"\s+")
-    txt = _SCRIPT_RE.sub(" ", html or "")
-    txt = _STYLE_RE.sub(" ", txt)
-    txt = _HTML_TAG_RE.sub(" ", txt)
-    txt = txt.replace("&nbsp;", " ").replace("&amp;", "&") \
-             .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
-    return _WHITESPACE_RE.sub(" ", txt).strip()
+    try:
+        state = supervisor._supervisor_state
+        messages = (
+            state.get("supervisor_chat_messages", [])
+            if isinstance(state, dict)
+            else getattr(state, "supervisor_chat_messages", []) or []
+        )
+        for i, msg in enumerate(messages):
+            role = type(msg).__name__
+            content = getattr(msg, "content", "") or ""
+            if not isinstance(content, str):
+                content = str(content)
+            stage = {
+                "i":       i,
+                "role":    role,
+                "len":     len(content),
+                "content": content[:12000],
+            }
+            if content.startswith("Execution output:"):
+                stage["kind"] = "execution_output"
+            out["stages"].append(stage)
+    except Exception as exc:
+        out["stages"].append({"error": str(exc)})
 
-
-# Tech-smell patterns flag either:
-#   - obviously dated front-end stack (jQuery 1.x, MooTools, Flash embeds)
-#   - hand-coded table layouts (a strong correlate of a 2005-era site)
-#   - generic "coming soon" / "lorem ipsum" placeholders
-_TECH_SMELL_PATTERNS: list[tuple[str, str]] = [
-    ("jquery 1.x",         r'jquery[-/]1\.\d'),
-    ("jquery 2.x",         r'jquery[-/]2\.\d'),
-    ("flash embed",        r'<embed[^>]+(application/x-shockwave-flash|\.swf)'),
-    ("mootools",           r'mootools'),
-    ("table layout",       r'(?:<table[^>]*>\s*<tr[^>]*>\s*<td[^>]*>.*?</td>.*?</tr>.*?){3,}'),
-    ("lorem ipsum",        r'lorem\s+ipsum'),
-    ("coming soon",        r'coming\s+soon|under\s+construction|site\s+is\s+being'),
-    ("font face shim",     r'<font\s+face=|<center>'),
-    ("flash require",      r'requireflash|swfobject'),
-]
-
-
-def _detect_tech_smells(html: str) -> list[str]:
-    import re
-    out: list[str] = []
-    h = (html or "")[:200_000]   # cap — we are scanning, not parsing
-    for label, pattern in _TECH_SMELL_PATTERNS:
-        try:
-            if re.search(pattern, h, re.IGNORECASE | re.DOTALL):
-                out.append(label)
-        except re.error:
-            continue
     return out
 
 
-def _audit_freshness(html: str, response_url: str) -> dict:
-    """Inspect the raw HTML for freshness signals: SSL, viewport,
-    SEO meta, copyright year, social-meta tags. Return a dict the agent
-    can quote in its pitch and email draft."""
-    import re
-    from datetime import datetime
+def _writer_output_from_state(supervisor) -> str | None:
+    """Best-effort recovery of the writer specialist's full output.
 
-    h = html or ""
+    The supervisor's outer Conversational LLM tends to paraphrase the
+    writer's JSON down to a one-liner, dropping the lead board. But the
+    writer's actual output is preserved in two places:
 
-    # SSL — based on the *final* URL after redirects.
-    is_https = (response_url or "").lower().startswith("https://")
+      1. supervisor.variables_manager['final']  (the prelude binds
+         `final = await delegate_to_pitch_email_writer(...)`)
+      2. supervisor_chat_messages — the Execution output line that
+         followed phase 3's `print(final)`.
 
-    # Viewport meta — strong signal a site was at least once mobile-aware.
-    mobile_responsive = bool(re.search(
-        r'<meta[^>]+name=["\']viewport["\']', h, re.IGNORECASE,
-    ))
+    Try (1) first; fall back to (2).
+    """
+    try:
+        vm = supervisor.variables_manager
+        names = list(vm.get_variable_names())
+        for cand in ("final", "writer_output", "lead_board", "enriched_list"):
+            if cand in names:
+                val = vm.get_variable(cand)
+                if isinstance(val, str) and '"leads"' in val:
+                    return val
+    except Exception as exc:
+        log.debug("variables_manager unreadable: %s", exc)
 
-    # SEO basics
-    has_meta_description = bool(re.search(
-        r'<meta[^>]+name=["\']description["\']', h, re.IGNORECASE,
-    ))
-    has_og_tags = bool(re.search(
-        r'<meta[^>]+property=["\']og:', h, re.IGNORECASE,
-    ))
-    has_favicon = bool(re.search(
-        r'<link[^>]+rel=["\'](?:shortcut\s+)?icon["\']', h, re.IGNORECASE,
-    ))
+    try:
+        state = supervisor._supervisor_state
+        messages = (
+            state.get("supervisor_chat_messages", [])
+            if isinstance(state, dict)
+            else getattr(state, "supervisor_chat_messages", []) or []
+        )
+        # Walk in reverse — the writer's print(final) is the LAST
+        # Execution output before the supervisor's conversational turn.
+        for msg in reversed(messages):
+            content = getattr(msg, "content", "") or ""
+            if not isinstance(content, str):
+                continue
+            if content.startswith("Execution output:") and '"leads"' in content:
+                return content[len("Execution output:"):].lstrip("\n").strip()
+    except Exception as exc:
+        log.debug("chat-messages scan failed: %s", exc)
 
-    # Copyright year (most recent 4-digit year in a copyright phrase).
-    years: list[int] = []
-    for pat in (
-        r'(?:©|&copy;|copyright)\s*\D{0,5}(\d{4})\s*[-–]\s*(\d{4})',
-        r'(?:©|&copy;|copyright)\s*\D{0,5}(\d{4})',
-    ):
-        for m in re.finditer(pat, h, re.IGNORECASE):
-            for g in m.groups():
-                if g and 1995 <= int(g) <= 2100:
-                    years.append(int(g))
-    copyright_year = max(years) if years else None
-    current_year   = datetime.now().year
-    years_stale    = (current_year - copyright_year) if copyright_year else None
+    return None
 
-    # Tech smells
-    tech_smells = _detect_tech_smells(h)
 
-    looks_outdated = bool(
-        (not is_https)
-        or (not mobile_responsive)
-        or (years_stale is not None and years_stale >= 3)
-        or tech_smells
-    )
+def _save_run(thread_id: str, question: str, answer: str,
+              leads: dict | None, supervisor) -> str | None:
+    """Persist this turn's metadata to runs/<thread_id>/<ts>.json so we
+    can pick apart what each stage actually produced. Best-effort —
+    failure here must never break the /ask response."""
+    try:
+        ts       = datetime.now(timezone.utc)
+        run_dir  = _RUNS_DIR / re.sub(r"[^a-zA-Z0-9_\-]", "_", thread_id)[:64]
+        run_dir.mkdir(parents=True, exist_ok=True)
+        fname    = ts.strftime("%Y%m%dT%H%M%SZ") + ".json"
+        path     = run_dir / fname
+        record = {
+            "thread_id":         thread_id,
+            "timestamp":         ts.isoformat(),
+            "question":          question,
+            "answer_full":       answer or "",
+            "answer_len":        len(answer or ""),
+            "leads_extracted":   bool(leads),
+            "leads_count":       len(leads.get("leads", []) or []) if leads else 0,
+            "leads":             leads,
+            "supervisor_state":  _harvest_supervisor_state(supervisor),
+        }
+        path.write_text(json.dumps(record, indent=2, default=str, ensure_ascii=False))
+        log.info("[%s] run saved: %s (stages=%d, vars=%d)",
+                 thread_id[:8], path,
+                 len(record["supervisor_state"].get("stages", [])),
+                 len(record["supervisor_state"].get("variables", {})))
+        return str(path)
+    except Exception as exc:
+        log.warning("[%s] run save failed: %s", thread_id[:8], exc)
+        return None
 
-    return {
-        "is_https":              is_https,
-        "mobile_responsive":     mobile_responsive,
-        "has_meta_description":  has_meta_description,
-        "has_og_tags":           has_og_tags,
-        "has_favicon":           has_favicon,
-        "copyright_year":        copyright_year,
-        "years_stale":           years_stale,
-        "tech_smells":           tech_smells,
-        "looks_outdated":        looks_outdated,
+
+def _extract_leads_json(text: str) -> dict | None:
+    """Extract the writer's leads object from the supervisor's final answer.
+
+    The writer fences its JSON in ```json``` per its SKILL.md, but the
+    supervisor's planner sometimes summarises and strips the fence,
+    leaving bare JSON or JSON-with-prose. Try four extraction shapes:
+      1. fenced ```json``` block
+      2. whole text as JSON
+      3. first balanced { … } that contains a "leads" key
+      4. last balanced { … } in the text (some planners append extra
+         prose after the JSON; we want the JSON, not the prose).
+    """
+    if not text:
+        return None
+
+    # 1. Fenced
+    for raw in _JSON_FENCE_RE.findall(text):
+        try:
+            obj = json.loads(raw.strip())
+            if isinstance(obj, dict) and "leads" in obj:
+                return obj
+        except json.JSONDecodeError:
+            continue
+
+    # 2. Whole text
+    try:
+        obj = json.loads(text.strip())
+        if isinstance(obj, dict) and "leads" in obj:
+            return obj
+    except json.JSONDecodeError:
+        pass
+
+    # 3 + 4: balanced-brace scan. Find every top-level { ... } in the
+    # text and return the first/last one that has a "leads" key.
+    candidates: list[dict] = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if depth == 0:
+                continue
+            depth -= 1
+            if depth == 0 and start >= 0:
+                chunk = text[start:i + 1]
+                try:
+                    obj = json.loads(chunk)
+                    if isinstance(obj, dict) and "leads" in obj:
+                        candidates.append(obj)
+                except json.JSONDecodeError:
+                    pass
+                start = -1
+    # Prefer the LAST balanced JSON with leads — the planner sometimes
+    # writes a short pre-amble dict, then the real board.
+    if candidates:
+        return candidates[-1]
+
+    return None
+
+
+# ── Cheap user-input parser for session updates ─────────────────────────
+# We keep this tiny and conservative — we only want to give the supervisor
+# the minimum context (location + focus) it needs in the prompt. The agent
+# doesn't read the session dict directly.
+
+_LOCATION_HINT_RE = re.compile(
+    r"\b(?:in|near|around|at)\s+([A-Z][\w &\-,'.]+?)(?:\s+(?:that|for|with|focus|pitch|—)|[?.,]|$)",
+    re.IGNORECASE,
+)
+
+
+def _maybe_update_session(session: dict, question: str) -> None:
+    """Heuristic: catch a location mention and stash it. The supervisor's
+    own planner is the source of truth — this just helps continuity for
+    follow-up questions where the user says 'now scout salons there'."""
+    m = _LOCATION_HINT_RE.search(question)
+    if m and not session["target_location"]:
+        session["target_location"] = m.group(1).strip().rstrip(",.")
+
+
+# ── Supervisor build ────────────────────────────────────────────────────
+
+# Prepended to every /ask payload. CugaSupervisor.description is dead
+# (cuga_supervisor_graph.py:379 hardcodes special_instructions=None);
+# the user message is the only injection point.
+#
+# CRITICAL: do NOT include any triple-backtick sequences in this string.
+# The supervisor extracts code via re.findall(r'```python(.*?)```')
+# (cuga_supervisor_graph.py:35,63). Any extra triple-backtick in a code
+# block — even inside a regex literal or a quoted example — corrupts
+# the extraction (the non-greedy match closes on the wrong fence,
+# producing malformed code with no print(), and the SDK then
+# misclassifies the response as "final text answer, no code"). Use the
+# words "JSON-fenced" / "code fence" instead of literal triple-backticks
+# in any prose; use neutral angle brackets <like> in any code examples
+# that need to allude to fences.
+_TASK_PRELUDE = """\
+=== OUROBOROS LEAD-HUNT CONTRACT ===
+
+Every user request below is a lead-hunt. You are the supervisor; you
+delegate to specialists. Run THREE PHASES in order. Phase 3 is
+MANDATORY — the UI cannot render anything without it.
+
+CORE DATA STRUCTURE: a single dict `enrichments` keyed by the candidate
+index (0, 1, 2). Each value is itself a dict that accumulates the per-
+candidate enrichment fields as the five sweeps run. By phase 3 every
+candidate has its own self-contained bundle, so the writer never has
+to align parallel lists.
+
+PHASE 1 — scout + parse + initialize.
+    user_question = <user request as Python string>
+    scout_result = await delegate_to_scout(task=user_question)
+    try:
+        data = json.loads(scout_result.strip())
+        candidates = data.get("candidates", []) or []
+    except (json.JSONDecodeError, ValueError, AttributeError):
+        data, candidates = {}, []
+    top = candidates[:3]
+    enrichments = {}
+    for i in range(len(top)):
+        enrichments[i] = {"candidate": top[i]}
+    print(f"Got {len(candidates)} candidates; deep-diving top {len(top)}")
+
+PHASE 2 — five specialist sweeps. Each sweep is ONE code block. Inside
+the block, loop with enumerate(top) and call exactly ONE specialist;
+write every return value into `enrichments[i][<key>]`. Run ALL FIVE
+sweeps, in the exact order below. Do NOT skip any sweep. Do NOT
+proceed to phase 3 until all five have completed. If a candidate has
+no website, store the empty string under its key so the slot still
+exists.
+
+SWEEP 1 — voice_of_customer (every candidate):
+    for i, c in enumerate(top):
+        r = await delegate_to_voice_of_customer(
+            task=f"Find verbatim review friction for {json.dumps(c)} in {data.get('display_name', '')}"
+        )
+        enrichments[i]["voc"] = r
+    print(enrichments)
+
+SWEEP 2 — site_auditor (skip empty website):
+    for i, c in enumerate(top):
+        if not c.get("website"):
+            enrichments[i]["audit"] = ""
+            continue
+        r = await delegate_to_site_auditor(
+            task=f"Audit this business: {json.dumps(c)}"
+        )
+        enrichments[i]["audit"] = r
+    print(enrichments)
+
+SWEEP 3 — revenue_estimator (every candidate):
+    for i, c in enumerate(top):
+        r = await delegate_to_revenue_estimator(
+            task=f"Estimate ARR band for {json.dumps(c)} in {data.get('display_name', '')}"
+        )
+        enrichments[i]["revenue"] = r
+    print(enrichments)
+
+SWEEP 4 — person_finder (skip empty website):
+    for i, c in enumerate(top):
+        if not c.get("website"):
+            enrichments[i]["person"] = ""
+            continue
+        r = await delegate_to_person_finder(
+            task=f"Find decision-maker + email pattern for {json.dumps(c)}"
+        )
+        enrichments[i]["person"] = r
+    print(enrichments)
+
+SWEEP 5 — stack_scanner (skip empty website):
+    for i, c in enumerate(top):
+        if not c.get("website"):
+            enrichments[i]["stack"] = ""
+            continue
+        r = await delegate_to_stack_scanner(
+            task=f"Fingerprint third-party tools at {c.get('website', '')}"
+        )
+        enrichments[i]["stack"] = r
+    print(enrichments)
+
+PHASE 3 — writer. Build a SINGLE self-contained enriched_list so the
+writer never has to zip parallel lists. Each entry is a complete bundle:
+the candidate plus its audit / voc / revenue / person / stack.
+
+    enriched_list = [enrichments[i] for i in range(len(top))]
+    location_obj = {
+        "location":     data.get("location", ""),
+        "display_name": data.get("display_name", ""),
+        "lat":          data.get("lat"),
+        "lon":          data.get("lon"),
     }
-
-
-def _classify_signals(text: str, freshness: dict | None = None) -> dict:
-    t = (text or "").lower()
-    out = {k: any(p in t for p in pats) for k, pats in _SIGNAL_PATTERNS.items()}
-    # Capability gap score: phone-first AND missing self-serve options.
-    out["agent_unblock_score"] = int(
-        out["phone_first"]
-        + (not out["has_online_ordering"])
-        + (not out["has_online_booking"])
-        + (not out["has_chat_widget"])
+    writer_task = (
+        "Build the final ranked lead board per your SKILL.md schema.\\n\\n"
+        f"User request: {user_question}\\n\\n"
+        f"Location: {json.dumps(location_obj)}\\n\\n"
+        f"All scout candidates (use #4..N as preliminary, deep_dive=false leads): {json.dumps(candidates)}\\n\\n"
+        f"Enriched top {len(top)} (each dict carries its own audit / voc / revenue / person / stack):\\n"
+        f"{json.dumps(enriched_list)}\\n\\n"
+        "REQUIREMENTS — read these carefully:\\n"
+        "1. Top 3 leads MUST have deep_dive=true. Every other field on the lead schema must be populated from the matching enrichment bundle (do not leave them null).\\n"
+        "2. fit_score MUST be an integer 1-10. Never null.\\n"
+        "3. pitch MUST be 60-150 words and cite at least one CONCRETE signal pulled from this lead's voc / audit / stack / person bundle. Quote a review verbatim if voc has one. Name a missing website feature if audit has one. Name an incumbent tool if stack has one. End with the CUGA capability that closes the gap and a measurable lift.\\n"
+        "4. email_draft MUST have non-empty subject AND body, per your SKILL.md email rules.\\n"
+        "5. Pull review-citation URLs from voc into evidence[]. Pull website_signals from audit. Pull stack into stack. Pull owner name + email_guess from person. Pull ARR band from revenue.\\n"
+        "6. If a particular bundle field is empty, OMIT only that signal — do not fabricate. The pitch must still cite at least one real signal from another field.\\n"
+        "7. Lower-ranked candidates (4..N): deep_dive=false, 1-2 sentence preliminary pitch from OSM data alone, skip the deep-dive fields per SKILL.md.\\n"
+        "8. Use the location object verbatim for the top-level location/display_name/lat/lon.\\n\\n"
+        "Output the JSON-fenced lead board first, then 2 short paragraphs of summary."
     )
-    if freshness is not None:
-        out.update(freshness)
-    return out
+    final = await delegate_to_pitch_email_writer(task=writer_task)
+    print(final)
 
+RETURN. After phase 3 returns, reply with the writer's output verbatim
+as plain text (TYPE 2, no code fence). Do not paraphrase, do not wrap,
+do not summarise.
 
-def _businesses_from_overpass(elements: list[dict]) -> list[dict]:
-    """Extract a lean per-business dict from Overpass output.
+HARD RULES:
+  - Initialize `enrichments` dict in phase 1 BEFORE any sweep. Every
+    phase-2 sweep WRITES into enrichments[i][<key>] for every i in
+    range(len(top)). Skipped iterations write the empty string.
+  - One specialist kind per code block. Loop with enumerate(top) inside
+    the block to call that specialist for every candidate.
+  - Every code block must contain at least one print() — the
+    supervisor's code extractor requires it.
+  - Never write three-backticks-in-a-row inside any code block. The
+    extractor mis-truncates and your block is silently dropped.
+  - Run ALL FIVE sweeps before calling the writer. Do not call the
+    writer twice. Do not skip phase 3.
+  - Reference only variables that have already been created in a
+    prior code block.
+  - If a specialist errors (timeout, exception), set enrichments[i][<key>]
+    to the empty string and continue. Do not abort the cascade.
+  - If `top` is empty (scout returned no candidates), skip phase 2 and
+    call phase 3 with enriched_list = [].
 
-    Lat/lon are intentionally dropped from the returned dict — the agent
-    doesn't reference per-business coordinates downstream (the session
-    holds the area centroid from geocode), and shaving them keeps each
-    tool result smaller in the running context.
-    """
-    out: list[dict] = []
-    for el in elements:
-        tags = el.get("tags") or {}
-        name = (tags.get("name") or "").strip()
-        if not name:
-            continue
-        out.append({
-            "name":     name,
-            "category": tags.get("amenity") or tags.get("shop")
-                          or tags.get("office") or tags.get("leisure")
-                          or tags.get("tourism") or "",
-            "address":  ", ".join(filter(None, [
-                tags.get("addr:housenumber"), tags.get("addr:street"),
-                tags.get("addr:city"), tags.get("addr:postcode"),
-            ])),
-            "phone":    tags.get("phone") or tags.get("contact:phone") or "",
-            "website":  tags.get("website") or tags.get("contact:website") or "",
-            "email":    tags.get("email") or tags.get("contact:email") or "",
-            "osm":      f"https://www.openstreetmap.org/{el.get('type')}/{el.get('id')}",
-        })
-    seen = set()
-    unique = []
-    for b in out:
-        key = b["name"].lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(b)
-    return unique
-
-
-# ── Tools ────────────────────────────────────────────────────────────────
-def _make_tools():
-    """MCP-loaded tools (geo, web, knowledge) + inline @tool defs:
-    - find_local_businesses        Overpass API (no key needed)
-    - set_target_location          remember the active location + coords
-    - add_business_category, set_pitch_focus   bias the search
-    - get_session_state            recall prior context
-    - save_leads                   persist the right-panel card
-    """
-    from langchain_core.tools import tool
-    from _mcp_bridge import load_tools
-
-    mcp_tools = load_tools(["geo", "web", "knowledge"])
-
-    @tool
-    def find_local_businesses(
-        thread_id: str,
-        lat: float,
-        lon: float,
-        category: str,
-        radius_m: int = 4000,
-    ) -> str:
-        """Find local businesses around a coordinate using OpenStreetMap's
-        Overpass API. No API key required.
-
-        Args:
-            thread_id: Current session/thread ID (always pass through).
-            lat:       Latitude (geocode first to get this).
-            lon:       Longitude.
-            category:  One of: restaurants, cafes, bars, salons, fitness,
-                       clinics, veterinary, auto, boutiques, real_estate,
-                       lawyers, accountants, hotels, bakeries, florists,
-                       tutoring.
-            radius_m:  Search radius in meters (default 4000 = ~4 km).
-
-        Returns:
-            tool_result envelope; data has shape:
-              {"category": str, "count": int, "businesses": [
-                  {"name", "category", "address", "phone", "website",
-                   "email", "lat", "lon", "osm"}, ...
-              ]}
-        """
-        _ = thread_id  # not stored; just accepted to match the convention
-        if category not in _CATEGORY_TAGS:
-            return json.dumps({
-                "ok": False, "code": "bad_input",
-                "error": f"unknown category {category!r}. "
-                         f"Valid: {sorted(_CATEGORY_TAGS)}",
-            })
-        try:
-            import httpx
-            query = _overpass_query(float(lat), float(lon),
-                                    int(radius_m), category)
-            with httpx.Client(timeout=30.0) as client:
-                r = client.post(
-                    "https://overpass-api.de/api/interpreter",
-                    data={"data": query},
-                    headers={"User-Agent": "ouroboros-cuga/1.0"},
-                )
-                r.raise_for_status()
-                payload = r.json()
-            businesses = _businesses_from_overpass(payload.get("elements") or [])
-            # Cap at 15 to keep the running context bounded. The agent only
-            # shortlists 5–8 leads anyway; more than 15 raw Overpass hits
-            # mostly chew tokens without adding signal.
-            return json.dumps({"ok": True, "data": {
-                "category":   category,
-                "count":      len(businesses),
-                "businesses": businesses[:15],
-            }})
-        except Exception as exc:
-            return json.dumps({
-                "ok": False, "code": "upstream",
-                "error": f"overpass failed: {exc}",
-            })
-
-    @tool
-    def analyze_business_website(
-        thread_id: str,
-        name: str,
-        website_url: str,
-        max_chars: int = 1500,
-    ) -> str:
-        """Fetch a business's website and extract signals that tell us
-        whether a CUGA agent would visibly help (no online ordering →
-        order-bot pitch; phone-first contact → chat pitch; no FAQ → support
-        pitch; etc.).
-
-        Use this in the deep-dive phase, AFTER find_local_businesses turned
-        up the URL. Skip it when website_url is empty — that's what the
-        web_search corroboration step is for.
-
-        Args:
-            thread_id:   Current session/thread ID.
-            name:        Business name (for logs / errors only).
-            website_url: Absolute URL of the business's homepage.
-            max_chars:   Cap on the returned text excerpt (default 4000).
-
-        Returns:
-            tool_result envelope; data has shape:
-              {
-                "url":          str,
-                "title":        str,           # <title> if found, else ""
-                "signals": {
-                  // Capability gaps — TRUE when feature is present.
-                  "has_online_ordering":   bool,
-                  "has_online_booking":    bool,
-                  "has_contact_form":      bool,
-                  "has_chat_widget":       bool,
-                  "has_faq":               bool,
-                  "has_response_promise":  bool,
-                  "lists_languages":       bool,
-                  // Friction — TRUE means the site has this property AND it is bad.
-                  "phone_first":           bool,
-                  "appointment_required":  bool,
-                  // Capability-gap aggregate (0..4, higher = bigger CUGA opportunity).
-                  "agent_unblock_score":   int,
-                  // Freshness — surface "the site is stale" as its own pitch wedge.
-                  "is_https":              bool,
-                  "mobile_responsive":     bool,
-                  "has_meta_description":  bool,
-                  "has_og_tags":           bool,
-                  "has_favicon":           bool,
-                  "copyright_year":        int | null,
-                  "years_stale":           int | null,    // current_year - copyright_year
-                  "tech_smells":           [str],          // e.g. ["jquery 1.x", "flash embed", "table layout"]
-                  "looks_outdated":        bool             // any-of staleness heuristic
-                },
-                "text_excerpt": str            # cleaned text, capped at max_chars
-              }
-        """
-        _ = thread_id
-        if not website_url:
-            return json.dumps({"ok": False, "code": "bad_input",
-                               "error": "website_url is empty"})
-        try:
-            import httpx, re
-            with httpx.Client(timeout=15.0,
-                              follow_redirects=True,
-                              headers={"User-Agent": "ouroboros-cuga/1.0 (research)"}) as client:
-                r = client.get(website_url)
-                r.raise_for_status()
-                html = r.text or ""
-            title_m = re.search(r"<title[^>]*>(.*?)</title>", html,
-                                re.IGNORECASE | re.DOTALL)
-            title     = (title_m.group(1).strip() if title_m else "")[:200]
-            text      = _strip_html(html)
-            freshness = _audit_freshness(html, str(r.url))
-            signals   = _classify_signals(text, freshness=freshness)
-            return json.dumps({"ok": True, "data": {
-                "url":          str(r.url),
-                "title":        title,
-                "signals":      signals,
-                "text_excerpt": text[:max_chars],
-            }})
-        except Exception as exc:
-            return json.dumps({
-                "ok": False, "code": "upstream",
-                "error": f"website fetch failed for {name!r}: {exc}",
-            })
-
-    @tool
-    def set_target_location(
-        thread_id: str,
-        location: str,
-        lat: float | None = None,
-        lon: float | None = None,
-    ) -> str:
-        """Save the location the user is hunting in. Call this after geocode
-        so the lat/lon are stored alongside the human-readable name.
-
-        Args:
-            thread_id: Current session/thread ID.
-            location:  Human label, e.g. "Westchester, NY" or "Bangalore HSR".
-            lat:       Latitude from geocode.
-            lon:       Longitude from geocode.
-        """
-        if not location:
-            return json.dumps({"ok": False, "code": "bad_input",
-                               "error": "location is empty"})
-        s = _get_session(thread_id)
-        s["target_location"] = location.strip()
-        if lat is not None: s["target_lat"] = float(lat)
-        if lon is not None: s["target_lon"] = float(lon)
-        return json.dumps({"ok": True, "data": {
-            "target_location": s["target_location"],
-            "target_lat":      s["target_lat"],
-            "target_lon":      s["target_lon"],
-        }})
-
-    @tool
-    def add_business_category(thread_id: str, category: str) -> str:
-        """Add a business category to the hunt list. Categories from the
-        find_local_businesses docstring are preferred but free-text is OK
-        (e.g. "yoga studios").
-
-        Args:
-            thread_id: Current session/thread ID.
-            category:  Business category keyword.
-        """
-        s = _get_session(thread_id)
-        normalized = (category or "").strip().lower()
-        if not normalized:
-            return json.dumps({"ok": False, "code": "bad_input",
-                               "error": "category is empty"})
-        _append_unique(s["categories"], normalized)
-        return json.dumps({"ok": True, "data": {"categories": s["categories"]}})
-
-    @tool
-    def set_pitch_focus(thread_id: str, focus: str) -> str:
-        """Save the kind of CUGA capability to pitch on this hunt
-        (e.g. "order-taking chatbot", "appointment booking",
-        "lead capture + follow-up", "customer support FAQ"). Pass an empty
-        string to clear.
-
-        Args:
-            thread_id: Current session/thread ID.
-            focus:     Short phrase, or "" to clear.
-        """
-        s = _get_session(thread_id)
-        s["pitch_focus"] = (focus or "").strip()
-        return json.dumps({"ok": True, "data": {"pitch_focus": s["pitch_focus"]}})
-
-    @tool
-    def get_session_state(thread_id: str) -> str:
-        """Read everything tracked for this session: location, lat/lon,
-        categories, pitch focus, and whether a lead board exists. Call this
-        at the start of a hunt to recall prior context.
-
-        Args:
-            thread_id: Current session/thread ID.
-        """
-        s = _get_session(thread_id)
-        return json.dumps({"ok": True, "data": {
-            "target_location": s["target_location"],
-            "target_lat":      s["target_lat"],
-            "target_lon":      s["target_lon"],
-            "categories":      s["categories"],
-            "pitch_focus":     s["pitch_focus"],
-            "has_leads":       s["leads"] is not None,
-        }})
-
-    @tool
-    def save_leads(thread_id: str, leads_json: str) -> str:
-        """Persist the structured lead board the right panel renders. Call
-        this at the END of every hunt, after you have shortlisted businesses
-        and written a tailored CUGA pitch for each.
-
-        Args:
-            thread_id:  Current session/thread ID.
-            leads_json: A JSON object with this shape:
-                {
-                  "location":        str,           # human label
-                  "display_name":    str,           # canonical from geocode
-                  "lat":             float,
-                  "lon":             float,
-                  "summary":         str,           # 1–2 sentence overview of the area
-                  "leads": [                         # 5–8 items: top 3 deep-dived, rest preliminary
-                    {
-                      "name":           str,
-                      "category":       str,         # e.g. "restaurant"
-                      "address":        str,         # may be ""
-                      "website":        str,         # may be ""
-                      "phone":          str,         # may be ""
-                      "email":          str,         # may be ""; from OSM if available
-                      "fit_score":      int,         # 1..10
-                      "use_case":       str,         # e.g. "Order-taking chat bot for delivery + reservations"
-                      "pitch":          str,         # deep-dive: 2–3 specific sentences. preliminary: 1–2 sentences from OSM only.
-                      "evidence":       [{"title": str, "url": str}],   # web_search citations (deep-dive only)
-                      "osm":            str,         # OSM URL from find_local_businesses
-
-                      // The fields below are REQUIRED for the top 3
-                      // deep-dived leads. For lower-ranked candidates
-                      // (ranks 4–8), set deep_dive=false and either omit
-                      // the deep-dive fields or pass empty values — the
-                      // UI hides empty blocks.
-
-                      "deep_dive":      bool,        // true for top 3, false for rest
-                      "website_signals": {            // straight from analyze_business_website
-                        "has_online_ordering":  bool,
-                        "has_online_booking":   bool,
-                        "has_contact_form":     bool,
-                        "has_chat_widget":      bool,
-                        "has_faq":              bool,
-                        "has_response_promise": bool,
-                        "phone_first":          bool,
-                        "appointment_required": bool,
-                        "lists_languages":      bool,
-                        "agent_unblock_score":  int,
-                        "is_https":             bool,
-                        "mobile_responsive":    bool,
-                        "has_meta_description": bool,
-                        "has_og_tags":          bool,
-                        "has_favicon":          bool,
-                        "copyright_year":       int | null,
-                        "years_stale":          int | null,
-                        "tech_smells":          [str],
-                        "looks_outdated":       bool
-                      },
-                      "review_friction": [           // 0–4 verbatim grievances mined from web_search snippets
-                        {
-                          "pattern":    str,          // short label, e.g. "phone unanswered"
-                          "quote":      str,          // verbatim phrase from a review snippet
-                          "source_url": str           // the web_search hit it came from
-                        }
-                      ],
-                      "email_draft": {                // the cold email — 120–180 words. REQUIRED for deep-dive leads only.
-                        "subject": str,                 // for non-deep-dive leads, omit or use {"subject": "", "body": ""}
-                        "body":    str
-                      }
-                    }
-                  ],
-                  "next_steps": [str]                # 2–4 outreach moves the user can take
-                }
-        """
-        s = _get_session(thread_id)
-        try:
-            obj = json.loads(leads_json)
-            if not isinstance(obj, dict):
-                return json.dumps({"ok": False, "code": "bad_input",
-                                   "error": "leads_json must be a JSON object"})
-            obj["_at"] = datetime.now(timezone.utc).isoformat()
-            s["leads"] = obj
-            s["history"].insert(0, obj)
-            s["history"] = s["history"][:6]
-            log.info("[%s] leads saved: %d items in %s",
-                     thread_id[:8],
-                     len(obj.get("leads", []) or []),
-                     obj.get("location", "?"))
-            return json.dumps({"ok": True, "data": {"saved": True,
-                                                    "count": len(obj.get("leads", []) or [])}})
-        except json.JSONDecodeError as exc:
-            return json.dumps({"ok": False, "code": "bad_input",
-                               "error": f"invalid JSON: {exc}"})
-
-    inline_tools = [
-        find_local_businesses, analyze_business_website,
-        set_target_location, add_business_category, set_pitch_focus,
-        get_session_state, save_leads,
-    ]
-
-    return [*mcp_tools, *inline_tools]
-
-
-# ── System prompt ────────────────────────────────────────────────────────
-# Kept tight to preserve context budget. Per-tool details live in the tool
-# docstrings (the agent re-reads those on every call); the prompt only
-# names the workflow.
-_SYSTEM = """\
-# Ouroboros — sales-dev scout for CUGA
-
-Find local businesses that would visibly benefit from a CUGA agent
-(restaurants → order bots; salons/clinics/vets → booking; hotels →
-concierge; lawyers/realtors → lead capture; boutiques → product Q&A).
-Bias to independents; skip global chains.
-
-## Per request, do this once
-
-1. `set_target_location(thread_id, location)` then `geocode(place)` then
-   `set_target_location` again WITH the lat/lon from geocode.
-2. `get_session_state(thread_id)` — recall categories + pitch_focus.
-3. If the user named a category or pitch focus, call
-   `add_business_category` / `set_pitch_focus`.
-
-## Wide net
-
-4. For 1–3 sensible categories, call
-   `find_local_businesses(thread_id, lat, lon, category, radius_m=4000)`.
-   Score every result 1–10: +3 if business type matches `pitch_focus`,
-   +2 if has a website, +2 if has a phone/address, +1 if independent.
-   Keep the top 5–8.
-
-## Deep-dive (top 3 only)
-
-For each of the top 3 in turn:
-  a. If `website` is present: `analyze_business_website(thread_id, name,
-     website_url)`. Read its `signals` dict — `agent_unblock_score`
-     (0..4) and `looks_outdated` are the headline signals.
-  b. `web_search("<name> <city> reviews", max_results=4)`. Read snippets.
-  c. Extract 0–4 `{pattern, quote, source_url}` items. `quote` MUST be a
-     verbatim fragment of a snippet — never paraphrase. If no friction
-     found, return `review_friction: []` (don't fabricate).
-  d. Refine fit_score: +unblock_score, +1 per friction item, +1 if
-     `looks_outdated`. Cap at 10.
-
-## Pitch + email (deep-dive leads only)
-
-For each top-3 lead:
-  - `pitch` (2–3 sentences) MUST cite at least one concrete signal:
-    a verbatim review quote, OR a missing website feature, OR a
-    staleness flag. Then name the CUGA capability that closes the gap.
-    End with measurable lift. "Could benefit from AI" is banned.
-  - `email_draft = {subject, body}`, 120–180 words. Subject hooks on the
-    signal (no "Quick chat about AI"). Body: open with the verbatim
-    quote or signal → one empathy line → one CUGA capability line → one
-    lift line → CTA "Worth a 15-min call next week?". Sign "— The CUGA
-    team". No `[PLACEHOLDERS]`. No discounts, free trials, or fabricated
-    case studies.
-
-For ranks 4–8: 1–2 sentence preliminary pitch from OSM data alone.
-`deep_dive: false`, omit `email_draft`. User can request deep-dives by
-name later.
-
-## Finish
-
-5. `save_leads(thread_id, leads_json)` — see its docstring for the exact
-   schema.
-6. Reply with 2 short paragraphs naming the top 3 leads and their angle,
-   plus one line of next steps. The right panel renders the rest.
-
-## Thread ID
-Every user message starts with `[thread:<UUID>]`. Extract the UUID and
-pass it unchanged as `thread_id` to every inline tool.
+=== USER REQUEST ===
 """
 
 
-# ── Agent factory ────────────────────────────────────────────────────────
-def make_agent():
-    from cuga.sdk import CugaAgent
+async def _attach_policies(supervisor) -> None:
+    """Wire CUGA policies onto the supervisor's specialists.
+
+    The policy store is shared across all CugaAgent instances in this
+    process (one sqlite-vec DB), so we add each policy ONCE on a
+    representative agent and let the runtime trigger filters
+    (target_tools, AlwaysTrigger on agent response) scope enforcement at
+    call time:
+
+      - intent_guard `ouroboros_abuse_guard` — keyword-triggered; fires
+        whenever any specialist's input contains harassment / doxxing
+        intent. Added once on the writer; visible to all.
+      - tool_guide `prefer_independents` — `target_tools=
+        ["find_local_businesses"]` scopes it to the scout's tool.
+      - output_formatter `leads_board_formatter` — fires on
+        agent_response with keywords {"leads", "lead board"} so it
+        matches only the writer's final synthesis, not specialists' raw
+        returns.
+
+    `reset_policy_storage=True` on the *first* agent built clears the
+    shared DB so re-runs don't accumulate duplicates.
+    """
+    agents = getattr(supervisor, "_agents", {}) or {}
+    if not agents:
+        log.warning("no agents on supervisor; skipping policy attach")
+        return
+
+    writer = agents.get("pitch_email_writer")
+    scout  = agents.get("scout")
+    primary = writer or next(iter(agents.values()))
+
+    # Reset shared storage so a process restart doesn't accumulate
+    # duplicates of the same policy. Note: the policy DB lives at
+    # <cuga_sdk_path>/dbs/cuga.db (NOT inside the app), so without this
+    # clear, every restart leaves stale policies behind.
+    try:
+        ok = await primary.policies.clear()
+        log.info("policy store cleared: %s", ok)
+    except Exception as exc:
+        log.debug("policy store clear skipped: %s", exc)
+
+    # 1. Intent guard — wide-scope refusal.
+    try:
+        await primary.policies.add_intent_guard(
+            name="ouroboros_abuse_guard",
+            keywords=["harass", "dox", "stalk", "scrape personal",
+                       "find someone's home address", "track down"],
+            response=(
+                "I can help with finding businesses that would benefit "
+                "from a CUGA agent — not with locating individuals or "
+                "personal information. Try rephrasing in terms of a "
+                "business or a neighborhood."
+            ),
+        )
+    except Exception as exc:
+        log.warning("intent_guard skipped: %s", exc)
+
+    # 2. Tool guide — only the find_local_businesses tool gets enriched.
+    if scout is not None:
+        try:
+            await scout.policies.add_tool_guide(
+                name="prefer_independents",
+                content=(
+                    "When you see global chains in the result list "
+                    "(Starbucks, McDonald's, Hilton, Subway, KFC, etc.), "
+                    "drop them from your shortlist. Independent 1–5 "
+                    "location businesses are the target."
+                ),
+                target_tools=["find_local_businesses"],
+            )
+        except Exception as exc:
+            log.warning("tool_guide skipped: %s", exc)
+
+    # 3. Output formatter — keyword-trigger on the writer's response so
+    #    it only fires when the writer's prose mentions "leads".
+    if writer is not None:
+        try:
+            await writer.policies.add_output_formatter(
+                name="leads_board_formatter",
+                format_config=(
+                    "Always emit a fenced ```json``` block containing the "
+                    "leads schema documented in your SKILL.md, followed "
+                    "by a 2-paragraph prose summary that names the top 3 "
+                    "leads and their angle, ending with one line of next "
+                    "steps."
+                ),
+                format_type="markdown",
+                keywords=["leads", "lead board", "shortlist", "ranked"],
+            )
+        except Exception as exc:
+            log.warning("output_formatter skipped: %s", exc)
+
+
+def make_supervisor():
+    from cuga.sdk import CugaSupervisor
     from _llm import create_llm
+    from specialists import make_all
 
-    _provider_toml = {
-        "rits":      "settings.rits.toml",
-        "watsonx":   "settings.watsonx.toml",
-        "openai":    "settings.openai.toml",
-        "anthropic": "settings.openai.toml",
-        "litellm":   "settings.litellm.toml",
-        "ollama":    "settings.openai.toml",
-    }
-    provider = (os.getenv("LLM_PROVIDER") or "").lower()
-    os.environ.setdefault(
-        "AGENT_SETTING_CONFIG",
-        _provider_toml.get(provider, "settings.rits.toml"),
+    # AGENT_SETTING_CONFIG is set at module top (before cuga import).
+    model = create_llm(
+        provider=os.getenv("LLM_PROVIDER"),
+        model=os.getenv("LLM_MODEL"),
     )
 
-    return CugaAgent(
-        model=create_llm(
-            provider=os.getenv("LLM_PROVIDER"),
-            model=os.getenv("LLM_MODEL"),
-        ),
-        tools=_make_tools(),
-        special_instructions=_SYSTEM,
-        cuga_folder=str(_DIR / ".cuga"),
+    agents = make_all(model=model)
+    supervisor = CugaSupervisor(
+        agents=agents,
+        model=model,
+        # description= is dead in this SDK branch (never rendered into
+        # the supervisor's prompt). We inject the cascade rules via
+        # _TASK_PRELUDE on the user message in /ask instead.
+        # Step accounting (each block = 2 steps: model + execute):
+        #   phase 1 (scout+parse+init):  2
+        #   phase 2 (5 specialists × up to 3 candidates, often <15
+        #             due to website conditionals): 20–30
+        #   phase 3 (writer):            2
+        #   misc planner indecision/retries: 5–15
+        # 100 caps comfortably over the median 35–50.
+        cuga_lite_max_steps=100,
     )
+    return supervisor
 
 
 # ── Request models ──────────────────────────────────────────────────────
@@ -788,15 +687,25 @@ def _web(port: int) -> None:
     app.add_middleware(CORSMiddleware, allow_origins=["*"],
                        allow_methods=["*"], allow_headers=["*"])
 
-    _agent = None
+    _supervisor = None
+    _policies_attached = False
+    _init_lock = asyncio.Lock()
 
-    def _get_agent():
-        nonlocal _agent
-        if _agent is None:
-            log.info("Initialising CugaAgent (mcp: geo, web, knowledge)…")
-            _agent = make_agent()
-            log.info("CugaAgent ready.")
-        return _agent
+    async def _get_supervisor():
+        nonlocal _supervisor, _policies_attached
+        async with _init_lock:
+            if _supervisor is None:
+                log.info("Initialising CugaSupervisor with 7 specialists…")
+                _supervisor = make_supervisor()
+                log.info("Supervisor ready; attaching policies…")
+                try:
+                    await _attach_policies(_supervisor)
+                    _policies_attached = True
+                except Exception as exc:
+                    log.warning("policy attach partially failed: %s", exc)
+                log.info("Specialists: %s",
+                         list(getattr(_supervisor, "_agents", {}).keys()))
+            return _supervisor
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
@@ -805,13 +714,75 @@ def _web(port: int) -> None:
     @app.post("/ask")
     async def api_ask(req: AskReq):
         thread_id = req.thread_id or str(uuid.uuid4())
-        augmented = f"[thread:{thread_id}] {req.question}"
+        session = _get_session(thread_id)
+        _maybe_update_session(session, req.question)
+
+        # Brief the supervisor with prior session state inline. Keeps the
+        # planner stateless across HTTP turns while preserving continuity.
+        # The _TASK_PRELUDE prefix is the ONLY way to inject orchestration
+        # rules in this CUGA branch — the supervisor's `description` kwarg
+        # is stored but never rendered into the prompt template.
+        session_brief = _format_session_brief(session)
+        augmented = (
+            f"{_TASK_PRELUDE}"
+            f"{req.question}\n\n"
+            f"[session:{session_brief}] "
+            f"[thread:{thread_id}]"
+        )
         try:
-            agent = _get_agent()
-            result = await agent.invoke(augmented, thread_id=thread_id)
-            return {"answer": str(result), "thread_id": thread_id}
+            supervisor = await _get_supervisor()
+            result = await supervisor.invoke(augmented, thread_id=thread_id)
+            answer = (
+                result.answer if hasattr(result, "answer") else str(result)
+            )
+
+            # Parse the writer's fenced JSON, if present, into the session.
+            leads = _extract_leads_json(answer)
+
+            # Fallback: the supervisor's outer Conversational LLM frequently
+            # paraphrases the writer's JSON board down to a useless one-liner
+            # ("Here's the complete enriched lead board…"). When that
+            # happens, _extract_leads_json returns None even though the
+            # writer DID produce a valid board. Recover the writer's raw
+            # output from the supervisor's variables_manager / chat
+            # history, and use it as the user-facing answer too.
+            if not leads:
+                writer_raw = _writer_output_from_state(supervisor)
+                if writer_raw:
+                    log.info("[%s] supervisor paraphrased; recovered writer "
+                             "output (%d chars)",
+                             thread_id[:8], len(writer_raw))
+                    recovered = _extract_leads_json(writer_raw)
+                    if recovered:
+                        leads  = recovered
+                        # Use the writer's verbatim output as the chat reply
+                        # — the supervisor's paraphrase has lost the data.
+                        answer = writer_raw
+
+            if leads:
+                leads["_at"] = datetime.now(timezone.utc).isoformat()
+                session["leads"] = leads
+                if leads.get("location"):
+                    session["target_location"] = leads["location"]
+                # Mirror the leads' own location/categories/focus for UI hints.
+                session["history"].insert(0, leads)
+                session["history"] = session["history"][:6]
+                log.info("[%s] leads parsed: %d items in %s",
+                         thread_id[:8],
+                         len(leads.get("leads", []) or []),
+                         leads.get("location", "?"))
+            else:
+                log.warning("[%s] no leads extracted from supervisor answer "
+                            "(answer length: %d chars)",
+                            thread_id[:8], len(answer or ""))
+
+            # Persist per-turn metadata for debugging — every stage's
+            # output, all supervisor variables, the extracted leads.
+            _save_run(thread_id, req.question, answer, leads, supervisor)
+
+            return {"answer": answer, "thread_id": thread_id}
         except Exception as exc:
-            log.exception("Agent invocation failed")
+            log.exception("Supervisor invocation failed")
             return JSONResponse(
                 status_code=500,
                 content={"answer": f"Error: {exc}", "thread_id": thread_id},
@@ -825,13 +796,61 @@ def _web(port: int) -> None:
     async def health():
         return {"ok": True}
 
-    print(f"\n  Ouroboros  →  http://127.0.0.1:{port}\n")
+    @app.get("/runs/{thread_id}")
+    async def api_runs(thread_id: str):
+        """List saved per-turn metadata for a thread."""
+        safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", thread_id)[:64]
+        run_dir = _RUNS_DIR / safe
+        if not run_dir.exists():
+            return {"thread_id": thread_id, "runs": []}
+        files = sorted(run_dir.glob("*.json"))
+        return {
+            "thread_id": thread_id,
+            "runs": [
+                {"file": f.name, "size": f.stat().st_size,
+                 "url": f"/runs/{thread_id}/{f.name}"}
+                for f in files
+            ],
+        }
+
+    @app.get("/runs/{thread_id}/{filename}")
+    async def api_run_detail(thread_id: str, filename: str):
+        """Return the saved metadata for one turn."""
+        safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", thread_id)[:64]
+        # filename arrives untrusted — reject anything that's not a
+        # bare ts-stamped json file in the thread's own dir.
+        if not re.fullmatch(r"\d{8}T\d{6}Z\.json", filename):
+            return JSONResponse(status_code=400, content={"error": "bad filename"})
+        path = _RUNS_DIR / safe / filename
+        if not path.exists():
+            return JSONResponse(status_code=404, content={"error": "not found"})
+        try:
+            return json.loads(path.read_text())
+        except Exception as exc:
+            return JSONResponse(status_code=500,
+                                content={"error": f"read failed: {exc}"})
+
+    @app.get("/specialists")
+    async def specialists():
+        sup = await _get_supervisor()
+        agents = getattr(sup, "_agents", {}) or {}
+        return {
+            "count": len(agents),
+            "specialists": [
+                {"name": n, "description": getattr(a, "description", "")}
+                for n, a in agents.items()
+            ],
+        }
+
+    print(f"\n  Ouroboros (multi-agent)  →  http://127.0.0.1:{port}\n")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
 # ── CLI entry point ──────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Ouroboros — CUGA-powered lead generation")
+    parser = argparse.ArgumentParser(
+        description="Ouroboros — multi-agent CUGA lead generation",
+    )
     parser.add_argument("--port", type=int, default=28822)
     parser.add_argument(
         "--provider", "-p", default=None,

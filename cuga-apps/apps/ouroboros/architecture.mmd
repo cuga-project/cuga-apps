@@ -1,0 +1,114 @@
+%%{ init: { "theme": "base", "themeVariables": {
+  "fontFamily": "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif",
+  "primaryColor": "#1a1a2e",
+  "primaryTextColor": "#e2e8f0",
+  "primaryBorderColor": "#2d2d4a",
+  "lineColor": "#6b7280",
+  "secondaryColor": "#1d2033",
+  "tertiaryColor": "#0f1117",
+  "fontSize": "13px"
+} } }%%
+
+flowchart TB
+
+  %% ─────── BROWSER ───────
+  Browser["<b>Browser</b><br/>dark-themed UI · chat (left) · lead board (right)<br/>polls /session/&lt;thread_id&gt; every 8 s"]:::ui
+
+  %% ─────── FASTAPI ───────
+  subgraph FastAPI["FastAPI server  ·  apps/ouroboros/main.py"]
+    direction TB
+    Sessions[("per-thread session<br/>{location, focus, leads, history}")]:::store
+    Prelude["prepends _TASK_PRELUDE<br/>(~1.4K tokens, 3-phase contract)"]:::glue
+    Parser["leads-JSON extractor<br/>fenced · bare · balanced-brace"]:::glue
+    Patches["startup patches<br/>· AGENT_SETTING_CONFIG=settings.rits.toml<br/>· LocalExecutor timeout 30s → 180s<br/>· CUGA_TARGET=ce"]:::glue
+  end
+
+  %% ─────── SUPERVISOR ───────
+  subgraph Supervisor["CugaSupervisor  ·  LangGraph: prepare → call_model → execute → loop"]
+    direction TB
+    SupModel["model: <b>RITSChatModel</b><br/>gpt-oss-120b · max_tokens=16000"]:::sup
+    SupCfg["cuga_lite_max_steps=100<br/>auto-injected tools:<br/>delegate_to_&lt;each-specialist&gt;(task)"]:::sup
+    Policies["3 policies (sqlite-vec store)<br/>· intent_guard ouroboros_abuse_guard<br/>· tool_guide prefer_independents<br/>· output_formatter leads_board_formatter"]:::policy
+  end
+
+  %% ─────── SPECIALIST AGENTS (Skill = SKILL.md + tools.py) ───────
+  subgraph Specialists["7 specialist CugaAgents · each = skill body (special_instructions) + tools.py TOOLS"]
+    direction LR
+
+    subgraph Scout["scout"]
+      direction TB
+      ScoutSkill["SKILL.md<br/>geocode → categories → Overpass → return PURE JSON"]:::skill
+      ScoutTools["tools.py<br/>· geocode(place) → Nominatim<br/>· find_local_businesses(lat, lon, category, radius)<br/>  → Overpass / OSM (cap 8)"]:::tools
+    end
+
+    subgraph SiteAuditor["site_auditor"]
+      direction TB
+      SiteSkill["SKILL.md<br/>fetch + classify capability + freshness signals"]:::skill
+      SiteTools["tools.py<br/>· analyze_business_website(name, url, max=1500)<br/>  → httpx + HTML strip + 9 capability + 8 freshness signals"]:::tools
+    end
+
+    subgraph VOC["voice_of_customer"]
+      direction TB
+      VocSkill["SKILL.md<br/>search → friction patterns + verbatim quotes"]:::skill
+      VocTools["tools.py<br/>· search_reviews(name, city, complaints?)<br/>  → MCP web_search via bind_web_search"]:::tools
+    end
+
+    subgraph PersonFinder["person_finder"]
+      direction TB
+      PfSkill["SKILL.md<br/>search → name + title + confidence → guess email"]:::skill
+      PfTools["tools.py<br/>· search_owner(name, city)<br/>  → MCP web_search via bind_web_search<br/>· guess_email_from_name(first, last, domain)"]:::tools
+    end
+
+    subgraph StackScanner["stack_scanner"]
+      direction TB
+      StSkill["SKILL.md<br/>fetch → fingerprint embeds → green-field flag"]:::skill
+      StTools["tools.py<br/>· scan_business_stack(url)<br/>  → httpx + regex over 33 fingerprints<br/>  (OpenTable, Calendly, Toast, Resy, Square, …)"]:::tools
+    end
+
+    subgraph RevenueEstimator["revenue_estimator"]
+      direction TB
+      ReSkill["SKILL.md<br/>search → extract signals → bucket into ARR band"]:::skill
+      ReTools["tools.py<br/>· search_size_signals(name, city)<br/>  → MCP web_search via bind_web_search<br/>· estimate_arr_band(business_type, signals)"]:::tools
+    end
+
+    subgraph Writer["pitch_email_writer"]
+      direction TB
+      WrSkill["SKILL.md<br/>consume {scout JSON, top, audits, vocs, people, stacks, revenues}<br/>→ ranked leads JSON board + 2-paragraph summary"]:::skill
+      WrTools["tools.py<br/>TOOLS = []  (pure synthesis, no tools)"]:::tools
+    end
+  end
+
+  %% ─────── MCP BRIDGE ───────
+  MCP[("hosted MCP web_search<br/>(mcp-web · Tavily-backed)<br/>routed via apps/_mcp_bridge.py<br/>→ Code Engine endpoints")]:::mcp
+
+  %% ─────── DATA-FLOW EDGES ───────
+  Browser -- "POST /ask {question, thread_id}" --> FastAPI
+  FastAPI -- "supervisor.invoke(prelude + question, thread_id)" --> Supervisor
+
+  Supervisor -- "delegate_to_scout(task)" --> Scout
+  Supervisor -- "delegate_to_site_auditor" --> SiteAuditor
+  Supervisor -- "delegate_to_voice_of_customer" --> VOC
+  Supervisor -- "delegate_to_person_finder" --> PersonFinder
+  Supervisor -- "delegate_to_stack_scanner" --> StackScanner
+  Supervisor -- "delegate_to_revenue_estimator" --> RevenueEstimator
+  Supervisor -- "delegate_to_pitch_email_writer" --> Writer
+
+  VocTools -. "bind_web_search()" .-> MCP
+  PfTools -. "bind_web_search()" .-> MCP
+  ReTools -. "bind_web_search()" .-> MCP
+
+  Writer -- "fenced JSON + prose" --> Supervisor
+  Supervisor -- "final_answer" --> FastAPI
+  FastAPI -- "writes session.leads · returns {answer}" --> Browser
+
+  %% ─────── STYLES ───────
+  classDef ui      fill:#0f1117,stroke:#34d399,stroke-width:2px,color:#e2e8f0
+  classDef glue    fill:#161827,stroke:#2d2d4a,stroke-width:1px,color:#cbd5e1
+  classDef store   fill:#1d2033,stroke:#a78bfa,stroke-width:1px,color:#cbd5e1
+  classDef sup     fill:#1a1a2e,stroke:#a78bfa,stroke-width:1.5px,color:#e2e8f0
+  classDef policy  fill:#241a2e,stroke:#facc15,stroke-width:1px,color:#facc15
+  classDef skill   fill:#1d2033,stroke:#34d399,stroke-width:1px,color:#a7f3d0
+  classDef tools   fill:#0f1117,stroke:#6b7280,stroke-width:1px,color:#cbd5e1
+  classDef mcp     fill:#1a1a2e,stroke:#38bdf8,stroke-width:1.5px,color:#7dd3fc
+
+  class FastAPI,Supervisor,Specialists glue
