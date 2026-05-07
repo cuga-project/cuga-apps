@@ -307,6 +307,18 @@ _HTML = r"""<!DOCTYPE html>
   }
   .btn:hover  { opacity: 0.85; }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary {
+    background: var(--card2); color: var(--text);
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .btn-secondary:hover { background: var(--card); opacity: 1; }
+  .input-cadence {
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 8px; font-size: 13px; outline: none; cursor: pointer;
+  }
+  .input-cadence:focus { border-color: var(--accent); }
 
   /* Right data panel */
   .data-panel { display: flex; flex-direction: column; overflow: hidden; }
@@ -316,7 +328,14 @@ _HTML = r"""<!DOCTYPE html>
     color: var(--muted); border-bottom: 1px solid var(--border);
     display: flex; align-items: center; gap: 10px;
   }
-  .refresh-badge { margin-left: auto; font-size: 10px; color: var(--muted); opacity: 0.6; }
+  .refresh-badge {
+    margin-left: auto; font-size: 11px; color: var(--muted);
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 9px; cursor: pointer;
+    text-transform: none; letter-spacing: 0; font-weight: 500;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .refresh-badge:hover { color: var(--accent); border-color: var(--accent); }
   .data-scroll {
     flex: 1; overflow-y: auto; padding: 22px;
     display: flex; flex-direction: column; gap: 18px;
@@ -786,14 +805,23 @@ _HTML = r"""<!DOCTYPE html>
       <input type="text" id="userInput"
         placeholder="Try: 'Find restaurants in HSR Layout that need an order bot'"
         onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button class="btn" id="sendBtn" onclick="sendMessage()">Hunt</button>
+      <select id="inputCadence" class="input-cadence" title="Cadence for Schedule">
+        <option value="5m">every 5 min</option>
+        <option value="30m">every 30 min</option>
+        <option value="1h">hourly</option>
+        <option value="6h">every 6 hours</option>
+        <option value="daily" selected>daily</option>
+        <option value="weekly">weekly</option>
+      </select>
+      <button class="btn btn-secondary" id="scheduleBtn" onclick="scheduleFromInput()" title="Register the typed question as a recurring loop">Schedule</button>
+      <button class="btn" id="sendBtn" onclick="sendMessage()" title="Run the typed question once now">Hunt</button>
     </div>
   </div>
 
   <div class="data-panel">
     <div class="data-panel-header">
       <span>Lead board</span>
-      <span class="refresh-badge" id="refreshBadge">auto-refresh 8s</span>
+      <button class="refresh-badge" id="refreshBadge" onclick="fetchSession()" title="Reload the lead board">↻ Refresh</button>
     </div>
     <div class="data-scroll" id="dataScroll">
       <div class="empty-state" id="emptyState">
@@ -862,6 +890,8 @@ _HTML = r"""<!DOCTYPE html>
   const messagesEl = document.getElementById('messages');
   const inputEl    = document.getElementById('userInput');
   const sendBtn    = document.getElementById('sendBtn');
+  const scheduleBtn = document.getElementById('scheduleBtn');
+  const inputCadence = document.getElementById('inputCadence');
   const statusDot  = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const dataScroll = document.getElementById('dataScroll');
@@ -1268,7 +1298,8 @@ _HTML = r"""<!DOCTYPE html>
       }
     } catch (_) { /* ignore */ }
   }
-  setInterval(fetchSession, 8000);
+  // Auto-refresh removed — fetchSession() runs only after /ask returns,
+  // or when the user clicks the Refresh badge in the data panel header.
 
   async function sendMessage() {
     const question = inputEl.value.trim();
@@ -1311,6 +1342,52 @@ _HTML = r"""<!DOCTYPE html>
   function sendChip(el) {
     inputEl.value = el.textContent.trim();
     sendMessage();
+  }
+
+  // Register the typed question as a recurring loop. Doesn't run /ask now —
+  // the supervisor will fire on the chosen cadence in a fresh thread.
+  async function scheduleFromInput() {
+    const question = inputEl.value.trim();
+    if (!question) {
+      inputEl.focus();
+      return;
+    }
+    const cadence = inputCadence.value || 'daily';
+    scheduleBtn.disabled = true;
+    sendBtn.disabled = true;
+    const original = scheduleBtn.textContent;
+    scheduleBtn.textContent = 'Scheduling…';
+    addMessage(question, 'user');
+    inputEl.value = '';
+    try {
+      const r = await fetch('/cuga/loops/api/create', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          agent_name: 'ouroboros_supervisor',
+          thread_id:  SESSION_ID,
+          prompt:     question,
+          cadence:    cadence,
+          metadata:   {source: 'chat_input'},
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || j.detail?.[0]?.msg || ('HTTP ' + r.status));
+      const lid = j.loop?.id || '';
+      addMessage(
+        '🔁 Scheduled ' + cadence + ' · '
+        + 'loop ' + (lid ? lid.slice(0, 16) + '…' : '?')
+        + ' — manage at /cuga/loops/',
+        'agent',
+        'scheduled');
+    } catch (err) {
+      addMessage('Schedule failed: ' + err.message, 'error');
+    } finally {
+      scheduleBtn.disabled = false;
+      sendBtn.disabled = false;
+      scheduleBtn.textContent = original;
+      inputEl.focus();
+    }
   }
 
   // ── Past runs drawer ───────────────────────────────────────────
