@@ -4,8 +4,9 @@ cuga-skills-ui — the simplest possible UX for trying a CUGA skill.
 What it does:
   1. Scans ../cuga-skills/ for SKILL.md files (frontmatter `name` + `description`).
   2. Lets you "import" a skill — copies it into both:
-        ./.cuga/skills/<name>/                    so cuga's loader registers it
-        /tmp/cuga_workspace/skills/<name>/        so SKILL.md's run_command paths resolve
+        ./.cuga/skills/<name>/    so cuga's loader registers it
+        /tmp/skills/<name>/       so the agent can subprocess scripts/*.py
+                                   (matches OpenSandbox + the cuga preamble)
   3. Builds a `CugaAgent(cuga_folder=…)` in-process. The host provides a
      native `run_command` tool that subprocesses on the local machine, so the
      agent invokes the skill's `scripts/*.py` exactly the way an OpenSandbox
@@ -117,15 +118,19 @@ def discover_skill_dirs(skills_root: Path) -> list[dict]:
 
 # ---------------------------------------------------------------------------
 # Two install targets:
-#   - <runtime>/.cuga/skills/<name>/            for cuga's discover_skills
-#   - /tmp/cuga_workspace/skills/<name>/        for SKILL.md's run_command paths
-# Mirrors what OpenSandbox does, so the same SKILL.md works in both hosts.
+#   - <runtime>/.cuga/skills/<name>/  for cuga's discover_skills
+#   - /tmp/skills/<name>/             where the agent subprocesses scripts/*.py
+# Mirrors what OpenSandbox does (same mount path), so the same SKILL.md
+# works in both hosts and the cuga preamble's path is correct here too.
 # ---------------------------------------------------------------------------
 
 _RUNTIME_CUGA = _HERE / ".cuga"
 _RUNTIME_SKILLS = _RUNTIME_CUGA / "skills"
 _SANDBOX_DIR = Path("/tmp/cuga_workspace")
-_SANDBOX_SKILLS = _SANDBOX_DIR / "skills"
+# Align with OpenSandbox + the cuga backend preamble, both of which mount
+# skills at /tmp/skills/<name>/. Keeping _SANDBOX_DIR as the subprocess cwd
+# preserves prior behavior; only the install location moves.
+_SANDBOX_SKILLS = Path("/tmp/skills")
 
 
 def import_skill(skill: dict) -> dict:
@@ -169,16 +174,25 @@ def list_imported() -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _make_run_command_tool():
-    """Return an @tool wrapper around subprocess.run, scoped to /tmp/cuga_workspace."""
+    """Return an @tool wrapper around subprocess.run; cwd=/tmp/cuga_workspace, skills mounted at /tmp/skills/."""
     from langchain_core.tools import tool
 
     @tool
     def run_command(cmd: str) -> str:
         """Run a shell command in the workspace and return its combined output.
 
+        IMPORTANT — skill script paths:
+        Imported skills are mounted at `/tmp/skills/<skill_name>/`. When a
+        SKILL.md tells you to run a script by its relative path (e.g.
+        `scripts/hike_tools.py`), prefix it with the absolute mount path.
+        Concretely, if the loaded skill is named `hiking_research` and
+        SKILL.md references `scripts/hike_tools.py`, run:
+
+            python /tmp/skills/hiking_research/scripts/hike_tools.py <args>
+
         Args:
             cmd: a shell command line, e.g.
-                 "python /tmp/cuga_workspace/skills/<skill>/scripts/<file>.py <args>"
+                 "python /tmp/skills/<skill_name>/scripts/<file>.py <args>"
 
         Returns stdout, with any stderr appended after a separator on non-zero exit.
         Errors that prevent the subprocess from running are returned as
@@ -1084,7 +1098,7 @@ _HTML = r"""<!DOCTYPE html>
       <span class="pulse"></span>
       <span>Live · in-process CUGA agent</span>
     </div>
-    <h1>Skills <span class="accent">marketplace</span><br>for autonomous agents.</h1>
+    <h1>CUGA Skills <span class="accent">marketplace</span><br>for autonomous agents.</h1>
     <p>Browse a library of CUGA skills — drop-in capabilities with shipped scripts. Import to mount the skill into the agent's runtime, then ask in natural language. The agent picks up <code style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#a6c8ff;background:rgba(15,98,254,0.12);padding:1px 6px">load_skill</code> and runs.</p>
     <div class="hero-stats">
       <div class="stat">

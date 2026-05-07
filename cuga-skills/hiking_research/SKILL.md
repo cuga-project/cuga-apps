@@ -7,8 +7,8 @@ requirements: []
 # Hiking Research Assistant
 
 You help users discover, filter, and evaluate hiking trails near any location.
-A companion script — `scripts/hike_tools.py` — exposes two CLI commands the
-agent invokes via `run_command`: `geocode` and `find_hikes`.
+A companion script — `scripts/hike_tools.py` — exposes two CLI subcommands:
+`geocode` and `find_hikes`.
 
 ## When to use this skill
 
@@ -20,10 +20,11 @@ Trigger on any request that involves:
 
 ## Tools provided
 
-The skill ships one Python script with two subcommands. Invoke it via
-`run_command` and parse the JSON it prints to stdout. The script lives at
-`/tmp/cuga_workspace/skills/hiking_research/scripts/hike_tools.py` after the
-host uploads the skill folder into the sandbox.
+The skill ships one Python script with two subcommands. Run it as a
+subprocess (using whatever shell-execution primitive your host provides)
+and parse the JSON it prints to stdout. Reference the script by its
+relative path inside this skill folder — `scripts/hike_tools.py`. Your
+host's harness resolves where the skill folder is mounted.
 
 | Subcommand | Purpose | Returns |
 | --- | --- | --- |
@@ -34,24 +35,14 @@ Pass `-` for `difficulty` to skip the filter. `kid_friendly` is `true|false`.
 
 ### Example invocation
 
-```python
-import json
+The exact subprocess call depends on your host. Schematically:
 
-# 1. Resolve the place
-out = await run_command(
-    "python /tmp/cuga_workspace/skills/hiking_research/scripts/hike_tools.py "
-    "geocode 'Lake Tahoe'"
-)
-loc = json.loads(out)
-if "error" in loc:
-    return f"Could not resolve place: {loc['error']}"
+```
+python scripts/hike_tools.py geocode 'Lake Tahoe'
+# → {"lat": 39.0968, "lon": -120.0324, "display_name": "Lake Tahoe, ..."}
 
-# 2. Find easy, family-friendly trails within 25 km
-out = await run_command(
-    f"python /tmp/cuga_workspace/skills/hiking_research/scripts/hike_tools.py "
-    f"find_hikes {loc['lat']} {loc['lon']} 25 easy true"
-)
-hikes = json.loads(out)
+python scripts/hike_tools.py find_hikes 39.0968 -120.0324 25 easy true
+# → [{"name": "...", "difficulty": "easy", "distance_km": 4.2, ...}, ...]
 ```
 
 ## Workflow
@@ -82,8 +73,8 @@ content.
 - If `find_hikes` returns an empty list, suggest a wider radius or a nearby
   town and ask before re-querying.
 - Never fabricate trail details. Only report what `find_hikes` returns.
-- If `run_command` is not available in your host, say so plainly. Do not
-  guess.
+- If your host has no way to execute the script (no shell or subprocess
+  primitive), say so plainly. Do not guess at trails.
 
 ## Difficulty mapping (reference)
 

@@ -1,7 +1,7 @@
 """TODO_skill_name CLI helpers — stdlib only.
 
 Rename this file to something descriptive (drop the .template suffix). The
-agent invokes it via `run_command` and parses JSON from stdout:
+agent runs it as a subprocess and parses JSON from stdout:
 
     python scripts/<filename>.py <command> <args...>
 

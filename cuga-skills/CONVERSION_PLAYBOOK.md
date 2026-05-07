@@ -100,7 +100,8 @@ Body sections, in order (omit any that don't apply):
 
 This matches Anthropic's canonical [skills format](https://github.com/anthropics/skills):
 a folder with `SKILL.md` + a `scripts/` directory of plain Python files. The
-agent invokes them via `run_command` and parses JSON from stdout.
+agent runs them as a subprocess (using whatever shell-execution primitive
+its host provides) and parses JSON from stdout.
 
 See [`hiking_research/scripts/hike_tools.py`](hiking_research/scripts/hike_tools.py)
 or [`_template/scripts/hike_tools.template.py`](_template/scripts/hike_tools.template.py).
@@ -124,12 +125,17 @@ Three rules for the script:
 - **Anthropic-compatible.** Matches the upstream
   [skills format](https://github.com/anthropics/skills) — your skill works
   in claude.ai, the Anthropic CLI, and any future host that honors the
-  spec. No CUGA-specific extensions in the artifact.
+  spec. No CUGA-specific extensions in the artifact: SKILL.md uses
+  relative paths (`scripts/<name>.py`) and describes invocation
+  schematically. Each host's harness provides the actual subprocess
+  primitive and resolves the skill folder location.
 - **Both CUGA hosts run the same script.** `cuga start demo_skills` (with
-  OpenSandbox) uploads the folder and uses its built-in `run_command`.
+  OpenSandbox) uploads the folder and provides `run_command` plus a
+  system preamble that documents the mount path and tool name.
   `cuga-skills-ui` (in-process, no Docker) provides its own host-side
   `run_command` that subprocesses on the local machine. Same SKILL.md,
-  same script, same answer in both.
+  same script, same answer in both — the host-specific bits live in
+  the harness, not the skill.
 
 ---
 
@@ -183,14 +189,15 @@ Use [`_template/SKILL.template.md`](_template/SKILL.template.md) as a starting p
   know when to load this skill?
 - **When to use**: 4-6 bullet triggers covering the real user phrasings.
 - **Tools provided table**: one row per CLI subcommand. Copy-paste the
-  "Example invocation" code block from
-  [hiking_research/SKILL.md](hiking_research/SKILL.md) and adapt the path
-  and arguments.
+  "Example invocation" block from
+  [hiking_research/SKILL.md](hiking_research/SKILL.md) — schematic
+  `python scripts/<file>.py <cmd> <args>` form, *not* an absolute path
+  or a host-specific async-call. Adapt the script name and arguments.
 - **Workflow**: numbered steps. Reference subcommands by name. Don't say
   "press X" or "in the UI"; the skill is host-agnostic.
 - **Tone & failure modes**: at minimum `"Never fabricate <X>"` and
   `"If <tool> returns empty, suggest <Y> before re-querying."` Plus
-  `"If run_command isn't available, say so plainly."`
+  `"If your host has no way to execute the script, say so plainly."`
 - **Output format**: a code-block schema with `<placeholders>`.
 
 Keep the file under ~150 lines. If it's longer, you're being prescriptive.
@@ -233,8 +240,8 @@ A skill is **done** when every box checks:
 - [ ] **Frontmatter is valid.** `name` matches folder; `description` is one line; `requirements` set (empty list if stdlib-only).
 - [ ] **CLI helpers documented.** Each subcommand listed in the Tools table with its inputs and return shape.
 - [ ] **Workflow is procedural.** "If user mentions kids, pass `kid_friendly=true`" ✓; "Always greet the user warmly" ✗.
-- [ ] **No host assumptions.** SKILL.md doesn't mention buttons, URLs, or specific UIs. Reference the script via the `/tmp/cuga_workspace/skills/<name>/` path that both hosts honor.
-- [ ] **Failure modes named.** What to do when a tool errors / returns empty / has no permission. Including "if `run_command` isn't available, say so."
+- [ ] **No host assumptions.** SKILL.md doesn't mention buttons, URLs, specific UIs, absolute filesystem paths, or host-specific tool names like `run_command`. Reference the script by its relative path (`scripts/<name>.py`); the host's harness resolves the mount point.
+- [ ] **Failure modes named.** What to do when a tool errors / returns empty / has no permission. Including "if the host has no way to execute the script, say so."
 - [ ] **No fabrication.** Explicit guardrail against making up tool results.
 - [ ] **CLI exits cleanly.** `0` on success, `1` on runtime error, `2` on usage. JSON-only on stdout. Errors to stderr.
 - [ ] **No langchain or framework imports in `scripts/`.** Pure stdlib (or pip deps declared in frontmatter). The script must run anywhere Python 3 runs.
@@ -303,8 +310,8 @@ In the browser:
    description and a `+ scripts/` badge if it ships a `scripts/` directory.
 2. **Import** — clicking Import copies the folder into both
    `./.cuga/skills/<name>/` (cuga's loader) and
-   `/tmp/cuga_workspace/skills/<name>/` (so SKILL.md's `run_command` paths
-   resolve).
+   `/tmp/cuga_workspace/skills/<name>/` (the sandbox mount point the
+   harness's preamble points the agent at).
 3. **Golden question** — paste the canonical user query for this skill
    (see the per-app table below). The answer should:
    - Use the workflow from SKILL.md (e.g. geocode then find_hikes)
@@ -340,8 +347,10 @@ python -m uvicorn cuga.backend.server.main:app --host 127.0.0.1 --port 7860
 ```
 
 Open `:7860` and ask the same golden question. The agent should call
-`load_skill(...)` followed by `run_command("python /tmp/cuga_workspace/skills/<name>/scripts/<file>.py …")`,
-parse the JSON, and answer. Verify the answer matches Section C's.
+`load_skill(...)`, then run the script via the harness's subprocess
+primitive (e.g. `run_command("python <skill-mount-path>/scripts/<file>.py …")`
+where the mount path comes from the harness's system preamble), parse
+the JSON, and answer. Verify the answer matches Section C's.
 
 You only need to do this once per skill (or once per conversion-pattern)
 to confirm cross-host portability. After that, `cuga-skills-ui` testing is
@@ -462,10 +471,12 @@ It exercises every part of this spec:
   CLI dispatcher that prints JSON.
 - Public top-level helpers (`geocode`, `find_hikes`) — stdlib only, no
   langchain or framework imports.
-- SKILL.md with the "Tools provided" table, the `/tmp/cuga_workspace/...`
-  invocation example, and a Workflow that references each subcommand.
-- "Do not fabricate" failure mode + "if `run_command` isn't available,
-  say so" guard.
+- SKILL.md with the "Tools provided" table, a schematic
+  `python scripts/hike_tools.py …` invocation example (relative path,
+  no host-specific tool name), and a Workflow that references each
+  subcommand.
+- "Do not fabricate" failure mode + "if the host has no way to execute
+  the script, say so" guard.
 - Output schema in code-block form.
 - `requirements: []` frontmatter (stdlib-only declared explicitly).
 

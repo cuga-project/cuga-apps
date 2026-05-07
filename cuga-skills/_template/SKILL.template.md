@@ -20,9 +20,11 @@ agent's routing depends on.
 
 ## Tools provided
 
-If your skill ships a `scripts/` directory, the agent invokes the scripts
-via `run_command` and parses JSON from stdout. The host uploads the skill
-folder to `/tmp/cuga_workspace/skills/<skill_name>/` before the agent runs.
+If your skill ships a `scripts/` directory, the agent runs the script as
+a subprocess (using whatever shell-execution primitive its host provides)
+and parses JSON from stdout. Reference the script by its relative path
+inside this skill folder — the host's harness resolves where the folder
+is mounted. Don't hardcode absolute paths or host-specific tool names.
 
 | Subcommand | Purpose | Returns |
 | --- | --- | --- |
@@ -31,14 +33,11 @@ folder to `/tmp/cuga_workspace/skills/<skill_name>/` before the agent runs.
 
 ### Example invocation
 
-```python
-import json
+The exact subprocess call depends on the host. Schematically:
 
-out = await run_command(
-    "python /tmp/cuga_workspace/skills/TODO_skill_name/scripts/<filename>.py "
-    "tool_a 'value'"
-)
-result = json.loads(out)
+```
+python scripts/<filename>.py tool_a 'value'
+# → {...}
 ```
 
 If your skill is **pure** (no scripts), delete this whole section.
@@ -56,8 +55,8 @@ TODO numbered steps the agent should follow. Reference subcommands by name.
 - TODO be concise / verbose / formal — pick one.
 - TODO what to say when a tool returns empty.
 - TODO what to NEVER fabricate.
-- If `run_command` is not available in your host, say so plainly. Do not
-  guess.
+- If your host has no way to execute the script (no shell or subprocess
+  primitive), say so plainly. Do not guess.
 
 ## Output format
 
