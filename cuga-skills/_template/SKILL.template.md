@@ -1,6 +1,7 @@
 ---
 name: TODO_skill_name
 description: TODO one-line, trigger-rich description. Mention the user-facing intent verbs ("Discover and compare hikes near a location"), not the implementation ("Wraps OpenStreetMap"). The agent reads this to decide whether to load this skill.
+requirements: []
 ---
 
 # TODO_skill_name Assistant
@@ -19,34 +20,32 @@ agent's routing depends on.
 
 ## Tools provided
 
-| Tool | Purpose |
-| --- | --- |
-| `tool_a(arg)` | TODO one-line purpose. |
-| `tool_b(arg1, arg2=default)` | TODO one-line purpose. |
+If your skill ships a `scripts/` directory, the agent invokes the scripts
+via `run_command` and parses JSON from stdout. The host uploads the skill
+folder to `/tmp/cuga_workspace/skills/<skill_name>/` before the agent runs.
 
-If your skill ships a `tools.py`, both helpers can be invoked **two ways**
-depending on the host:
+| Subcommand | Purpose | Returns |
+| --- | --- | --- |
+| `tool_a <arg>` | TODO one-line purpose. | `{...}` |
+| `tool_b <arg1> [arg2]` | TODO one-line purpose. | List of `{...}` |
 
-**Native invocation (LangChain tool):** the host pre-loaded `tools.py`;
-helpers are callable as native tools — e.g. `tool_a(arg="...")`.
-
-**Sandbox invocation (CLI via run_command):** the same logic via subprocess:
+### Example invocation
 
 ```python
 import json
+
 out = await run_command(
-    "python /tmp/cuga_workspace/skills/TODO_skill_name/tools.py tool_a 'value'"
+    "python /tmp/cuga_workspace/skills/TODO_skill_name/scripts/<filename>.py "
+    "tool_a 'value'"
 )
 result = json.loads(out)
 ```
 
-Both paths return the same JSON shape — pick whichever your host has.
-
-If your skill is **pure** (no `tools.py`), delete this whole section.
+If your skill is **pure** (no scripts), delete this whole section.
 
 ## Workflow
 
-TODO numbered steps the agent should follow. Reference tools by name.
+TODO numbered steps the agent should follow. Reference subcommands by name.
 
 1. ...
 2. ...
@@ -57,6 +56,8 @@ TODO numbered steps the agent should follow. Reference tools by name.
 - TODO be concise / verbose / formal — pick one.
 - TODO what to say when a tool returns empty.
 - TODO what to NEVER fabricate.
+- If `run_command` is not available in your host, say so plainly. Do not
+  guess.
 
 ## Output format
 

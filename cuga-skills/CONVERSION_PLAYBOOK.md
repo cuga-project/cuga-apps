@@ -96,36 +96,40 @@ Body sections, in order (omit any that don't apply):
 6. **Output format** — a code-block schema showing the rendered output.
 7. **Reference** (optional) — lookup tables, mapping enums, etc.
 
-### `tools.py` shape — dual-host
+### `scripts/<name>.py` shape — stdlib CLI
 
-The same file works as both an importable module (native hosts) and a
-stdlib-only CLI (sandbox hosts). See [`hiking_research/tools.py`](hiking_research/tools.py)
-or [`_template/tools.py`](_template/tools.py).
+This matches Anthropic's canonical [skills format](https://github.com/anthropics/skills):
+a folder with `SKILL.md` + a `scripts/` directory of plain Python files. The
+agent invokes them via `run_command` and parses JSON from stdout.
 
-Three rules for the file structure:
+See [`hiking_research/scripts/hike_tools.py`](hiking_research/scripts/hike_tools.py)
+or [`_template/scripts/hike_tools.template.py`](_template/scripts/hike_tools.template.py).
 
-1. **Pure helpers first.** Private functions prefixed `_<name>` with no
-   decorators. Stdlib-only (or pip-deps declared in SKILL.md frontmatter).
-2. **Native wrappers second**, behind a `try: from langchain_core.tools import tool / except ImportError: TOOLS = []` block.
-   Each `@tool` function calls the matching `_<name>` helper. The
-   `@tool` docstring is the API contract the model reads — be precise
-   about units, defaults, return shape, edge cases.
-3. **CLI third**, inside `if __name__ == "__main__":`. Dispatches `argv[1]`
-   to the matching `_<name>` helper, prints JSON to stdout, returns 0/1/2
-   exit codes (0=ok, 1=runtime error, 2=usage). Pass `-` for "skip this
-   optional arg" when the next positional arg is non-empty.
+Three rules for the script:
 
-### Why dual-host
+1. **Public pure helpers.** Top-level functions like `geocode(place)` or
+   `find_hikes(lat, lon, ...)`. No decorators. Stdlib only (or pip-deps
+   declared in SKILL.md frontmatter as `requirements: [...]`).
+2. **CLI dispatcher** inside `if __name__ == "__main__":`. Dispatches
+   `argv[1]` to the matching helper, prints JSON to stdout, returns 0/1/2
+   exit codes (0 = ok, 1 = runtime error, 2 = usage). Pass `-` for "skip
+   this optional arg" when the next positional arg is non-empty.
+3. **No langchain or framework imports.** The script must run anywhere
+   Python 3 runs — inside a Docker sandbox, on a developer's laptop, in
+   CI. If the script imports `langchain_core` or anything CUGA-specific,
+   it's not portable.
 
-- **Native invocation** (cuga-skills-ui imports `TOOLS`) → fast, typed,
-  no subprocess; agent calls `tool.invoke(...)` directly.
-- **Sandbox invocation** (`cuga start demo_skills` runs
-  `python tools.py <cmd> <args>` via `run_command`) → no langchain dep
-  inside the sandbox; sandbox already provides `run_command` so this
-  works on any standard CUGA install with shell tools enabled.
+### Why this format
 
-A skill that supports both is **portable**. A skill that supports only
-one is host-locked.
+- **Anthropic-compatible.** Matches the upstream
+  [skills format](https://github.com/anthropics/skills) — your skill works
+  in claude.ai, the Anthropic CLI, and any future host that honors the
+  spec. No CUGA-specific extensions in the artifact.
+- **Both CUGA hosts run the same script.** `cuga start demo_skills` (with
+  OpenSandbox) uploads the folder and uses its built-in `run_command`.
+  `cuga-skills-ui` (in-process, no Docker) provides its own host-side
+  `run_command` that subprocesses on the local machine. Same SKILL.md,
+  same script, same answer in both.
 
 ---
 
@@ -158,59 +162,63 @@ Scan the rest of `main.py` and bucket every function/constant:
 | Category | Bucket | Action |
 | --- | --- | --- |
 | System prompt, decision rules, output shape | **Brain** | → SKILL.md body |
-| HTTP calls, file parsing, computation | **Tools** | → tools.py helpers |
+| HTTP calls, file parsing, computation | **Tools** | → scripts/&lt;name&gt;.py helpers |
 | FastAPI routes, HTML, CORS, uvicorn launcher | **Plumbing** | drop |
 | `_llm.py`, MCP bridge, port logic | **Plumbing** | drop |
 | Module-level "last result" caches | **Plumbing** | drop |
 
 Common patterns to look for:
 
-- `from _mcp_bridge import load_tools` → these MCP tools become `tools.py` `@tool` functions, calling the underlying APIs directly via `urllib`/`httpx`.
-- `app = FastAPI(...)` and route decorators → drop entirely, the host's `/ask` does this.
-- `_HTML = """..."""` → drop, host owns the UI.
-- `async def make_agent(): from cuga import CugaAgent ...` → drop, host instantiates the agent.
+- `from _mcp_bridge import load_tools` → these MCP tools become public functions in `scripts/<name>.py`, calling the underlying APIs directly via stdlib `urllib`.
+- `app = FastAPI(...)` and route decorators → drop entirely; the host's `/ask` does this.
+- `_HTML = """..."""` → drop; host owns the UI.
+- `async def make_agent(): from cuga import CugaAgent ...` → drop; host instantiates the agent.
 
 ### Step 3 — Distill SKILL.md
 
-Use [`_template/SKILL.md`](_template/SKILL.md) as a starting point. Fill in:
+Use [`_template/SKILL.template.md`](_template/SKILL.template.md) as a starting point. Fill in:
 
-- **Frontmatter `description`**: trigger-rich, ≤2 lines. Test by reading
-  it cold — would you know when to load this skill?
+- **Frontmatter** `name`, `description`, optional `requirements: [...]`.
+  Description trigger-rich, ≤2 lines. Test by reading it cold — would you
+  know when to load this skill?
 - **When to use**: 4-6 bullet triggers covering the real user phrasings.
-- **Tools provided table**: one row per `@tool` in tools.py, plus the
-  copy-paste "two invocation paths" snippet from hiking_research/SKILL.md.
-- **Workflow**: numbered steps. Reference tools by name. Don't say "press X"
-  or "in the UI"; the skill is host-agnostic.
+- **Tools provided table**: one row per CLI subcommand. Copy-paste the
+  "Example invocation" code block from
+  [hiking_research/SKILL.md](hiking_research/SKILL.md) and adapt the path
+  and arguments.
+- **Workflow**: numbered steps. Reference subcommands by name. Don't say
+  "press X" or "in the UI"; the skill is host-agnostic.
 - **Tone & failure modes**: at minimum `"Never fabricate <X>"` and
-  `"If <tool> returns empty, suggest <Y> before re-querying."`
+  `"If <tool> returns empty, suggest <Y> before re-querying."` Plus
+  `"If run_command isn't available, say so plainly."`
 - **Output format**: a code-block schema with `<placeholders>`.
 
 Keep the file under ~150 lines. If it's longer, you're being prescriptive.
 
-### Step 4 — Build tools.py (skip for pure skills)
+### Step 4 — Build `scripts/<name>.py` (skip for pure skills)
 
-Use [`_template/tools.py`](_template/tools.py) as a starting point.
+Use [`_template/scripts/hike_tools.template.py`](_template/scripts/hike_tools.template.py) as a starting point.
 
 For each network/file function in the original `main.py`:
 
-1. Copy the underlying logic into a `_<name>` private helper. Strip
-   module-level state — each helper is pure: input → output. Use stdlib
-   only when possible (urllib > requests > httpx).
-2. Add a `@tool`-decorated wrapper with a precise docstring. The
-   docstring is the API contract the model sees — name every parameter's
-   type, units, defaults, and the return shape.
-3. Add a CLI dispatch case in `_main(argv)` matching the tool name.
-4. Add a usage line to `_USAGE`.
-
-Append `TOOLS = [...]` at the bottom of the langchain_core try block.
+1. Copy the underlying logic into a public top-level helper (e.g.
+   `geocode(place)`, `find_hikes(lat, lon, ...)`). Strip module-level
+   state — each helper is pure: input → output. **Stdlib only** when
+   possible (`urllib` > `httpx`). The script must be importable and
+   runnable in any Python environment, sandboxed or not.
+2. Add a CLI dispatch case in `_main(argv)` matching the helper name.
+   Print JSON to stdout on success; `{"error": "..."}` JSON on graceful
+   failures; usage to stderr with exit 2 for bad arguments.
+3. Add a usage line to `_USAGE`.
 
 If the helpers need a pip dep, declare it in SKILL.md frontmatter as
-`requirements:` so the sandbox host installs it before running.
+`requirements: [pkg>=ver]`. The sandbox host installs deps before running.
 
 ### Step 5 — Drop everything else
 
 Delete `requirements.txt` from the skill folder (deps live in SKILL.md
-frontmatter). Delete any `__init__.py`. The skill is two files; that's it.
+frontmatter). Delete any `__init__.py`. Skill folder = `SKILL.md` + (optional)
+`scripts/`. That's it.
 
 Update [`cuga-skills/README.md`](README.md) with a one-line entry in the
 discovered-skills table.
@@ -222,19 +230,17 @@ discovered-skills table.
 A skill is **done** when every box checks:
 
 - [ ] **Description is trigger-rich.** Read it cold — do you know when to load this skill?
-- [ ] **Frontmatter is valid.** `name` matches folder; `description` is one line.
-- [ ] **Tools have precise docstrings.** Every parameter unit, default, and return-shape is in the docstring.
+- [ ] **Frontmatter is valid.** `name` matches folder; `description` is one line; `requirements` set (empty list if stdlib-only).
+- [ ] **CLI helpers documented.** Each subcommand listed in the Tools table with its inputs and return shape.
 - [ ] **Workflow is procedural.** "If user mentions kids, pass `kid_friendly=true`" ✓; "Always greet the user warmly" ✗.
-- [ ] **No host assumptions.** SKILL.md doesn't mention buttons, URLs, or specific UIs.
-- [ ] **Failure modes named.** What to do when a tool errors / returns empty / has no permission.
+- [ ] **No host assumptions.** SKILL.md doesn't mention buttons, URLs, or specific UIs. Reference the script via the `/tmp/cuga_workspace/skills/<name>/` path that both hosts honor.
+- [ ] **Failure modes named.** What to do when a tool errors / returns empty / has no permission. Including "if `run_command` isn't available, say so."
 - [ ] **No fabrication.** Explicit guardrail against making up tool results.
-- [ ] **Dual-host (if tools.py exists).** Both `from tools import TOOLS` works AND `python tools.py <cmd>` works AND they call the same `_<name>` helpers.
 - [ ] **CLI exits cleanly.** `0` on success, `1` on runtime error, `2` on usage. JSON-only on stdout. Errors to stderr.
-- [ ] **Soft langchain dep.** `from langchain_core.tools import tool` is in a `try/except ImportError` block; `TOOLS = []` if missing.
-- [ ] **Stdlib first.** Helpers use stdlib (`urllib`) unless a pip dep is justified and declared in frontmatter.
-- [ ] **One golden question.** You ran the canonical user query end-to-end in cuga-skills-ui and got the right shape of answer.
+- [ ] **No langchain or framework imports in `scripts/`.** Pure stdlib (or pip deps declared in frontmatter). The script must run anywhere Python 3 runs.
+- [ ] **One golden question.** You ran the canonical user query end-to-end in `cuga-skills-ui` and got the right shape of answer.
 
-The strongest test is **"works in two hosts."** If you only validated cuga-skills-ui, you're not done — also `python tools.py` should reproduce the same answer the @tool gives.
+The strongest test is **"works in two hosts."** If you only validated `cuga-skills-ui`, you're not done — `cuga start demo_skills` (with OpenSandbox) should serve the same answer for the same query, since both hosts upload the skill folder identically and `run_command` does the same thing.
 
 ---
 
@@ -259,32 +265,28 @@ assert fm.get('description'), 'missing description'
 print('frontmatter OK:', fm['name'])
 "
 
-# tools.py imports cleanly with langchain_core present
+# scripts/<name>.py imports cleanly (no langchain or framework deps)
 python3 -c "
-import sys; sys.path.insert(0, '.')
-from tools import TOOLS
-print(f'TOOLS count: {len(TOOLS)}')
-for t in TOOLS: print(f'  - {t.name}')
+import sys; sys.path.insert(0, 'scripts')
+import <module> as t
+print('helpers:', [n for n in dir(t) if not n.startswith('_')])
 "
-
-# tools.py imports cleanly WITHOUT langchain_core (verify soft dep)
-# (Skip if you don't have a no-langchain venv handy.)
 ```
 
 ### B — CLI sanity (one minute)
 
-For each tool, run the CLI with a trivial input:
+For each subcommand, run the CLI with a trivial input:
 
 ```bash
-python3 tools.py <command> <minimal-args>           # → JSON on stdout
-python3 tools.py <command> 2>&1 >/dev/null; echo $?  # → 2 (usage error)
-python3 tools.py bogus 2>&1 >/dev/null; echo $?      # → 2 (unknown command)
+python3 scripts/<name>.py <command> <minimal-args>           # → JSON on stdout
+python3 scripts/<name>.py <command> 2>&1 >/dev/null; echo $?  # → 2 (usage error)
+python3 scripts/<name>.py bogus 2>&1 >/dev/null; echo $?      # → 2 (unknown command)
 ```
 
 Expect: JSON on stdout for happy-path, usage on stderr for errors, clean
 exit codes.
 
-### C — native end-to-end via cuga-skills-ui
+### C — end-to-end via `cuga-skills-ui` (in-process host with subprocess `run_command`)
 
 ```bash
 # in the venv where `cuga` is installed (e.g. cuga-agent-skills-branch/.venv)
@@ -298,9 +300,11 @@ python main.py --provider anthropic
 In the browser:
 
 1. **Discovery** — the skill appears in the list with the correct
-   description and a `+ tools` badge if it ships tools.py.
-2. **Import** — clicking Import creates `.cuga/skills/<name>/` mirroring
-   the source folder.
+   description and a `+ scripts/` badge if it ships a `scripts/` directory.
+2. **Import** — clicking Import copies the folder into both
+   `./.cuga/skills/<name>/` (cuga's loader) and
+   `/tmp/cuga_workspace/skills/<name>/` (so SKILL.md's `run_command` paths
+   resolve).
 3. **Golden question** — paste the canonical user query for this skill
    (see the per-app table below). The answer should:
    - Use the workflow from SKILL.md (e.g. geocode then find_hikes)
@@ -311,31 +315,37 @@ In the browser:
 
 ### D — sandbox end-to-end via `cuga start demo_skills` (optional, one-time)
 
-To validate the sandbox path, install hiking_research (or any
-tools.py-bearing skill) globally:
+To validate the sandbox path with real OpenSandbox, install the skill
+into the cuga checkout's project-local skills dir (or globally) — see
+[QUICKSTART.md](QUICKSTART.md):
 
 ```bash
-mkdir -p ~/.config/agents/skills
-ln -sfn /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/<name> \
-        ~/.config/agents/skills/<name>
+cp -R /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/<name> \
+      /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills/
 ```
 
-Then start an OpenSandbox-backed CUGA per the README:
+Then start cuga (per QUICKSTART, use bare uvicorn to skip the
+digital_sales preset):
 
 ```bash
-# in another terminal: opensandbox-server (see cuga README)
-cd /path/to/cuga-agent-skills-branch
-cuga start demo_skills      # → http://127.0.0.1:7860
+# Terminal 1: opensandbox-server on :8080
+# Terminal 2:
+source /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.venv/bin/activate
+cd /Users/anu/Documents/GitHub/cuga-agent-skills-branch
+DYNACONF_SKILLS__ENABLED=true \
+DYNACONF_ADVANCED_FEATURES__OPENSANDBOX_SANDBOX=true \
+DYNACONF_ADVANCED_FEATURES__ENABLE_SHELL_TOOL=true \
+MCP_SERVERS_FILE=none \
+python -m uvicorn cuga.backend.server.main:app --host 127.0.0.1 --port 7860
 ```
 
-Open the chat panel, ask the same golden question. The agent should
-choose the **sandbox path** (`run_command` against `tools.py`) instead
-of trying to find native tools. Verify the answer matches the native
-path's answer.
+Open `:7860` and ask the same golden question. The agent should call
+`load_skill(...)` followed by `run_command("python /tmp/cuga_workspace/skills/<name>/scripts/<file>.py …")`,
+parse the JSON, and answer. Verify the answer matches Section C's.
 
 You only need to do this once per skill (or once per conversion-pattern)
-to confirm the dual-host design works. After that, native testing in
-cuga-skills-ui is enough day-to-day.
+to confirm cross-host portability. After that, `cuga-skills-ui` testing is
+enough day-to-day.
 
 ### E — reuse smoke test
 
@@ -373,11 +383,11 @@ Source apps live in [`../cuga-apps/apps/`](../cuga-apps/apps/). Each row
 specifies the conversion archetype, the canonical golden question to
 test with, and any tricky-case notes.
 
-### Skill + tools.py archetypes (pure skill marked ★ — no tools.py)
+### Skill + `scripts/` archetypes (pure skill marked ★ — no `scripts/`)
 
 These follow the playbook directly. ~15-30 min each.
 
-| App | Tools (in tools.py) | Golden question | Notes |
+| App | Subcommands (in `scripts/<name>.py`) | Golden question | Notes |
 | --- | --- | --- | --- |
 | ★ `code_reviewer` | (none) | Paste a 50-line Python function with subtle bug → "review this" | Pure skill — SKILL.md only. Smallest possible diff; good warm-up. |
 | `webpage_summarizer` | `fetch_url` | "Summarize https://anthropic.com" | Single tool. Simplest tools.py example. |
@@ -448,12 +458,15 @@ the original UI into the skill.
 It exercises every part of this spec:
 
 - Trigger-rich description with intent verbs.
-- Two-tool tools.py with both native @tool wrappers and CLI dispatch.
-- Pure helpers (`_geocode`, `_find_hikes`) shared across both paths.
-- Soft langchain_core import — works without it (CLI path only).
-- SKILL.md with both invocation paths described in the "Tools provided"
-  section, copy-pasteable into other skills.
-- Workflow with explicit "do not fabricate" failure mode.
+- Two-subcommand `scripts/hike_tools.py` (`geocode`, `find_hikes`) with a
+  CLI dispatcher that prints JSON.
+- Public top-level helpers (`geocode`, `find_hikes`) — stdlib only, no
+  langchain or framework imports.
+- SKILL.md with the "Tools provided" table, the `/tmp/cuga_workspace/...`
+  invocation example, and a Workflow that references each subcommand.
+- "Do not fabricate" failure mode + "if `run_command` isn't available,
+  say so" guard.
 - Output schema in code-block form.
+- `requirements: []` frontmatter (stdlib-only declared explicitly).
 
 When in doubt, copy from there.

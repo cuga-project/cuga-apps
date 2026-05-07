@@ -119,7 +119,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -615,56 +615,127 @@ def _save_run(thread_id: str, question: str, answer: str,
         return None
 
 
-def _normalize_leads_obj(obj: dict | None) -> dict | None:
-    """Normalize the writer's JSON to the {location, leads:[…]} schema the
-    right-panel UI expects. Tolerates writer-drift such as `lead_board`
-    instead of `leads`, `company_name`/`business_name`/`title` for the
-    lead name, missing top-level `location`, and `email_guess`/
-    `owner_email_guess` for the contact email."""
-    if not isinstance(obj, dict):
-        return None
-    out = dict(obj)
+def _normalize_leads_obj(obj) -> dict | None:
+    """Normalize the writer's JSON to the schema the right-panel UI expects:
+        {
+          location, lat, lon,
+          leads: [{name, fit_score, deep_dive, address, phone, website,
+                   email, evidence, website_signals, email_draft, ...}]
+        }
 
-    # Top-level: leads container alias
-    if "leads" not in out:
-        for alt in ("lead_board", "results", "businesses"):
+    Tolerates a wide range of writer drift discovered in real runs:
+
+      * Top-level shapes:
+          - bare array `[{...}, {...}]`
+          - `{leads: [...]}` (canonical)
+          - `{lead_board: [...]}` / `{results: [...]}` / `{businesses: [...]}`
+      * Per-lead nesting:
+          - `name`, `address`, `phone`, `website` may live at top-level
+            OR inside a `candidate: {…}` sub-object → we hoist them up.
+      * Per-lead aliases:
+          - `company_name`/`business_name`/`title` → `name`
+          - `email_guess`/`owner_email_guess`/`owner_email` → `email`
+          - `person: {name, email}` → owner_name + email
+      * Bundle data the writer dumped instead of synthesising:
+          - `voc: [{url, snippet}]` → evidence (when evidence is empty)
+      * Stringly-typed fields the LLM emitted as strings:
+          - `deep_dive: "True"` → bool
+          - `fit_score: "5"`    → int
+      * Missing top-level `location` → derived from first lead's address.
+    """
+    leads_container = None
+    out: dict = {}
+
+    if isinstance(obj, list):
+        # Bare array — wrap.
+        leads_container = obj
+        out = {"leads": leads_container}
+    elif isinstance(obj, dict):
+        out = dict(obj)
+        for alt in ("leads", "lead_board", "results", "businesses"):
             if isinstance(out.get(alt), list):
-                out["leads"] = out[alt]
+                leads_container = out[alt]
+                if alt != "leads":
+                    out["leads"] = leads_container
                 break
-    if not isinstance(out.get("leads"), list):
-        return None  # not a recognizable leads payload
 
-    # Per-lead key aliases — only set the canonical key if missing.
-    name_aliases  = ("company_name", "business_name", "title")
-    email_aliases = ("email_guess", "owner_email_guess", "owner_email")
+    if not isinstance(leads_container, list):
+        return None
+
+    NAME_ALIASES   = ("company_name", "business_name", "title")
+    EMAIL_ALIASES  = ("email_guess", "owner_email_guess", "owner_email")
+    HOIST_FROM_CAND = ("name", "address", "phone", "website", "email", "osm", "category")
+
     norm_leads = []
-    for raw in out["leads"]:
+    for raw in leads_container:
         if not isinstance(raw, dict):
             norm_leads.append(raw); continue
         l = dict(raw)
-        if "name" not in l:
-            for alt in name_aliases:
+
+        # 1) Hoist candidate.* into the lead (writer often nests this way).
+        cand = l.get("candidate")
+        if isinstance(cand, dict):
+            for k in HOIST_FROM_CAND:
+                v = cand.get(k)
+                if v and not l.get(k):
+                    l[k] = v
+
+        # 2) Name aliases (after candidate hoist).
+        if not l.get("name"):
+            for alt in NAME_ALIASES:
                 if l.get(alt):
                     l["name"] = l[alt]; break
-        if "email" not in l:
-            for alt in email_aliases:
+
+        # 3) Email aliases.
+        if not l.get("email"):
+            for alt in EMAIL_ALIASES:
                 if l.get(alt):
                     l["email"] = l[alt]; break
+
+        # 4) Person sub-object → hoist to owner_name + email.
+        person = l.get("person")
+        if isinstance(person, dict):
+            if person.get("name") and not l.get("owner_name"):
+                l["owner_name"] = person["name"]
+            if person.get("email") and not l.get("email"):
+                l["email"] = person["email"]
+
+        # 5) voc bundle → evidence (when evidence is empty).
+        voc = l.get("voc")
+        if isinstance(voc, list) and not l.get("evidence"):
+            ev = []
+            for v in voc:
+                if isinstance(v, dict) and v.get("url"):
+                    ev.append({
+                        "url":   v["url"],
+                        "title": v.get("snippet") or v.get("title") or v["url"],
+                    })
+            if ev:
+                l["evidence"] = ev
+
+        # 6) Type coercion — LLM sometimes emits strings.
+        dd = l.get("deep_dive")
+        if isinstance(dd, str):
+            l["deep_dive"] = dd.strip().lower() in ("true", "yes", "1")
+        fs = l.get("fit_score")
+        if isinstance(fs, str):
+            try:
+                l["fit_score"] = int(float(fs.strip()))
+            except (ValueError, TypeError):
+                l["fit_score"] = None
+
         norm_leads.append(l)
     out["leads"] = norm_leads
 
-    # Top-level location: derive from the first lead's address if absent.
+    # 7) Top-level location: derive from the first lead's address.
     if not out.get("location"):
         for l in norm_leads:
             addr = l.get("address") if isinstance(l, dict) else None
             if addr:
-                # Take the trailing "City, ZIP" or last comma-separated chunk.
                 parts = [p.strip() for p in str(addr).split(",") if p.strip()]
-                if len(parts) >= 2:
-                    out["location"] = ", ".join(parts[-2:])
-                else:
-                    out["location"] = parts[-1]
+                out["location"] = ", ".join(parts[-2:]) if len(parts) >= 2 else parts[-1]
                 break
+
     return out
 
 
@@ -673,25 +744,34 @@ def _extract_leads_json(text: str) -> dict | None:
 
     The writer fences its JSON in ```json``` per its SKILL.md, but the
     supervisor's planner sometimes summarises and strips the fence,
-    leaving bare JSON or JSON-with-prose. Try four extraction shapes:
-      1. fenced ```json``` block
-      2. whole text as JSON
-      3. first balanced { … } that contains a "leads"/"lead_board" key
-      4. last balanced { … } in the text (some planners append extra
-         prose after the JSON; we want the JSON, not the prose).
+    leaving bare JSON or JSON-with-prose. Recognised shapes:
+      1. fenced ```json``` block (object OR bare array)
+      2. whole text parsed as JSON
+      3. balanced `{…}` scan — first/last with leads-like keys
+      4. balanced `[…]` scan — bare arrays of lead-like objects
 
-    Result is then normalized via _normalize_leads_obj to the canonical
+    Result is normalized via _normalize_leads_obj to the canonical
     {location, leads:[{name, …}]} shape the right-panel UI expects.
     """
     if not text:
         return None
 
     def _is_leads_payload(obj):
+        if isinstance(obj, list):
+            # Bare array of leads — first item must look lead-shaped
+            return bool(obj) and isinstance(obj[0], dict) and any(
+                k in obj[0] for k in (
+                    "fit_score", "deep_dive", "candidate", "name",
+                    "company_name", "lead_id", "pitch", "email_draft",
+                )
+            )
         return isinstance(obj, dict) and any(
-            isinstance(obj.get(k), list) for k in ("leads", "lead_board", "results", "businesses")
+            isinstance(obj.get(k), list) for k in (
+                "leads", "lead_board", "results", "businesses"
+            )
         )
 
-    # 1. Fenced
+    # 1. Fenced (handles arrays too)
     for raw in _JSON_FENCE_RE.findall(text):
         try:
             obj = json.loads(raw.strip())
@@ -708,8 +788,8 @@ def _extract_leads_json(text: str) -> dict | None:
     except json.JSONDecodeError:
         pass
 
-    # 3 + 4: balanced-brace scan.
-    candidates: list[dict] = []
+    # 3. Balanced-brace scan for objects containing leads-like keys.
+    obj_candidates: list = []
     depth = 0
     start = -1
     for i, ch in enumerate(text):
@@ -726,12 +806,39 @@ def _extract_leads_json(text: str) -> dict | None:
                 try:
                     obj = json.loads(chunk)
                     if _is_leads_payload(obj):
-                        candidates.append(obj)
+                        obj_candidates.append(obj)
                 except json.JSONDecodeError:
                     pass
                 start = -1
-    if candidates:
-        return _normalize_leads_obj(candidates[-1])
+    if obj_candidates:
+        return _normalize_leads_obj(obj_candidates[-1])
+
+    # 4. Balanced-bracket scan for bare arrays. Only top-level brackets
+    # (depth 0 → 1 → 0) — skips nested arrays.
+    arr_candidates: list = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if ch == "[":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "]":
+            if depth == 0:
+                continue
+            depth -= 1
+            if depth == 0 and start >= 0:
+                chunk = text[start:i + 1]
+                try:
+                    obj = json.loads(chunk)
+                    if _is_leads_payload(obj):
+                        arr_candidates.append(obj)
+                except json.JSONDecodeError:
+                    pass
+                start = -1
+    if arr_candidates:
+        # Prefer the largest array (most leads).
+        return _normalize_leads_obj(max(arr_candidates, key=len))
 
     return None
 
@@ -1067,6 +1174,37 @@ class AskReq(BaseModel):
     thread_id: str = ""
 
 
+from pydantic import field_validator as _field_validator
+
+class _EmailCfgReq(BaseModel):
+    """Body for POST /email/config and POST /email/test.
+
+    Defined at MODULE SCOPE — Pydantic v2 + FastAPI need this to resolve
+    the type annotation properly. Defining it inside `_web()` produces a
+    ForwardRef that FastAPI can't resolve, falling back to query-param
+    interpretation and 422-ing every body POST.
+    """
+    recipient: str = ""
+    min_leads: int = 0
+    include_user: bool = True
+    include_loop: bool = True
+    # SMTP overrides — leave blank to use env vars
+    smtp_host: str = ""
+    smtp_port: int = 0
+    smtp_username: str = ""
+    smtp_password: str = ""    # empty means "no change"; "•••" sentinel preserved
+    smtp_from: str = ""
+
+    # Browsers (and our JS) may send "" for cleared number inputs.
+    # Pydantic v2 rejects empty-string-as-int → 422. Coerce here.
+    @_field_validator("smtp_port", "min_leads", mode="before")
+    @classmethod
+    def _empty_int_to_zero(cls, v):
+        if v == "" or v is None:
+            return 0
+        return v
+
+
 # ── HTTP server ──────────────────────────────────────────────────────────
 def _web(port: int) -> None:
     import uvicorn
@@ -1160,10 +1298,43 @@ def _web(port: int) -> None:
                     session["target_location"] = leads["location"]
                 session["history"].insert(0, leads)
                 session["history"] = session["history"][:6]
+                _n_leads = len(leads.get("leads", []) or [])
                 log.info("[%s] leads parsed: %d items in %s",
-                         thread_id[:8],
-                         len(leads.get("leads", []) or []),
+                         thread_id[:8], _n_leads,
                          leads.get("location", "?"))
+                # Per-lead diagnostics — flag exactly which deep-dived
+                # leads are missing what the renderer needs. This catches
+                # writer drift the normalizer didn't anticipate.
+                for _i, _l in enumerate(leads.get("leads") or []):
+                    if not isinstance(_l, dict):
+                        continue
+                    if not _l.get("deep_dive"):
+                        continue
+                    _missing = [k for k in ("name", "fit_score", "address",
+                                            "pitch", "email_draft")
+                                if not _l.get(k)]
+                    if _missing:
+                        log.warning("[%s] lead[%d] %r missing fields: %s "
+                                    "(top-level keys present: %s)",
+                                    thread_id[:8], _i,
+                                    _l.get("name") or "(no name)",
+                                    ",".join(_missing),
+                                    sorted(_l.keys()))
+                # Loud warning when the cascade produced suspiciously few
+                # leads — usually means scout returned a tiny candidate
+                # list (LLM laziness, not an infrastructure bug). Look at
+                # the writer's `answer_full` in runs/<thread>/<ts>.json
+                # to see what the supervisor passed to the writer.
+                if _n_leads < 3 and source == "user":
+                    log.warning("[%s] ⚠ only %d leads — scout likely "
+                                "returned few candidates. Check supervisor "
+                                "trace; consider re-running.",
+                                thread_id[:8], _n_leads)
+                if _n_leads == 0 and source == "loop":
+                    log.warning("[%s] ⚠ loop fire produced 0 leads. If this "
+                                "repeats, the supervisor may be reusing "
+                                "stale state — check the loop's thread_id "
+                                "is fresh.", thread_id[:8])
             else:
                 log.warning("[%s] no leads extracted (answer length: %d chars)",
                             thread_id[:8], len(answer or ""))
@@ -1204,16 +1375,26 @@ def _web(port: int) -> None:
     # same _handle_full_turn path as user asks. They land in runs/<thread>/
     # alongside user runs, with source='loop' + loop_id so the UI can
     # tell them apart.
+    #
+    # CRITICAL: each fire uses a FRESH thread_id, NOT the loop's stored
+    # thread_id (which is usually the user's SESSION_ID at scheduling
+    # time). Reusing the user thread caused the supervisor to see prior
+    # chat history (the previous lead board) and shortcut the cascade,
+    # producing 0-lead runs. Fresh per-fire thread = clean planner state.
     try:
+        import time as _time
         from cuga.backend.loops.service import current_loop_id, get_loops_service
-        async def _loop_invoke(prompt: str, thread_id: str) -> str:
-            lid = current_loop_id.get()
-            res = await _handle_full_turn(prompt, thread_id,
+        async def _loop_invoke(prompt: str, _orig_thread_id: str) -> str:
+            lid = current_loop_id.get() or "unknown"
+            fresh_thread = f"loop_{lid}_{int(_time.time())}"
+            log.info("[%s] loop fire on fresh thread=%s (loop=%s, original_thread=%s)",
+                     fresh_thread[:12], fresh_thread, lid, _orig_thread_id[:12])
+            res = await _handle_full_turn(prompt, fresh_thread,
                                           source="loop", loop_id=lid)
             return res.get("answer") or ""
         get_loops_service().register_agent("ouroboros_supervisor", _loop_invoke)
         log.info("registered ouroboros_supervisor with loops service "
-                 "(loop fires will be saved as runs with source='loop')")
+                 "(loop fires use FRESH thread per fire to avoid memory reuse)")
     except Exception as _err:
         log.warning("could not override loops callback: %s", _err)
 
@@ -1254,31 +1435,8 @@ def _web(port: int) -> None:
             },
         }
 
-    from pydantic import field_validator
-    class _EmailCfgReq(BaseModel):
-        recipient: str = ""
-        min_leads: int = 0
-        include_user: bool = True
-        include_loop: bool = True
-        # SMTP overrides — leave blank to use env vars
-        smtp_host: str = ""
-        smtp_port: int = 0
-        smtp_username: str = ""
-        smtp_password: str = ""    # empty means "no change"; "•••" sentinel preserved
-        smtp_from: str = ""
-
-        # Browsers (and our JS) may send "" for cleared number inputs.
-        # Pydantic v2 rejects empty-string-as-int → 422. Coerce here so
-        # callers don't need to remember.
-        @field_validator("smtp_port", "min_leads", mode="before")
-        @classmethod
-        def _empty_int_to_zero(cls, v):
-            if v == "" or v is None:
-                return 0
-            return v
-
     @app.post("/email/config")
-    async def email_set(req: _EmailCfgReq):
+    async def email_set(req: _EmailCfgReq = Body(...)):
         new_cfg = req.model_dump()
         existing = _email_load()
         # Preserve existing password if client sent placeholder (or blank)
@@ -1295,7 +1453,7 @@ def _web(port: int) -> None:
         return {"ok": True, "config": out}
 
     @app.post("/email/test")
-    async def email_test(req: _EmailCfgReq):
+    async def email_test(req: _EmailCfgReq = Body(...)):
         """Send a test email using the request body's settings.
 
         The body is REQUIRED (was previously Optional, which FastAPI handled

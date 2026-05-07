@@ -58,6 +58,24 @@ for agent self-scheduling.
 For installation + run + troubleshooting, see [README.md](README.md).
 This file is the **architectural reference + complete story**.
 
+## Diagrams
+
+Two SVGs render the same picture from two angles:
+
+- **[workflow.svg](workflow.svg)** — top-to-bottom data flow. Shows
+  how a user request *or* a loop fire enters the same `_handle_full_turn`,
+  runs through the 3-phase cascade (scout → 5 specialist sweeps →
+  writer), and produces four outputs: lead board in the UI, run JSON
+  on disk, optional email, and optional self-scheduled loop.
+- **[stack.svg](stack.svg)** — layered view, browser at the top,
+  external services at the bottom, with a sidecar storage column. Shows
+  what lives in each layer and how the storage boundary divides what
+  survives a process restart.
+
+The legacy [architecture.png](architecture.png) (rendered from
+[architecture.mmd](architecture.mmd) Mermaid) is still around for
+historical reference.
+
 ---
 
 ## What problem does this solve?

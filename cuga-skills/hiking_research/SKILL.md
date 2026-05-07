@@ -1,13 +1,14 @@
 ---
 name: hiking_research
 description: Discover, filter, and evaluate hiking trails near any location using OpenStreetMap. Use whenever a user asks for hikes, trails, walks, or family-friendly outdoor routes near a place.
+requirements: []
 ---
 
 # Hiking Research Assistant
 
 You help users discover, filter, and evaluate hiking trails near any location.
-Two helpers — `geocode` and `find_hikes` — are available; pick whichever
-invocation surface your host provides.
+A companion script — `scripts/hike_tools.py` — exposes two CLI commands the
+agent invokes via `run_command`: `geocode` and `find_hikes`.
 
 ## When to use this skill
 
@@ -19,67 +20,60 @@ Trigger on any request that involves:
 
 ## Tools provided
 
-| Tool | Purpose |
-| --- | --- |
-| `geocode(place)` | Resolves a place name to `{lat, lon, display_name}` via Nominatim. Call this first. |
-| `find_hikes(lat, lon, radius_km=25, difficulty=None, kid_friendly=False)` | Returns up to ~60 trails from Overpass, ranked by difficulty then distance. Each has `name, difficulty, distance_km, kid_friendly, osm_id, description`. |
+The skill ships one Python script with two subcommands. Invoke it via
+`run_command` and parse the JSON it prints to stdout. The script lives at
+`/tmp/cuga_workspace/skills/hiking_research/scripts/hike_tools.py` after the
+host uploads the skill folder into the sandbox.
 
-Both helpers can be invoked **two ways**, depending on the host:
+| Subcommand | Purpose | Returns |
+| --- | --- | --- |
+| `geocode <place>` | Resolve a place name to coordinates via Nominatim. Call this first. | `{"lat", "lon", "display_name"}` or `{"error": "..."}` |
+| `find_hikes <lat> <lon> [radius_km] [difficulty] [kid_friendly]` | Find trails around (lat, lon) via Overpass. | List of `{name, difficulty, distance_km, kid_friendly, osm_id, …}` sorted by difficulty then distance. |
 
-**Native invocation (LangChain tool):** the host pre-loaded `tools.py` and
-the helpers are already callable as native tools — e.g. `geocode(place="Lake Tahoe")`
-or `find_hikes(lat=39.09, lon=-120.04, radius_km=25, difficulty="easy")`. Use
-this when these names appear in your tool list.
+Pass `-` for `difficulty` to skip the filter. `kid_friendly` is `true|false`.
 
-**Sandbox invocation (CLI via run_command):** call the helpers as a
-subprocess and parse JSON from stdout — e.g.
+### Example invocation
 
 ```python
 import json
+
+# 1. Resolve the place
 out = await run_command(
-    "python /tmp/cuga_workspace/skills/hiking_research/tools.py geocode 'Lake Tahoe'"
+    "python /tmp/cuga_workspace/skills/hiking_research/scripts/hike_tools.py "
+    "geocode 'Lake Tahoe'"
 )
 loc = json.loads(out)
+if "error" in loc:
+    return f"Could not resolve place: {loc['error']}"
 
-hikes_out = await run_command(
-    f"python /tmp/cuga_workspace/skills/hiking_research/tools.py "
-    f"find_hikes {loc['lat']} {loc['lon']} 25 easy false"
+# 2. Find easy, family-friendly trails within 25 km
+out = await run_command(
+    f"python /tmp/cuga_workspace/skills/hiking_research/scripts/hike_tools.py "
+    f"find_hikes {loc['lat']} {loc['lon']} 25 easy true"
 )
-hikes = json.loads(hikes_out)
+hikes = json.loads(out)
 ```
-
-Use this when `run_command` is in your tool list and `geocode` / `find_hikes`
-are not. Pass `-` for `difficulty` to skip the filter.
-
-Either path returns the same JSON shape — pick whichever you have.
 
 ## Workflow
 
-**1. Discovering hikes**
-
 When the user names a place:
 
-1. Call `geocode(place)` (native) or run the CLI (sandbox) → `{lat, lon}`.
-   If the result has `error`, surface it and stop — don't fabricate
-   coordinates.
-2. Call `find_hikes(lat, lon, ...)`:
-   - Pass `difficulty="easy"|"moderate"|"hard"` if the user specifies one.
-   - Pass `kid_friendly=true` if they mention children, kids, or family.
+1. Run `geocode(place)` via the script. If the result has `error`, surface it
+   and stop — don't fabricate coordinates.
+2. Run `find_hikes(lat, lon, ...)` with:
+   - `difficulty=easy|moderate|hard` if the user specified one (else `-`).
+   - `kid_friendly=true` if they mentioned children, kids, or family.
    - Default `radius_km=25`; raise to 40–50 if results are sparse or the user
      asks for "wider area / nearby region".
 3. Summarise the top 5–8 results. Group by difficulty when results mix.
 
-**2. Reviewing a specific trail**
-
-When the user asks for reviews/opinions on a named trail and you don't have
-a web-search tool, say so plainly and offer the OSM link
-(`https://www.openstreetmap.org/relation/<osm_id>`) for further reading.
-Do not fabricate review content.
-
-**3. Filtering**
-
-If the user asks to filter after results are shown, **re-call `find_hikes`**
+If the user asks to filter after results are shown, **re-run `find_hikes`**
 with the new flags rather than filtering mentally.
+
+If the user asks for reviews or opinions on a named trail and you don't have
+a web-search tool, say so plainly and offer the OSM link
+(`https://www.openstreetmap.org/relation/<osm_id>`). Do not fabricate review
+content.
 
 ## Tone & failure modes
 
@@ -88,7 +82,8 @@ with the new flags rather than filtering mentally.
 - If `find_hikes` returns an empty list, suggest a wider radius or a nearby
   town and ask before re-querying.
 - Never fabricate trail details. Only report what `find_hikes` returns.
-- If neither invocation path is available, say so plainly — do not guess.
+- If `run_command` is not available in your host, say so plainly. Do not
+  guess.
 
 ## Difficulty mapping (reference)
 
@@ -114,3 +109,10 @@ Render a compact card per trail:
 ```
 
 End with a one-line summary: "Found N <difficulty> trails within <radius> km of <place>."
+
+## Rate limits
+
+`Nominatim` (geocoding) limits public use to ~1 req/sec. For high-volume
+use, swap in a private geocoder by editing `_NOMINATIM` in
+`scripts/hike_tools.py`. `Overpass` may return 504s under load; retrying
+after a few seconds usually clears it.

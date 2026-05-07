@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1100" width="1440" height="1100" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,sans-serif">
+  <!-- Ouroboros stack diagram — layered view from the browser down to external services -->
+
+  <defs>
+    <marker id="downArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1440" height="1100" fill="#0d1117"/>
+
+  <!-- Title -->
+  <text x="720" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#e6edf3">Ouroboros — stack</text>
+  <text x="720" y="68" text-anchor="middle" font-size="12" fill="#8b949e">Layered view: each layer talks only to the next; storage is a side-cabinet that all layers read/write.</text>
+
+  <!-- Storage column on right (spans most layers) -->
+  <g>
+    <rect x="1170" y="100" width="240" height="800" rx="12" fill="#161b22" stroke="#facc15" stroke-width="1.5"/>
+    <text x="1290" y="128" text-anchor="middle" font-size="13" font-weight="700" fill="#facc15">📁 Storage (sidecar)</text>
+    <text x="1290" y="148" text-anchor="middle" font-size="10" fill="#8b949e">read/written by every layer</text>
+
+    <!-- runs/ -->
+    <rect x="1190" y="170" width="200" height="100" rx="8" fill="#0d1117" stroke="#30363d"/>
+    <text x="1290" y="190" text-anchor="middle" font-size="11" font-weight="700" fill="#facc15">runs/&lt;thread&gt;/*.json</text>
+    <text x="1290" y="208" text-anchor="middle" font-size="10" fill="#8b949e">per-turn metadata</text>
+    <text x="1290" y="226" text-anchor="middle" font-size="10" fill="#e6edf3">timestamp · source</text>
+    <text x="1290" y="242" text-anchor="middle" font-size="10" fill="#e6edf3">loop_id · leads</text>
+    <text x="1290" y="260" text-anchor="middle" font-size="10" fill="#e6edf3">agent_trace · stages</text>
+
+    <!-- email store -->
+    <rect x="1190" y="290" width="200" height="80" rx="8" fill="#0d1117" stroke="#30363d"/>
+    <text x="1290" y="310" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">.email_store.json</text>
+    <text x="1290" y="328" text-anchor="middle" font-size="10" fill="#8b949e">UI-editable</text>
+    <text x="1290" y="344" text-anchor="middle" font-size="10" fill="#e6edf3">recipient · SMTP creds</text>
+    <text x="1290" y="360" text-anchor="middle" font-size="10" fill="#e6edf3">per-source toggles</text>
+
+    <!-- loops registry -->
+    <rect x="1190" y="390" width="200" height="100" rx="8" fill="#0d1117" stroke="#a78bfa"/>
+    <text x="1290" y="410" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">cuga_loops + cuga_loop_runs</text>
+    <text x="1290" y="428" text-anchor="middle" font-size="10" fill="#8b949e">SQLite (in SDK)</text>
+    <text x="1290" y="446" text-anchor="middle" font-size="10" fill="#e6edf3">loop spec · cadence</text>
+    <text x="1290" y="462" text-anchor="middle" font-size="10" fill="#e6edf3">next_fire · history</text>
+    <text x="1290" y="480" text-anchor="middle" font-size="10" fill="#8b949e">~/.cuga/dbs/cuga.db</text>
+
+    <!-- policy store -->
+    <rect x="1190" y="510" width="200" height="80" rx="8" fill="#0d1117" stroke="#30363d"/>
+    <text x="1290" y="530" text-anchor="middle" font-size="11" font-weight="700" fill="#58a6ff">policy store</text>
+    <text x="1290" y="548" text-anchor="middle" font-size="10" fill="#8b949e">SQLite-vec (in SDK)</text>
+    <text x="1290" y="564" text-anchor="middle" font-size="10" fill="#e6edf3">3 ouroboros policies</text>
+    <text x="1290" y="580" text-anchor="middle" font-size="10" fill="#8b949e">cleared on startup</text>
+
+    <!-- Skills -->
+    <rect x="1190" y="610" width="200" height="100" rx="8" fill="#0d1117" stroke="#30363d"/>
+    <text x="1290" y="630" text-anchor="middle" font-size="11" font-weight="700" fill="#e6edf3">skills/&lt;name&gt;/</text>
+    <text x="1290" y="648" text-anchor="middle" font-size="10" fill="#8b949e">declarative spec</text>
+    <text x="1290" y="664" text-anchor="middle" font-size="10" fill="#e6edf3">SKILL.md · tools.py</text>
+    <text x="1290" y="682" text-anchor="middle" font-size="10" fill="#8b949e">edit → restart</text>
+    <text x="1290" y="700" text-anchor="middle" font-size="10" fill="#8b949e">→ change live</text>
+
+    <!-- Sessions -->
+    <rect x="1190" y="730" width="200" height="80" rx="8" fill="#0d1117" stroke="#30363d"/>
+    <text x="1290" y="750" text-anchor="middle" font-size="11" font-weight="700" fill="#e6edf3">_sessions[thread_id]</text>
+    <text x="1290" y="768" text-anchor="middle" font-size="10" fill="#8b949e">in-memory dict</text>
+    <text x="1290" y="784" text-anchor="middle" font-size="10" fill="#e6edf3">leads · location</text>
+    <text x="1290" y="802" text-anchor="middle" font-size="10" fill="#e6edf3">history · focus</text>
+
+    <text x="1290" y="850" text-anchor="middle" font-size="10" font-style="italic" fill="#8b949e">All persistent state lives here.</text>
+    <text x="1290" y="866" text-anchor="middle" font-size="10" font-style="italic" fill="#8b949e">Restart-safe except for</text>
+    <text x="1290" y="882" text-anchor="middle" font-size="10" font-style="italic" fill="#8b949e">_sessions (in-memory).</text>
+  </g>
+
+  <!-- ─────────────────── Layer 1: Browser ─────────────────── -->
+  <g>
+    <rect x="40" y="100" width="1100" height="100" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="60" y="128" font-size="14" font-weight="700" fill="#58a6ff">1 · Browser</text>
+    <text x="60" y="148" font-size="11" fill="#8b949e">single-page UI · localStorage thread_id · dark-themed</text>
+
+    <rect x="60"  y="158" width="200" height="32" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="160" y="178" text-anchor="middle" font-size="11" fill="#e6edf3">💬 Chat panel (left)</text>
+
+    <rect x="280" y="158" width="200" height="32" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="380" y="178" text-anchor="middle" font-size="11" fill="#e6edf3">📋 Lead board (right)</text>
+
+    <rect x="500" y="158" width="180" height="32" rx="6" fill="#0d1117" stroke="#3fb950"/>
+    <text x="590" y="178" text-anchor="middle" font-size="11" fill="#3fb950">✉️ Email modal</text>
+
+    <rect x="700" y="158" width="180" height="32" rx="6" fill="#0d1117" stroke="#a78bfa"/>
+    <text x="790" y="178" text-anchor="middle" font-size="11" fill="#a78bfa">🔁 Loops dashboard</text>
+
+    <rect x="900" y="158" width="220" height="32" rx="6" fill="#0d1117" stroke="#facc15"/>
+    <text x="1010" y="178" text-anchor="middle" font-size="11" fill="#facc15">📜 Past runs drawer (user/loop)</text>
+  </g>
+
+  <line x1="590" y1="200" x2="590" y2="225" stroke="#8b949e" stroke-width="1.5" marker-end="url(#downArrow)"/>
+
+  <!-- ─────────────────── Layer 2: FastAPI ─────────────────── -->
+  <g>
+    <rect x="40" y="225" width="1100" height="120" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="60" y="253" font-size="14" font-weight="700" fill="#58a6ff">2 · FastAPI app  ·  apps/ouroboros/main.py</text>
+    <text x="60" y="273" font-size="11" fill="#8b949e">REST endpoints + the single entry point _handle_full_turn(question, thread_id, source, loop_id)</text>
+
+    <rect x="60"  y="285" width="170" height="48" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="145" y="305" text-anchor="middle" font-size="11" font-weight="700" fill="#e6edf3">POST /ask</text>
+    <text x="145" y="322" text-anchor="middle" font-size="10" fill="#8b949e">source='user'</text>
+
+    <rect x="240" y="285" width="170" height="48" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="325" y="305" text-anchor="middle" font-size="11" font-weight="700" fill="#e6edf3">GET /runs · /session</text>
+    <text x="325" y="322" text-anchor="middle" font-size="10" fill="#8b949e">past-runs drawer feed</text>
+
+    <rect x="420" y="285" width="170" height="48" rx="6" fill="#0d1117" stroke="#3fb950"/>
+    <text x="505" y="305" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">/email/config · /test</text>
+    <text x="505" y="322" text-anchor="middle" font-size="10" fill="#8b949e">SMTP send + config</text>
+
+    <rect x="600" y="285" width="200" height="48" rx="6" fill="#0d1117" stroke="#a78bfa"/>
+    <text x="700" y="305" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">/cuga/loops/api/* · /cuga/loops/</text>
+    <text x="700" y="322" text-anchor="middle" font-size="10" fill="#8b949e">CRUD on loops + dashboard HTML</text>
+
+    <rect x="810" y="285" width="320" height="48" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="970" y="305" text-anchor="middle" font-size="11" font-weight="700" fill="#e6edf3">_handle_full_turn → _save_run + _maybe_send_email_for_run</text>
+    <text x="970" y="322" text-anchor="middle" font-size="10" fill="#8b949e">stamps source · fires email post-save (asyncio.create_task)</text>
+  </g>
+
+  <line x1="590" y1="345" x2="590" y2="370" stroke="#8b949e" stroke-width="1.5" marker-end="url(#downArrow)"/>
+
+  <!-- ─────────────────── Layer 3: Supervisor + Policies + Loops ─────────────────── -->
+  <g>
+    <rect x="40" y="370" width="1100" height="130" rx="10" fill="#1a2332" stroke="#58a6ff" stroke-width="2"/>
+    <text x="60" y="398" font-size="14" font-weight="700" fill="#58a6ff">3 · CugaSupervisor  ·  enable_loops=True · cuga_lite_max_steps=100</text>
+    <text x="60" y="418" font-size="11" fill="#8b949e">model: RITSChatModel("gpt-oss-120b", max_tokens=16000) · LangGraph: prepare → call_model → execute → loop</text>
+
+    <!-- Sandbox tools row -->
+    <rect x="60" y="432" width="450" height="56" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="80" y="450" font-size="11" font-weight="700" fill="#e6edf3">Execution sandbox (planner-callable):</text>
+    <text x="80" y="468" font-size="10" font-family="ui-monospace,monospace" fill="#58a6ff">delegate_to_&lt;each-of-7-specialists&gt;(task: str)</text>
+    <text x="80" y="482" font-size="10" font-family="ui-monospace,monospace" fill="#a78bfa">schedule_recurring · schedule_wakeup · cancel_loop · list_my_loops</text>
+
+    <!-- Policies attached -->
+    <rect x="520" y="432" width="280" height="56" rx="6" fill="#0d1117" stroke="#facc15"/>
+    <text x="540" y="450" font-size="11" font-weight="700" fill="#facc15">📋 Policies (3, attached once)</text>
+    <text x="540" y="468" font-size="10" fill="#e6edf3">intent_guard · ouroboros_abuse_guard</text>
+    <text x="540" y="482" font-size="10" fill="#e6edf3">tool_guide · output_formatter</text>
+
+    <!-- Custom loops callback -->
+    <rect x="810" y="432" width="320" height="56" rx="6" fill="#0d1117" stroke="#a78bfa"/>
+    <text x="830" y="450" font-size="11" font-weight="700" fill="#a78bfa">🔁 Custom loops callback registered</text>
+    <text x="830" y="468" font-size="10" font-family="ui-monospace,monospace" fill="#e6edf3">_loop_invoke(prompt, thread_id)</text>
+    <text x="830" y="482" font-size="10" fill="#8b949e">→ routes back through _handle_full_turn (source='loop')</text>
+  </g>
+
+  <line x1="590" y1="500" x2="590" y2="525" stroke="#8b949e" stroke-width="1.5" marker-end="url(#downArrow)"/>
+
+  <!-- ─────────────────── Layer 4: 7 Specialist agents ─────────────────── -->
+  <g>
+    <rect x="40" y="525" width="1100" height="130" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="60" y="553" font-size="14" font-weight="700" fill="#58a6ff">4 · Specialist CugaAgents (7) · isolated planner contexts</text>
+    <text x="60" y="572" font-size="11" fill="#8b949e">each agent = SKILL.md (special_instructions) + tools.py (TOOLS) + per-agent CugaLite plan/execute graph</text>
+
+    <!-- 7 specialist boxes in a row -->
+    <g transform="translate(60,585)">
+      <rect x="0"   y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#58a6ff"/>
+      <text x="74"  y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#58a6ff">scout</text>
+      <text x="74"  y="38" text-anchor="middle" font-size="9" fill="#8b949e">geocode + OSM</text>
+      <text x="74"  y="52" text-anchor="middle" font-size="9" fill="#8b949e">find_local_businesses</text>
+
+      <rect x="153" y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#a78bfa"/>
+      <text x="227" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">voice_of_customer</text>
+      <text x="227" y="38" text-anchor="middle" font-size="9" fill="#8b949e">search_reviews</text>
+      <text x="227" y="52" text-anchor="middle" font-size="9" fill="#8b949e">(+ MCP web_search)</text>
+
+      <rect x="306" y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#3fb950"/>
+      <text x="380" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">site_auditor</text>
+      <text x="380" y="38" text-anchor="middle" font-size="9" fill="#8b949e">analyze_business_website</text>
+      <text x="380" y="52" text-anchor="middle" font-size="9" fill="#8b949e">17 capability+freshness</text>
+
+      <rect x="459" y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#ec4899"/>
+      <text x="533" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#ec4899">revenue_estimator</text>
+      <text x="533" y="38" text-anchor="middle" font-size="9" fill="#8b949e">search_size_signals</text>
+      <text x="533" y="52" text-anchor="middle" font-size="9" fill="#8b949e">estimate_arr_band</text>
+
+      <rect x="612" y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#facc15"/>
+      <text x="686" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#facc15">person_finder</text>
+      <text x="686" y="38" text-anchor="middle" font-size="9" fill="#8b949e">search_owner</text>
+      <text x="686" y="52" text-anchor="middle" font-size="9" fill="#8b949e">guess_email_from_name</text>
+
+      <rect x="765" y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#14b8a6"/>
+      <text x="839" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#14b8a6">stack_scanner</text>
+      <text x="839" y="38" text-anchor="middle" font-size="9" fill="#8b949e">scan_business_stack</text>
+      <text x="839" y="52" text-anchor="middle" font-size="9" fill="#8b949e">33 fingerprints</text>
+
+      <rect x="918" y="0" width="148" height="60" rx="6" fill="#0d1117" stroke="#f97316" stroke-dasharray="3 2"/>
+      <text x="992" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#f97316">pitch_email_writer</text>
+      <text x="992" y="38" text-anchor="middle" font-size="9" fill="#8b949e">TOOLS = []  (synthesis)</text>
+      <text x="992" y="52" text-anchor="middle" font-size="9" fill="#8b949e">JSON board + summary</text>
+    </g>
+  </g>
+
+  <line x1="590" y1="655" x2="590" y2="680" stroke="#8b949e" stroke-width="1.5" marker-end="url(#downArrow)"/>
+
+  <!-- ─────────────────── Layer 5: Tools layer ─────────────────── -->
+  <g>
+    <rect x="40" y="680" width="1100" height="100" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="60" y="708" font-size="14" font-weight="700" fill="#58a6ff">5 · Tools  ·  native @tool defs + MCP bridge</text>
+
+    <rect x="60"  y="722" width="430" height="48" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="80"  y="742" font-size="11" font-weight="700" fill="#e6edf3">Native tools (in skills/&lt;name&gt;/tools.py)</text>
+    <text x="80"  y="758" font-size="10" fill="#8b949e">geocode · find_local_businesses · analyze_business_website · scan_business_stack · …</text>
+
+    <rect x="500" y="722" width="630" height="48" rx="6" fill="#0d1117" stroke="#30363d"/>
+    <text x="520" y="742" font-size="11" font-weight="700" fill="#e6edf3">MCP bridge: bind_web_search(coro) · pre-binds web_search into 3 specialists</text>
+    <text x="520" y="758" font-size="10" fill="#8b949e">apps/_mcp_bridge.py → mcp-web (Code Engine) — Tavily-backed; CUGA_TARGET=ce default</text>
+  </g>
+
+  <line x1="590" y1="780" x2="590" y2="805" stroke="#8b949e" stroke-width="1.5" marker-end="url(#downArrow)"/>
+
+  <!-- ─────────────────── Layer 6: External services ─────────────────── -->
+  <g>
+    <rect x="40" y="805" width="1100" height="105" rx="10" fill="#161b22" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="60" y="833" font-size="14" font-weight="700" fill="#8b949e">6 · External services  ·  network boundary</text>
+
+    <rect x="60"  y="847" width="200" height="50" rx="6" fill="#0d1117" stroke="#58a6ff"/>
+    <text x="160" y="867" text-anchor="middle" font-size="11" font-weight="700" fill="#58a6ff">RITS gpt-oss-120b</text>
+    <text x="160" y="885" text-anchor="middle" font-size="10" fill="#8b949e">via LiteLLM proxy :4000</text>
+
+    <rect x="270" y="847" width="200" height="50" rx="6" fill="#0d1117" stroke="#58a6ff"/>
+    <text x="370" y="867" text-anchor="middle" font-size="11" font-weight="700" fill="#58a6ff">OpenStreetMap</text>
+    <text x="370" y="885" text-anchor="middle" font-size="10" fill="#8b949e">Nominatim + Overpass</text>
+
+    <rect x="480" y="847" width="200" height="50" rx="6" fill="#0d1117" stroke="#a78bfa"/>
+    <text x="580" y="867" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">Tavily search</text>
+    <text x="580" y="885" text-anchor="middle" font-size="10" fill="#8b949e">via mcp-web (Code Engine)</text>
+
+    <rect x="690" y="847" width="200" height="50" rx="6" fill="#0d1117" stroke="#3fb950"/>
+    <text x="790" y="867" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">SMTP (gmail by default)</text>
+    <text x="790" y="885" text-anchor="middle" font-size="10" fill="#8b949e">stdlib smtplib + STARTTLS</text>
+
+    <rect x="900" y="847" width="220" height="50" rx="6" fill="#0d1117" stroke="#facc15"/>
+    <text x="1010" y="867" text-anchor="middle" font-size="11" font-weight="700" fill="#facc15">target business websites</text>
+    <text x="1010" y="885" text-anchor="middle" font-size="10" fill="#8b949e">httpx GET (site_auditor / stack_scanner)</text>
+  </g>
+
+  <!-- ─────────────────── Bottom annotation ─────────────────── -->
+  <g transform="translate(40,950)">
+    <text x="0" y="0" font-size="12" font-weight="700" fill="#8b949e">DESIGN POINTS</text>
+    <text x="0" y="22" font-size="11" fill="#e6edf3">• <tspan font-weight="700" fill="#58a6ff">Single entry</tspan>: both POST /ask and APScheduler fires call _handle_full_turn — same code path, different `source`.</text>
+    <text x="0" y="42" font-size="11" fill="#e6edf3">• <tspan font-weight="700" fill="#58a6ff">Supervisor planner</tspan> only sees delegate_to_&lt;X&gt; + the loop tools; specialists' native tools are scoped to specialists, not the planner.</text>
+    <text x="0" y="62" font-size="11" fill="#e6edf3">• <tspan font-weight="700" fill="#a78bfa">CUGA Loops</tspan> are first-class on the supervisor — schedule_* are injected into its execution sandbox via enable_loops=True.</text>
+    <text x="0" y="82" font-size="11" fill="#e6edf3">• <tspan font-weight="700" fill="#facc15">Storage is the persistence boundary</tspan>: kill ouroboros and restart — runs/, .email_store.json, and cuga_loops survive; _sessions doesn't.</text>
+  </g>
+
+  <!-- Footer file ref -->
+  <text x="720" y="1075" text-anchor="middle" font-size="10" fill="#6b7280">apps/ouroboros/stack.svg · referenced from ARCHITECTURE.md</text>
+</svg>

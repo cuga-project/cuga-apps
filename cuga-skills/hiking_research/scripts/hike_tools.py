@@ -1,19 +1,13 @@
-"""Tools and helpers for the hiking_research skill.
+"""CLI helpers for the hiking_research skill — stdlib only.
 
-This file is *dual-host*: it works as both an importable Python module AND a
-standalone CLI.
+The agent invokes this script via `run_command` and parses JSON from stdout:
 
-Native host (cuga-skills-ui)
-    `from tools import TOOLS` — TOOLS is a list of LangChain `@tool`
-    functions the host passes to `CugaAgent(tools=...)`. Requires
-    `langchain_core` (soft dep — TOOLS is `[]` if missing).
+    python scripts/hike_tools.py geocode 'Lake Tahoe'
+    python scripts/hike_tools.py find_hikes 39.09 -120.04 25 easy false
 
-Sandbox host (cuga start demo_skills + OpenSandbox)
-    `python tools.py <command> <args...>` — stdlib-only CLI. The agent runs
-    this via `run_command` and parses JSON from stdout. No langchain dep.
+Pass `-` for difficulty to skip the filter.
 
-Both paths call the same underlying `_geocode` / `_find_hikes` pure helpers,
-so behavior is identical regardless of which host the skill is loaded into.
+Exit codes: 0 = ok, 1 = runtime error, 2 = usage error.
 """
 from __future__ import annotations
 
@@ -25,7 +19,7 @@ from typing import Optional
 
 _NOMINATIM = "https://nominatim.openstreetmap.org/search"
 _OVERPASS = "https://overpass-api.de/api/interpreter"
-_UA = {"User-Agent": "cuga-hiking-research/0.1"}
+_UA = {"User-Agent": "hiking-research-skill/1.0 (https://skills.sh)"}
 
 _SAC_DIFFICULTY = {
     "hiking": "easy",
@@ -36,10 +30,6 @@ _SAC_DIFFICULTY = {
     "difficult_alpine_hiking": "hard",
 }
 
-
-# ---------------------------------------------------------------------------
-# Pure helpers — stdlib only, used by both invocation paths.
-# ---------------------------------------------------------------------------
 
 def _http_get_json(url: str) -> list | dict:
     req = urllib.request.Request(url, headers=_UA)
@@ -84,18 +74,21 @@ def _is_kid_friendly(tags: dict, difficulty: str) -> bool:
     return difficulty == "easy"
 
 
-def _geocode(place: str) -> dict:
-    """Resolve a place name to {lat, lon, display_name} via Nominatim."""
+def geocode(place: str) -> dict:
+    """Resolve place → {lat, lon, display_name} via Nominatim."""
     qs = urllib.parse.urlencode({"q": place, "format": "json", "limit": 1})
     results = _http_get_json(f"{_NOMINATIM}?{qs}")
     if not results:
         return {"error": f"No geocode result for {place!r}"}
     r = results[0]
-    return {"lat": float(r["lat"]), "lon": float(r["lon"]),
-            "display_name": r.get("display_name", place)}
+    return {
+        "lat": float(r["lat"]),
+        "lon": float(r["lon"]),
+        "display_name": r.get("display_name", place),
+    }
 
 
-def _find_hikes(
+def find_hikes(
     lat: float,
     lon: float,
     radius_km: float = 25.0,
@@ -105,13 +98,14 @@ def _find_hikes(
     """Find hiking trails around (lat, lon) via Overpass."""
     radius_m = int(radius_km * 1000)
     query = (
-        f'[out:json][timeout:25];'
+        f"[out:json][timeout:25];"
         f'(relation["route"="hiking"](around:{radius_m},{lat},{lon}););'
-        f'out tags center 60;'
+        f"out tags center 60;"
     )
     data = urllib.parse.urlencode({"data": query}).encode()
     req = urllib.request.Request(
-        _OVERPASS, data=data,
+        _OVERPASS,
+        data=data,
         headers={"Content-Type": "application/x-www-form-urlencoded", **_UA},
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
@@ -148,60 +142,13 @@ def _find_hikes(
 
 
 # ---------------------------------------------------------------------------
-# Native-host path: LangChain @tool wrappers (soft dep on langchain_core).
-# ---------------------------------------------------------------------------
-
-try:
-    from langchain_core.tools import tool
-
-    @tool
-    def geocode(place: str) -> dict:
-        """Resolve a place name to latitude/longitude via OpenStreetMap Nominatim.
-
-        Returns {"lat": float, "lon": float, "display_name": str}, or
-        {"error": str} if no result. Call this before find_hikes.
-        """
-        return _geocode(place)
-
-    @tool
-    def find_hikes(
-        lat: float,
-        lon: float,
-        radius_km: float = 25.0,
-        difficulty: Optional[str] = None,
-        kid_friendly: bool = False,
-    ) -> list[dict]:
-        """Find hiking trails around (lat, lon) via OpenStreetMap Overpass.
-
-        Args:
-            lat, lon: coordinates from geocode().
-            radius_km: search radius (default 25; use 40-50 for sparse areas).
-            difficulty: filter to "easy" | "moderate" | "hard" if specified.
-            kid_friendly: filter to family-friendly trails.
-
-        Returns up to ~60 trails sorted by difficulty then distance, each:
-            {name, difficulty, distance_km, kid_friendly, osm_id,
-             from_place, to_place, operator, description}.
-        """
-        return _find_hikes(lat, lon, radius_km, difficulty, kid_friendly)
-
-    TOOLS = [geocode, find_hikes]
-except ImportError:
-    # langchain_core not available — sandbox path still works via CLI below.
-    TOOLS = []
-
-
-# ---------------------------------------------------------------------------
-# Sandbox-host path: CLI that emits JSON on stdout. Stdlib only.
-# Usage:
-#   python tools.py geocode "Lake Tahoe"
-#   python tools.py find_hikes 41.157 -73.768 25 easy false
+# CLI
 # ---------------------------------------------------------------------------
 
 _USAGE = """\
 usage:
-  python tools.py geocode <place>
-  python tools.py find_hikes <lat> <lon> [radius_km=25] [difficulty=-] [kid_friendly=false]
+  python scripts/hike_tools.py geocode <place>
+  python scripts/hike_tools.py find_hikes <lat> <lon> [radius_km=25] [difficulty=-] [kid_friendly=false]
 
 Pass `-` for difficulty to skip the filter.
 """
@@ -215,11 +162,13 @@ def _main(argv: list[str]) -> int:
     try:
         if cmd == "geocode":
             if len(argv) < 3:
-                print(_USAGE, file=sys.stderr); return 2
-            result: object = _geocode(argv[2])
+                print(_USAGE, file=sys.stderr)
+                return 2
+            result: object = geocode(argv[2])
         elif cmd == "find_hikes":
             if len(argv) < 4:
-                print(_USAGE, file=sys.stderr); return 2
+                print(_USAGE, file=sys.stderr)
+                return 2
             lat = float(argv[2])
             lon = float(argv[3])
             radius_km = float(argv[4]) if len(argv) > 4 else 25.0
@@ -228,7 +177,7 @@ def _main(argv: list[str]) -> int:
                 argv[6].lower() in ("1", "true", "yes")
                 if len(argv) > 6 else False
             )
-            result = _find_hikes(lat, lon, radius_km, difficulty, kid_friendly)
+            result = find_hikes(lat, lon, radius_km, difficulty, kid_friendly)
         else:
             print(f"unknown command: {cmd!r}\n\n{_USAGE}", file=sys.stderr)
             return 2
