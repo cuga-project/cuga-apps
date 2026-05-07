@@ -31,6 +31,7 @@ Discovered skills:
 | Skill | Description |
 | --- | --- |
 | [`hiking_research`](hiking_research/SKILL.md) | Discover, filter, and evaluate hiking trails near any location using OpenStreetMap |
+| [`lead_hunter`](lead_hunter/SKILL.md) | Sales-dev scout: ranked board of independent local businesses that would benefit from a conversational AI agent, with deep-dive evidence and tailored cold emails for the top 3. Requires `TAVILY_API_KEY` for review/owner discovery. |
 
 ## Importing a skill into a CUGA agent
 
