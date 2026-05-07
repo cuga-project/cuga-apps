@@ -120,8 +120,29 @@ _HTML = r"""<!DOCTYPE html>
   .run-item {
     padding: 12px 16px; border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background 0.12s;
+    border-left: 3px solid transparent;
   }
   .run-item:hover { background: var(--bg); }
+  /* Loop-fired runs get a colored left edge so they're scannable in the list */
+  .run-item.run-item-loop {
+    border-left-color: #a78bfa;
+    background: rgba(167,139,250,0.04);
+  }
+  .run-item.run-item-loop:hover { background: rgba(167,139,250,0.08); }
+  .src-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 10px; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .src-badge.src-user {
+    background: rgba(148,163,184,0.12); color: #94a3b8;
+    border: 1px solid rgba(148,163,184,0.25);
+  }
+  .src-badge.src-loop {
+    background: rgba(167,139,250,0.18); color: #c4b5fd;
+    border: 1px solid rgba(167,139,250,0.4);
+  }
+  .src-badge.src-loop:hover { background: rgba(167,139,250,0.28); }
   .run-item .row {
     display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
   }
@@ -200,6 +221,31 @@ _HTML = r"""<!DOCTYPE html>
     display: block; margin-top: 6px;
     font-size: 10px; color: var(--muted); opacity: 0.7;
     text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  /* Inline "schedule this as a recurring loop" affordance under user
+     messages. Discreet on purpose — afterthought, not the main action. */
+  .msg .sched {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 8px; padding-top: 6px;
+    border-top: 1px dashed rgba(0,0,0,0.18);
+    font-size: 11px; opacity: 0.75; transition: opacity 0.15s;
+  }
+  .msg.user:hover .sched { opacity: 1; }
+  .msg .sched-label { font-weight: 600; }
+  .msg .sched select, .msg .sched button {
+    background: rgba(0,0,0,0.15); color: inherit;
+    border: 1px solid rgba(0,0,0,0.25);
+    border-radius: 4px; padding: 1px 6px; font: inherit; font-size: 11px;
+    cursor: pointer;
+  }
+  .msg .sched button:hover { background: rgba(0,0,0,0.28); }
+  .msg .sched.done {
+    color: #07201a; font-weight: 600;
+    border-top-color: rgba(0,0,0,0.25);
+  }
+  .msg .sched.err  { color: #7a1f1f; }
+  .msg .sched a {
+    color: #1e3a8a; text-decoration: underline; cursor: pointer;
   }
   .chips {
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -589,7 +635,121 @@ _HTML = r"""<!DOCTYPE html>
     <div class="status-dot" id="statusDot"></div>
     <span id="statusText">Ready</span>
   </div>
+  <button onclick="openEmailCfgModal()"
+          style="margin-left:auto;padding:6px 12px;border:1px solid #444;border-radius:6px;
+                 background:transparent;color:#aaa;font-size:12px;cursor:pointer"
+          title="Configure per-run email notifications">
+    ✉️ Email
+  </button>
+  <a href="/cuga/loops/" target="_blank"
+     style="padding:6px 12px;border:1px solid #444;border-radius:6px;
+            color:#aaa;text-decoration:none;font-size:12px"
+     title="View all CUGA loops scheduled by this and other apps">
+    🔁 Loops
+  </a>
 </header>
+
+<!-- Email-config modal (NB: distinct from the per-lead "draft email" modal
+     elsewhere in this UI; that one is #emailBackdrop / closeEmail()) -->
+<div id="emailCfgBackdrop" onclick="if(event.target===this)closeEmailCfgModal()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
+            z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;
+              padding:24px;max-width:560px;width:92%;max-height:90vh;overflow-y:auto;
+              color:#e6edf3;font-family:-apple-system,system-ui,sans-serif;font-size:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <h2 style="margin:0;font-size:16px">✉️ Email notifications</h2>
+      <button onclick="closeEmailCfgModal()" style="background:none;border:none;
+              color:#8b949e;font-size:20px;cursor:pointer">×</button>
+    </div>
+    <p style="margin:0 0 14px;color:#8b949e;font-size:12px">
+      Set a recipient + SMTP creds and emails will be sent automatically after
+      every run. Leave SMTP fields blank to use the env vars instead.
+    </p>
+    <div id="emailCfgStatus" style="font-size:11px;
+         padding:8px 10px;background:#0d1117;border-radius:4px;margin-bottom:14px"></div>
+
+    <label style="display:block;margin-top:8px">
+      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8b949e">
+        Recipient email <span style="color:#f85149">*</span>
+        <span style="color:#666"> — emails are off when this is empty</span>
+      </span>
+      <input type="email" id="ecRecipient" placeholder="you@example.com"
+        style="width:100%;padding:7px 10px;background:#0d1117;border:1px solid #30363d;
+               border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+    </label>
+
+    <label style="display:block;margin-top:12px">
+      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8b949e">
+        Minimum leads to send (skip noisy runs)
+      </span>
+      <input type="number" id="ecMinLeads" min="0" max="10" value="0"
+        style="width:80px;padding:7px 10px;background:#0d1117;border:1px solid #30363d;
+               border-radius:4px;color:#e6edf3;font:inherit" />
+    </label>
+
+    <fieldset style="margin-top:14px;border:1px solid #30363d;border-radius:4px;
+                     padding:8px 12px;color:#8b949e">
+      <legend style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
+                     padding:0 6px">Send for</legend>
+      <label style="display:inline-block;margin-right:16px">
+        <input type="checkbox" id="ecIncludeUser" /> 👤 user requests
+      </label>
+      <label style="display:inline-block">
+        <input type="checkbox" id="ecIncludeLoop" /> 🔁 loop fires
+      </label>
+    </fieldset>
+
+    <fieldset style="margin-top:14px;border:1px solid #30363d;border-radius:4px;
+                     padding:8px 12px">
+      <legend style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
+                     padding:0 6px;color:#8b949e">SMTP credentials</legend>
+      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px 10px">
+        <label>Host
+          <input type="text" id="ecSmtpHost" placeholder="smtp.gmail.com"
+            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
+                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+        </label>
+        <label>Port
+          <input type="number" id="ecSmtpPort" placeholder="587"
+            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
+                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+        </label>
+        <label style="grid-column:1/3">Username
+          <input type="text" id="ecSmtpUsername" placeholder="you@gmail.com"
+            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
+                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+        </label>
+        <label style="grid-column:1/3">
+          Password
+          <span id="ecPwState" style="font-size:11px;font-weight:normal;margin-left:6px"></span>
+          <input type="password" id="ecSmtpPassword" autocomplete="new-password"
+            style="width:100%;padding:6px 8px;background:#0d1117;border:2px solid #30363d;
+                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+        </label>
+        <label style="grid-column:1/3">From address
+          <input type="email" id="ecSmtpFrom" placeholder="(defaults to username)"
+            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
+                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+        </label>
+      </div>
+    </fieldset>
+
+    <div style="margin-top:18px;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="emailCfgTest()" id="ecTestBtn"
+              style="padding:8px 14px;background:transparent;border:1px solid #30363d;
+                     border-radius:4px;color:#aaa;cursor:pointer">
+        Send test email
+      </button>
+      <button onclick="emailCfgSave()" id="ecSaveBtn"
+              style="padding:8px 14px;background:#238636;border:1px solid #2ea043;
+                     border-radius:4px;color:white;cursor:pointer;font-weight:600">
+        Save
+      </button>
+    </div>
+    <div id="emailCfgMsg" style="margin-top:12px;font-size:12px;min-height:18px"></div>
+  </div>
+</div>
 
 <main>
   <div class="chat-panel" style="position: relative;">
@@ -722,9 +882,79 @@ _HTML = r"""<!DOCTYPE html>
       span.textContent = meta;
       div.appendChild(span);
     }
+    // Discreet inline scheduler under each USER message: pick a cadence,
+    // click Set, and the message is registered as a recurring loop fired
+    // by the supervisor. Existing chat behavior is unchanged — this is
+    // an afterthought, not a replacement for /ask.
+    if (cls === 'user' && text && text.trim()) {
+      div.appendChild(_buildScheduleControl(text.trim()));
+    }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
+  }
+
+  function _buildScheduleControl(promptText) {
+    const row = document.createElement('div');
+    row.className = 'sched';
+    row.innerHTML =
+      '<span class="sched-label">🔁 Schedule this</span>'
+    + '<select class="sched-cadence" title="How often to re-run this question">'
+    +   '<option value="5m">every 5 min</option>'
+    +   '<option value="30m">every 30 min</option>'
+    +   '<option value="1h">hourly</option>'
+    +   '<option value="6h">every 6 hours</option>'
+    +   '<option value="daily" selected>daily</option>'
+    +   '<option value="weekly">weekly</option>'
+    + '</select>'
+    + '<button type="button" class="sched-set">Set</button>';
+    const btn = row.querySelector('.sched-set');
+    btn.addEventListener('click', () => {
+      const cadence = row.querySelector('.sched-cadence').value;
+      _scheduleMessage(row, promptText, cadence);
+    });
+    return row;
+  }
+
+  async function _scheduleMessage(row, promptText, cadence) {
+    const setBtn = row.querySelector('.sched-set');
+    setBtn.disabled = true; setBtn.textContent = '…';
+    try {
+      const r = await fetch('/cuga/loops/api/create', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          agent_name: 'ouroboros_supervisor',
+          thread_id:  SESSION_ID,
+          prompt:     promptText,
+          cadence:    cadence,
+          metadata:   {source: 'chat_inline'},
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || j.detail?.[0]?.msg || ('HTTP ' + r.status));
+      const lid = j.loop?.id || '';
+      row.className = 'sched done';
+      row.innerHTML =
+        '🔁 Scheduled ' + esc(cadence) + ' · '
+      + '<a href="/cuga/loops/" target="_blank" title="' + esc(lid)
+      +   '">' + esc(lid.slice(0, 16)) + '</a> · '
+      + '<a class="sched-cancel">Cancel</a>';
+      row.querySelector('.sched-cancel').addEventListener('click', async () => {
+        try {
+          await fetch('/cuga/loops/api/' + encodeURIComponent(lid), {method: 'DELETE'});
+          row.className = 'sched';
+          row.appendChild(document.createTextNode(' (cancelled)'));
+        } catch (e) {
+          row.className = 'sched err';
+          row.appendChild(document.createTextNode(' cancel failed: ' + e.message));
+        }
+      });
+    } catch (err) {
+      row.className = 'sched err';
+      row.innerHTML = '🔁 Schedule failed: ' + esc(err.message);
+      setBtn.disabled = false; setBtn.textContent = 'Set';
+    }
   }
 
   function esc(s) {
@@ -1178,14 +1408,27 @@ _HTML = r"""<!DOCTYPE html>
       ordered.forEach((r) => {
         const item = document.createElement('div');
         item.className = 'run-item';
+        const isLoop = (r.source === 'loop');
+        if (isLoop) item.classList.add('run-item-loop');
         const pills = agentPillsHtml(r.agent_counts);
         const threadTag = (_runsScope === 'all' && r.thread_id)
           ? '<span class="agent-pill" style="margin-left:6px;color:var(--muted)">'
             + esc(r.thread_id.slice(0, 8)) + '</span>'
           : '';
+        // Source badge: 🔁 loop (with link to loops UI) vs 👤 user.
+        // Always rendered so the two are visually distinct at a glance.
+        const sourceBadge = isLoop
+          ? '<a class="src-badge src-loop" href="/cuga/loops/" target="_blank" '
+            + 'onclick="event.stopPropagation()" '
+            + 'title="Fired by loop ' + esc(r.loop_id || '') + ' — open loops dashboard">'
+            + '🔁 loop' + (r.loop_id ? ' · ' + esc(r.loop_id.slice(0, 14)) : '')
+            + '</a>'
+          : '<span class="src-badge src-user" title="Manual user request">👤 user</span>';
         item.innerHTML =
           '<div class="row">' +
-          '  <span class="ts">' + esc(fmtTs(r.file)) + '</span>' +
+            sourceBadge +
+          '  <span class="ts" title="' + esc(r.timestamp || '') + '">'
+              + esc(fmtTs(r.file)) + '</span>' +
           (r.elapsed_human
             ? '<span class="elapsed">' + esc(r.elapsed_human) + '</span>'
             : '') +
@@ -1301,6 +1544,155 @@ _HTML = r"""<!DOCTYPE html>
 
   // Initial population so the drawer isn't stale on first open.
   refreshRunsList();
+
+  // ── Email-config panel (NB: distinct from the per-lead "draft email"
+  //     modal whose names start with `email...`) ─────────────────────
+  const emailCfgBackdrop = document.getElementById('emailCfgBackdrop');
+  const emailCfgMsg      = document.getElementById('emailCfgMsg');
+
+  async function openEmailCfgModal() {
+    emailCfgMsg.textContent = '';
+    emailCfgMsg.style.color = '';
+    try {
+      const r = await fetch('/email/config');
+      if (!r.ok) throw new Error('failed to load config');
+      const data = await r.json();
+      const c = data.config;
+      const e = data.effective;
+      document.getElementById('ecRecipient').value      = c.recipient || '';
+      document.getElementById('ecMinLeads').value       = c.min_leads ?? 0;
+      document.getElementById('ecIncludeUser').checked  = c.include_user !== false;
+      document.getElementById('ecIncludeLoop').checked  = c.include_loop !== false;
+      document.getElementById('ecSmtpHost').value       = c.smtp_host || '';
+      document.getElementById('ecSmtpPort').value       = c.smtp_port || '';
+      document.getElementById('ecSmtpUsername').value   = c.smtp_username || '';
+      const pwInput = document.getElementById('ecSmtpPassword');
+      const pwState = document.getElementById('ecPwState');
+      const hasSavedPw = (c.smtp_password === '•••');
+      pwInput.value = '';
+      if (hasSavedPw) {
+        pwInput.placeholder = '••• saved — leave blank to keep, or type to replace';
+        pwInput.style.borderColor = '#3fb950';
+        pwState.innerHTML = '<span style="color:#3fb950">✓ saved</span>';
+      } else {
+        pwInput.placeholder = 'paste your gmail app-password here';
+        pwInput.style.borderColor = '#f85149';
+        pwState.innerHTML = '<span style="color:#f85149">⚠ required — no password saved yet</span>';
+      }
+      document.getElementById('ecSmtpFrom').value       = c.smtp_from || '';
+
+      const status = document.getElementById('emailCfgStatus');
+      status.innerHTML =
+        '<strong>Effective SMTP:</strong> ' +
+        (e.ready
+          ? `<span style="color:#3fb950">✓ ${esc(e.host)}:${e.port} as ${esc(e.username)}, from ${esc(e.from)}</span>`
+          : `<span style="color:#f85149">✗ incomplete — fill SMTP fields below or set env vars (SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL)</span>`);
+      emailCfgBackdrop.style.display = 'flex';
+    } catch (err) {
+      alert('Could not load email config: ' + err.message);
+    }
+  }
+  function closeEmailCfgModal() { emailCfgBackdrop.style.display = 'none'; }
+
+  function _ecCollect() {
+    return {
+      recipient:     document.getElementById('ecRecipient').value.trim(),
+      min_leads:     parseInt(document.getElementById('ecMinLeads').value, 10) || 0,
+      include_user:  document.getElementById('ecIncludeUser').checked,
+      include_loop:  document.getElementById('ecIncludeLoop').checked,
+      smtp_host:     document.getElementById('ecSmtpHost').value.trim(),
+      smtp_port:     parseInt(document.getElementById('ecSmtpPort').value, 10) || 0,
+      smtp_username: document.getElementById('ecSmtpUsername').value.trim(),
+      smtp_password: document.getElementById('ecSmtpPassword').value, // empty = keep
+      smtp_from:     document.getElementById('ecSmtpFrom').value.trim(),
+    };
+  }
+
+  async function emailCfgSave() {
+    const body = _ecCollect();
+    try {
+      const r = await fetch('/email/config', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      emailCfgMsg.style.color = '#3fb950';
+      emailCfgMsg.textContent = body.recipient
+        ? 'Saved. Emails will be sent automatically after each run.'
+        : 'Saved. (No recipient set — emails are off.)';
+      // Refresh the effective banner without re-opening
+      const data = await (await fetch('/email/config')).json();
+      const e = data.effective;
+      document.getElementById('emailCfgStatus').innerHTML =
+        '<strong>Effective SMTP:</strong> ' +
+        (e.ready
+          ? `<span style="color:#3fb950">✓ ${esc(e.host)}:${e.port} as ${esc(e.username)}, from ${esc(e.from)}</span>`
+          : `<span style="color:#f85149">✗ incomplete</span>`);
+    } catch (err) {
+      emailCfgMsg.style.color = '#f85149';
+      emailCfgMsg.textContent = 'Save failed: ' + err.message;
+    }
+  }
+
+  async function emailCfgTest() {
+    // Test using the form's CURRENT values — does NOT save first. This
+    // lets you try creds before committing them.
+    emailCfgMsg.style.color = '';
+    emailCfgMsg.innerHTML = 'Sending test…';
+    const body = _ecCollect();
+    // Show what we're about to send (just lengths, never the password itself)
+    console.log('[email/test] sending:', {
+      recipient: body.recipient,
+      smtp_host: body.smtp_host,
+      smtp_port: body.smtp_port,
+      smtp_username: body.smtp_username,
+      smtp_password_chars: (body.smtp_password || '').length,
+      smtp_from: body.smtp_from,
+    });
+    if (!body.recipient) {
+      emailCfgMsg.style.color = '#f85149';
+      emailCfgMsg.textContent = 'Recipient is empty — fill it in above first.';
+      return;
+    }
+    try {
+      const r = await fetch('/email/test', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      console.log('[email/test] response:', j);
+      if (!r.ok || !j.ok) {
+        // FastAPI 422 returns {detail: [{loc, msg, ...}]}; our handler returns
+        // {error, diag}. Surface whichever shape we got.
+        let humanError = j.error;
+        if (!humanError && Array.isArray(j.detail)) {
+          humanError = 'validation failed: ' + j.detail.map(d =>
+            `${(d.loc || []).slice(-1)[0]} → ${d.msg} (got ${JSON.stringify(d.input)})`
+          ).join('; ');
+        }
+        if (!humanError) humanError = 'HTTP ' + r.status;
+        let msg = '<strong style="color:#f85149">Test failed:</strong> ' + esc(humanError);
+        const debugObj = j.diag || j.detail;
+        if (debugObj) {
+          msg += '<details style="margin-top:6px;color:#888;font-size:11px">'
+               + '<summary style="cursor:pointer">diagnostics</summary>'
+               + '<pre style="margin:4px 0;background:#0d1117;padding:6px;'
+               + 'border-radius:4px;overflow-x:auto">'
+               + esc(JSON.stringify(debugObj, null, 2))
+               + '</pre></details>';
+        }
+        emailCfgMsg.innerHTML = msg;
+        return;
+      }
+      emailCfgMsg.style.color = '#3fb950';
+      emailCfgMsg.textContent = '✓ Test sent — ' + j.info;
+    } catch (err) {
+      emailCfgMsg.style.color = '#f85149';
+      emailCfgMsg.textContent = 'Test failed: ' + err.message;
+    }
+  }
 </script>
 </body>
 </html>

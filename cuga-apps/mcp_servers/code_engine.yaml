@@ -1,0 +1,175 @@
+# MCP servers deployed to IBM Cloud Code Engine.
+#
+# Source of truth:
+#   - deploy_mcp.sh           (which servers, image, secrets, scaling)
+#   - apps/_ports.py          (container ports)
+#   - mcp_servers/<name>/     (server source)
+#
+# Public URLs are assigned by Code Engine at deploy time. Fetch with:
+#   ibmcloud ce app get --name cuga-apps-mcp-<name> --output url
+# The MCP endpoint is "<url>/mcp".
+
+project:
+  region: us-east
+  domain_suffix: 1gxwxi8kos9y.us-east.codeengine.appdomain.cloud
+  registry_namespace: routing_namespace
+  image: icr.io/routing_namespace/mcp:latest
+  registry_secret: icr-secret-1
+  app_env_secret: app-env
+  secret_mount_dir: /etc/cuga-secrets   # not /run/secrets — collides with kube SA token
+
+defaults:
+  cpu: "1"
+  memory: 2G
+  min_scale: 1
+  max_scale: 1
+  command: /entrypoint.sh
+  registry_secret: icr-secret-1
+
+servers:
+  - name: web
+    app_name: cuga-apps-mcp-web
+    module: mcp_servers.web.server
+    port: 29100
+    url: https://cuga-apps-mcp-web.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+  - name: knowledge
+    app_name: cuga-apps-mcp-knowledge
+    module: mcp_servers.knowledge.server
+    port: 29101
+    url: https://cuga-apps-mcp-knowledge.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+  - name: geo
+    app_name: cuga-apps-mcp-geo
+    module: mcp_servers.geo.server
+    port: 29102
+    url: https://cuga-apps-mcp-geo.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+  - name: finance
+    app_name: cuga-apps-mcp-finance
+    module: mcp_servers.finance.server
+    port: 29103
+    url: https://cuga-apps-mcp-finance.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+  - name: code
+    app_name: cuga-apps-mcp-code
+    module: mcp_servers.code.server
+    port: 29104
+    url: https://cuga-apps-mcp-code.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+  - name: local
+    app_name: cuga-apps-mcp-local
+    module: mcp_servers.local.server
+    port: 29105
+    url: https://cuga-apps-mcp-local.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+  - name: text
+    app_name: cuga-apps-mcp-text
+    module: mcp_servers.text.server
+    port: 29106
+    url: https://cuga-apps-mcp-text.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+# mcp_tool_explorer fronts all MCP servers above (browse + invoke their tools).
+# Different image, no app-env secret, scales to zero.
+tool_explorer:
+  app_name: cuga-apps-mcp-tool-explorer
+  image: icr.io/routing_namespace/mcp-tool-explorer:latest
+  port: 28900
+  cpu: "0.5"
+  memory: 1G
+  min_scale: 0
+  max_scale: 1
+  url:
+  # Wired to each MCP via env vars MCP_<NAME>_URL=<url>/mcp at deploy time.
+
+# Local-only MCP (NOT deployed to Code Engine — needs BIRD data bind-mounts).
+not_deployed:
+  - name: invocable_apis
+    port: 29107
+    reason: requires host-bind mounts for BIRD dev.json + dbs (see docker-compose.yml)
+
+# ─────────────────────────────────────────────────────────────────────
+# MCP-client config (Claude Desktop / mcp.json shape).
+# Paste under "mcpServers" in your client config, or convert to JSON.
+# Replace <url> with the value from `ibmcloud ce app get --output url`.
+# ─────────────────────────────────────────────────────────────────────
+mcpServers:
+  cuga-web:
+    type: http
+    url: https://cuga-apps-mcp-web.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+  cuga-knowledge:
+    type: http
+    url: https://cuga-apps-mcp-knowledge.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+  cuga-geo:
+    type: http
+    url: https://cuga-apps-mcp-geo.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+  cuga-finance:
+    type: http
+    url: https://cuga-apps-mcp-finance.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+  cuga-code:
+    type: http
+    url: https://cuga-apps-mcp-code.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+  cuga-local:
+    type: http
+    url: https://cuga-apps-mcp-local.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+  cuga-text:
+    type: http
+    url: https://cuga-apps-mcp-text.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp
+
+# ─────────────────────────────────────────────────────────────────────
+# How to access these MCP servers
+# ─────────────────────────────────────────────────────────────────────
+# Transport: streamable-HTTP (FastMCP default), mount path: /mcp.
+#
+# 1) Smoke test with curl — initialize handshake.
+#    Streamable HTTP requires Accept: application/json AND text/event-stream.
+#
+#    curl -sS https://cuga-apps-mcp-web.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp \
+#      -H "Content-Type: application/json" \
+#      -H "Accept: application/json, text/event-stream" \
+#      -d '{
+#        "jsonrpc": "2.0",
+#        "id": 1,
+#        "method": "initialize",
+#        "params": {
+#          "protocolVersion": "2024-11-05",
+#          "capabilities": {},
+#          "clientInfo": {"name": "curl-smoke", "version": "0.1"}
+#        }
+#      }'
+#
+# 2) Python — official `mcp` SDK (pip install mcp).
+#
+#    import asyncio
+#    from mcp import ClientSession
+#    from mcp.client.streamable_http import streamablehttp_client
+#
+#    URL = "https://cuga-apps-mcp-web.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+#
+#    async def main():
+#        async with streamablehttp_client(URL) as (read, write, _):
+#            async with ClientSession(read, write) as session:
+#                await session.initialize()
+#                tools = await session.list_tools()
+#                for t in tools.tools:
+#                    print(t.name, "—", t.description)
+#                # Example call:
+#                # result = await session.call_tool("fetch_url", {"url": "https://example.com"})
+#                # print(result.content)
+#
+#    asyncio.run(main())
+#
+# 3) LangChain / LangGraph — `langchain-mcp-adapters`.
+#
+#    from langchain_mcp_adapters.client import MultiServerMCPClient
+#
+#    client = MultiServerMCPClient({
+#        "cuga-web":   {"transport": "streamable_http",
+#                       "url": "https://cuga-apps-mcp-web.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"},
+#        "cuga-code":  {"transport": "streamable_http",
+#                       "url": "https://cuga-apps-mcp-code.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"},
+#    })
+#    tools = await client.get_tools()   # LangChain Tool objects, ready to bind to an agent
+#
+# 4) Claude Desktop / Claude Code — paste the `mcpServers:` block above
+#    (converted to JSON) into your client config. Restart the client.

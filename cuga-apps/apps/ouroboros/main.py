@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import html
 import json
 import logging
 import os
@@ -171,6 +172,218 @@ try:
     _RUNS_DIR.mkdir(exist_ok=True)
 except Exception:
     pass
+
+
+# ── Email alerts ────────────────────────────────────────────────────────
+# Per-run email notification. Triggered after every _handle_full_turn.
+# Body clearly labels source (user vs loop) so the operator can tell what
+# fired the run.
+#
+#   SMTP creds (operator-level): SMTP_HOST, SMTP_PORT, SMTP_USERNAME,
+#                                SMTP_PASSWORD, FROM_EMAIL — env vars
+#   Per-app config (UI-tunable): _EMAIL_STORE = .email_store.json
+#       { "enabled": bool, "recipient": str,
+#         "min_leads": int (skip if leads_count < this),
+#         "include_loop": bool, "include_user": bool }
+_EMAIL_STORE = _DIR / ".email_store.json"
+
+# Default model: NO master "enabled" toggle. Recipient + valid SMTP creds are
+# the implicit gate — set them and you get emails by default. Per-source
+# toggles let you opt out of one kind of run while keeping the other.
+#
+# Email addresses pre-filled to the operator's account so they only have
+# to paste the app password to start sending. Override anytime in the UI.
+_DEFAULT_EMAIL_ADDRESS = "anupama.murthi@gmail.com"
+_EMAIL_DEFAULTS = {
+    "recipient":     _DEFAULT_EMAIL_ADDRESS,
+    "min_leads":     0,
+    "include_user":  True,
+    "include_loop":  True,
+    # SMTP creds (optional UI overrides; fall back to env vars when blank)
+    "smtp_host":     "smtp.gmail.com",
+    "smtp_port":     587,
+    "smtp_username": _DEFAULT_EMAIL_ADDRESS,
+    "smtp_password": "",
+    "smtp_from":     _DEFAULT_EMAIL_ADDRESS,
+}
+
+
+def _email_load() -> dict:
+    try:
+        loaded = json.loads(_EMAIL_STORE.read_text())
+    except Exception:
+        loaded = {}
+    cfg = dict(_EMAIL_DEFAULTS)
+    cfg.update({k: v for k, v in (loaded or {}).items() if k in _EMAIL_DEFAULTS})
+    return cfg
+
+
+def _email_save(cfg: dict) -> None:
+    try:
+        _EMAIL_STORE.write_text(json.dumps(cfg, indent=2))
+    except Exception as exc:
+        log.warning("email store save failed: %s", exc)
+
+
+def _smtp_settings() -> dict:
+    """Effective SMTP creds: UI overrides win, then env vars, then defaults."""
+    cfg = _email_load()
+    env_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    env_port = int(os.getenv("SMTP_PORT", "587"))
+    env_user = os.getenv("SMTP_USERNAME", "")
+    env_pass = os.getenv("SMTP_PASSWORD", "")
+    env_from = os.getenv("FROM_EMAIL", env_user)
+    return {
+        "host":     cfg.get("smtp_host") or env_host,
+        "port":     int(cfg.get("smtp_port") or 0) or env_port,
+        "username": cfg.get("smtp_username") or env_user,
+        "password": cfg.get("smtp_password") or env_pass,
+        "from":     cfg.get("smtp_from") or env_from,
+    }
+
+
+def _render_email_html(thread_id: str, question: str, answer: str,
+                       leads: dict | None, source: str,
+                       loop_id: str | None, elapsed_human: str) -> tuple[str, str]:
+    """Return (subject, html_body). HTML stays simple & client-safe."""
+    is_loop = source == "loop"
+    src_label = ("🔁 LOOP FIRE" if is_loop else "👤 USER REQUEST")
+    src_color = ("#a78bfa" if is_loop else "#94a3b8")
+    leads_count = (len(leads.get("leads", []) or []) if leads else 0)
+    location = (leads.get("location") if leads else None) or "—"
+
+    subject = f"Ouroboros · {src_label} · {leads_count} leads · {question[:60]}"
+
+    # Top-3 lead summary (deep_dive=True ones)
+    rows = ""
+    if leads:
+        top = [l for l in (leads.get("leads") or [])
+               if l.get("deep_dive")][:3]
+        for l in top:
+            rows += (
+                f"<tr>"
+                f"<td style='padding:6px 10px;border-bottom:1px solid #2a2a2a;color:#e6edf3'>"
+                f"<strong>{html.escape(str(l.get('name', '?')))}</strong>"
+                f"<div style='color:#888;font-size:11px'>{html.escape(str(l.get('category', '')))}</div></td>"
+                f"<td style='padding:6px 10px;border-bottom:1px solid #2a2a2a;color:#facc15;font-weight:bold'>"
+                f"{l.get('fit_score', '—')}/10</td>"
+                f"<td style='padding:6px 10px;border-bottom:1px solid #2a2a2a;color:#cbd5e1;font-size:12px'>"
+                f"{html.escape((l.get('pitch', '') or '')[:240])}…</td>"
+                f"</tr>"
+            )
+    leads_table = (
+        f"<table style='width:100%;border-collapse:collapse;background:#0d1117;"
+        f"border:1px solid #2a2a2a;border-radius:6px;margin-top:14px'>"
+        f"<thead><tr><th style='text-align:left;padding:8px 10px;color:#8b949e;"
+        f"font-size:11px;text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Lead</th>"
+        f"<th style='text-align:left;padding:8px 10px;color:#8b949e;font-size:11px;"
+        f"text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Fit</th>"
+        f"<th style='text-align:left;padding:8px 10px;color:#8b949e;font-size:11px;"
+        f"text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Pitch</th></tr></thead>"
+        f"<tbody>{rows or '<tr><td colspan=3 style=\"padding:14px;color:#888;text-align:center\">No leads on this run.</td></tr>'}</tbody></table>"
+    )
+
+    loop_line = (
+        f"<div style='font-size:12px;color:#888;margin-top:6px'>"
+        f"Loop id: <code style='color:#c4b5fd'>{html.escape(loop_id or '')}</code></div>"
+        if is_loop and loop_id else ""
+    )
+
+    body = f"""<!DOCTYPE html>
+<html><body style='font-family:-apple-system,system-ui,sans-serif;background:#161b22;
+color:#e6edf3;padding:24px;margin:0'>
+  <div style='max-width:700px;margin:0 auto'>
+    <div style='display:inline-block;padding:4px 12px;border-radius:12px;
+                background:rgba(167,139,250,0.18);border:1px solid {src_color};
+                color:{src_color};font-weight:bold;font-size:12px;letter-spacing:0.5px'>
+      {src_label}
+    </div>
+    <h2 style='color:#e6edf3;margin:14px 0 4px'>{html.escape(question)}</h2>
+    <div style='color:#8b949e;font-size:13px'>
+      Location: <strong>{html.escape(str(location))}</strong>
+      &nbsp;·&nbsp; {leads_count} leads
+      &nbsp;·&nbsp; {html.escape(elapsed_human)}
+      &nbsp;·&nbsp; thread <code>{html.escape(thread_id[:8])}</code>
+    </div>
+    {loop_line}
+    {leads_table}
+    <p style='color:#6b7280;font-size:11px;margin-top:18px'>
+      Sent automatically by Ouroboros after a lead-hunt run completed.
+      Configure or disable from the Email panel in the app UI.
+    </p>
+  </div>
+</body></html>"""
+    return subject, body
+
+
+def _email_send_with_creds(to: str, subject: str, html_body: str,
+                            host: str, port: int, username: str,
+                            password: str, from_addr: str) -> tuple[bool, str]:
+    """Blocking send with explicit SMTP creds. Run via asyncio.to_thread."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = from_addr
+        msg["To"]      = to
+        msg.attach(MIMEText(html_body, "html"))
+        with smtplib.SMTP(host, port, timeout=20) as srv:
+            srv.starttls()
+            srv.login(username, password)
+            srv.send_message(msg)
+        return True, f"sent to {to} via {host}:{port}"
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
+def _email_send_sync(to: str, subject: str, html_body: str) -> tuple[bool, str]:
+    """Blocking send using the stored/env SMTP settings. Used by background
+    fire-and-forget sends after every run."""
+    s = _smtp_settings()
+    if not s["username"] or not s["password"] or not s["from"]:
+        return False, "missing SMTP creds (SMTP_USERNAME/SMTP_PASSWORD/FROM_EMAIL or UI overrides)"
+    if not to:
+        return False, "no recipient configured"
+    return _email_send_with_creds(to, subject, html_body,
+                                  s["host"], s["port"], s["username"],
+                                  s["password"], s["from"])
+
+
+async def _maybe_send_email_for_run(thread_id: str, question: str,
+                                     answer: str, leads: dict | None,
+                                     source: str, loop_id: str | None,
+                                     elapsed_human: str) -> None:
+    """Fire-and-forget email send. The gate is: recipient set, SMTP creds
+    available, and the per-source toggle for this run's source is on.
+    Must never raise — pure best-effort."""
+    try:
+        cfg = _email_load()
+        recipient = (cfg.get("recipient") or "").strip()
+        if not recipient:
+            return  # implicit "off"
+        if source == "loop" and not cfg.get("include_loop", True):
+            return
+        if source == "user" and not cfg.get("include_user", True):
+            return
+        leads_count = len(leads.get("leads", []) or []) if leads else 0
+        if leads_count < int(cfg.get("min_leads", 0)):
+            log.info("[%s] email skipped — leads (%d) below min_leads (%d)",
+                     thread_id[:8], leads_count, cfg.get("min_leads", 0))
+            return
+        subject, body = _render_email_html(
+            thread_id, question, answer, leads, source, loop_id, elapsed_human
+        )
+        ok, info = await asyncio.to_thread(_email_send_sync, recipient, subject, body)
+        if ok:
+            log.info("[%s] email %s sent (%s): %s",
+                     thread_id[:8], source, info, subject[:80])
+        else:
+            log.warning("[%s] email %s NOT sent: %s",
+                        thread_id[:8], source, info)
+    except Exception as exc:
+        log.warning("[%s] _maybe_send_email_for_run failed: %s", thread_id[:8], exc)
 
 
 def _coerce(value):
@@ -352,10 +565,16 @@ def _format_elapsed(ms: int) -> str:
 
 def _save_run(thread_id: str, question: str, answer: str,
               leads: dict | None, supervisor,
-              started_at: datetime, elapsed_ms: int) -> str | None:
+              started_at: datetime, elapsed_ms: int,
+              source: str = "user", loop_id: str | None = None) -> str | None:
     """Persist this turn's metadata to runs/<thread_id>/<ts>.json so we
     can pick apart what each stage actually produced. Best-effort —
-    failure here must never break the /ask response."""
+    failure here must never break the /ask response.
+
+    `source` distinguishes a normal user turn ("user") from a loop fire
+    ("loop"); `loop_id` is set when source='loop' so the UI can link
+    back to the originating loop in the loops dashboard.
+    """
     try:
         ts       = datetime.now(timezone.utc)
         run_dir  = _RUNS_DIR / re.sub(r"[^a-zA-Z0-9_\-]", "_", thread_id)[:64]
@@ -377,22 +596,76 @@ def _save_run(thread_id: str, question: str, answer: str,
             "leads":             leads,
             "agent_trace":       agent_trace,
             "supervisor_state":  _harvest_supervisor_state(supervisor),
+            "source":            source,
+            "loop_id":           loop_id,
         }
         path.write_text(json.dumps(record, indent=2, default=str, ensure_ascii=False))
-        # Build a compact "agent fan-out" summary like
-        # "scout×1, voc×3, audit×2, writer×1" for the log line.
         fanout = ", ".join(
             f"{a}×{n}" for a, n in agent_trace.get("counts", {}).items()
         ) or "(none)"
-        log.info("[%s] run saved: %s (%s, agents=[%s], stages=%d, vars=%d)",
-                 thread_id[:8], path, record["elapsed_human"],
-                 fanout,
+        log.info("[%s] run saved (%s%s): %s (%s, agents=[%s], stages=%d, vars=%d)",
+                 thread_id[:8], source,
+                 f"/{loop_id}" if loop_id else "",
+                 path, record["elapsed_human"], fanout,
                  len(record["supervisor_state"].get("stages", [])),
                  len(record["supervisor_state"].get("variables", {})))
         return str(path)
     except Exception as exc:
         log.warning("[%s] run save failed: %s", thread_id[:8], exc)
         return None
+
+
+def _normalize_leads_obj(obj: dict | None) -> dict | None:
+    """Normalize the writer's JSON to the {location, leads:[…]} schema the
+    right-panel UI expects. Tolerates writer-drift such as `lead_board`
+    instead of `leads`, `company_name`/`business_name`/`title` for the
+    lead name, missing top-level `location`, and `email_guess`/
+    `owner_email_guess` for the contact email."""
+    if not isinstance(obj, dict):
+        return None
+    out = dict(obj)
+
+    # Top-level: leads container alias
+    if "leads" not in out:
+        for alt in ("lead_board", "results", "businesses"):
+            if isinstance(out.get(alt), list):
+                out["leads"] = out[alt]
+                break
+    if not isinstance(out.get("leads"), list):
+        return None  # not a recognizable leads payload
+
+    # Per-lead key aliases — only set the canonical key if missing.
+    name_aliases  = ("company_name", "business_name", "title")
+    email_aliases = ("email_guess", "owner_email_guess", "owner_email")
+    norm_leads = []
+    for raw in out["leads"]:
+        if not isinstance(raw, dict):
+            norm_leads.append(raw); continue
+        l = dict(raw)
+        if "name" not in l:
+            for alt in name_aliases:
+                if l.get(alt):
+                    l["name"] = l[alt]; break
+        if "email" not in l:
+            for alt in email_aliases:
+                if l.get(alt):
+                    l["email"] = l[alt]; break
+        norm_leads.append(l)
+    out["leads"] = norm_leads
+
+    # Top-level location: derive from the first lead's address if absent.
+    if not out.get("location"):
+        for l in norm_leads:
+            addr = l.get("address") if isinstance(l, dict) else None
+            if addr:
+                # Take the trailing "City, ZIP" or last comma-separated chunk.
+                parts = [p.strip() for p in str(addr).split(",") if p.strip()]
+                if len(parts) >= 2:
+                    out["location"] = ", ".join(parts[-2:])
+                else:
+                    out["location"] = parts[-1]
+                break
+    return out
 
 
 def _extract_leads_json(text: str) -> dict | None:
@@ -403,32 +676,39 @@ def _extract_leads_json(text: str) -> dict | None:
     leaving bare JSON or JSON-with-prose. Try four extraction shapes:
       1. fenced ```json``` block
       2. whole text as JSON
-      3. first balanced { … } that contains a "leads" key
+      3. first balanced { … } that contains a "leads"/"lead_board" key
       4. last balanced { … } in the text (some planners append extra
          prose after the JSON; we want the JSON, not the prose).
+
+    Result is then normalized via _normalize_leads_obj to the canonical
+    {location, leads:[{name, …}]} shape the right-panel UI expects.
     """
     if not text:
         return None
+
+    def _is_leads_payload(obj):
+        return isinstance(obj, dict) and any(
+            isinstance(obj.get(k), list) for k in ("leads", "lead_board", "results", "businesses")
+        )
 
     # 1. Fenced
     for raw in _JSON_FENCE_RE.findall(text):
         try:
             obj = json.loads(raw.strip())
-            if isinstance(obj, dict) and "leads" in obj:
-                return obj
+            if _is_leads_payload(obj):
+                return _normalize_leads_obj(obj)
         except json.JSONDecodeError:
             continue
 
     # 2. Whole text
     try:
         obj = json.loads(text.strip())
-        if isinstance(obj, dict) and "leads" in obj:
-            return obj
+        if _is_leads_payload(obj):
+            return _normalize_leads_obj(obj)
     except json.JSONDecodeError:
         pass
 
-    # 3 + 4: balanced-brace scan. Find every top-level { ... } in the
-    # text and return the first/last one that has a "leads" key.
+    # 3 + 4: balanced-brace scan.
     candidates: list[dict] = []
     depth = 0
     start = -1
@@ -445,15 +725,13 @@ def _extract_leads_json(text: str) -> dict | None:
                 chunk = text[start:i + 1]
                 try:
                     obj = json.loads(chunk)
-                    if isinstance(obj, dict) and "leads" in obj:
+                    if _is_leads_payload(obj):
                         candidates.append(obj)
                 except json.JSONDecodeError:
                     pass
                 start = -1
-    # Prefer the LAST balanced JSON with leads — the planner sometimes
-    # writes a short pre-amble dict, then the real board.
     if candidates:
-        return candidates[-1]
+        return _normalize_leads_obj(candidates[-1])
 
     return None
 
@@ -633,6 +911,23 @@ HARD RULES:
   - If `top` is empty (scout returned no candidates), skip phase 2 and
     call phase 3 with enriched_list = [].
 
+OPTIONAL PHASE 4 — schedule a watch. Only if the user explicitly asks for
+recurring monitoring (e.g. "watch weekly", "re-run every 5 minutes",
+"keep checking", "rerun this each Monday"), after phase 3 returns:
+  - In a SEPARATE code block, call the loops tool directly. It is
+    available to you as `schedule_recurring`:
+        loop_id = await schedule_recurring(
+            cadence="<the cadence the user named>",
+            prompt=user_question + " (diff against last run)",
+        )
+        print(loop_id)
+    Cadence accepts: intervals like "5m"/"2h"/"1d", raw cron
+    "0 9 * * *", or shorthand like "daily", "weekly", "every weekday".
+  - Mention the scheduled loop id in your final reply on its own line:
+    "Watch scheduled: <loop_id>."
+  - Do NOT schedule unless the user asked for it. One-off lead-hunts
+    are the default.
+
 === USER REQUEST ===
 """
 
@@ -756,6 +1051,12 @@ def make_supervisor():
         #   misc planner indecision/retries: 5–15
         # 100 caps comfortably over the median 35–50.
         cuga_lite_max_steps=100,
+        # CUGA loops: lets the supervisor schedule itself to re-run a
+        # query later (weekly diff for new businesses, daily refresh of
+        # a hot lead, etc.) by calling schedule_recurring / schedule_wakeup
+        # tools — auto-injected into every internal specialist.
+        enable_loops=True,
+        loops_agent_name="ouroboros_supervisor",
     )
     return supervisor
 
@@ -773,6 +1074,17 @@ def _web(port: int) -> None:
     app = FastAPI(title="Ouroboros", docs_url=None, redoc_url=None)
     app.add_middleware(CORSMiddleware, allow_origins=["*"],
                        allow_methods=["*"], allow_headers=["*"])
+
+    # Mount CUGA loops UI + API (visible at /cuga/loops/). Optional — guarded
+    # so an SDK without the loops module still boots ouroboros normally.
+    try:
+        from cuga.backend.loops.api import router as _loops_router
+        from cuga.backend.loops.service import get_loops_service
+        get_loops_service().set_app_name("ouroboros")
+        app.include_router(_loops_router)
+        log.info("mounted CUGA loops at /cuga/loops/")
+    except Exception as _err:
+        log.warning("CUGA loops not mounted: %s", _err)
 
     _supervisor = None
     _policies_attached = False
@@ -798,21 +1110,22 @@ def _web(port: int) -> None:
     async def index():
         return HTMLResponse(_HTML)
 
-    @app.post("/ask")
-    async def api_ask(req: AskReq):
-        thread_id = req.thread_id or str(uuid.uuid4())
-        session = _get_session(thread_id)
-        _maybe_update_session(session, req.question)
+    async def _handle_full_turn(question: str, thread_id: str,
+                                *, source: str = "user",
+                                loop_id: str | None = None) -> dict:
+        """Run one supervisor turn end-to-end and persist the run record.
 
-        # Brief the supervisor with prior session state inline. Keeps the
-        # planner stateless across HTTP turns while preserving continuity.
-        # The _TASK_PRELUDE prefix is the ONLY way to inject orchestration
-        # rules in this CUGA branch — the supervisor's `description` kwarg
-        # is stored but never rendered into the prompt template.
+        Shared between POST /ask (source='user') and the loops-service
+        callback (source='loop'). Stamps `source` + `loop_id` into the
+        saved run JSON so the UI can distinguish them.
+        """
+        session = _get_session(thread_id)
+        _maybe_update_session(session, question)
+
         session_brief = _format_session_brief(session)
         augmented = (
             f"{_TASK_PRELUDE}"
-            f"{req.question}\n\n"
+            f"{question}\n\n"
             f"[session:{session_brief}] "
             f"[thread:{thread_id}]"
         )
@@ -823,33 +1136,21 @@ def _web(port: int) -> None:
             supervisor = await _get_supervisor()
             result = await supervisor.invoke(augmented, thread_id=thread_id)
             elapsed_ms = int((_time.monotonic() - t0) * 1000)
-            log.info("[%s] supervisor.invoke completed in %s",
-                     thread_id[:8], _format_elapsed(elapsed_ms))
+            log.info("[%s] supervisor.invoke (%s) completed in %s",
+                     thread_id[:8], source, _format_elapsed(elapsed_ms))
             answer = (
                 result.answer if hasattr(result, "answer") else str(result)
             )
 
-            # Parse the writer's fenced JSON, if present, into the session.
             leads = _extract_leads_json(answer)
-
-            # Fallback: the supervisor's outer Conversational LLM frequently
-            # paraphrases the writer's JSON board down to a useless one-liner
-            # ("Here's the complete enriched lead board…"). When that
-            # happens, _extract_leads_json returns None even though the
-            # writer DID produce a valid board. Recover the writer's raw
-            # output from the supervisor's variables_manager / chat
-            # history, and use it as the user-facing answer too.
             if not leads:
                 writer_raw = _writer_output_from_state(supervisor)
                 if writer_raw:
                     log.info("[%s] supervisor paraphrased; recovered writer "
-                             "output (%d chars)",
-                             thread_id[:8], len(writer_raw))
+                             "output (%d chars)", thread_id[:8], len(writer_raw))
                     recovered = _extract_leads_json(writer_raw)
                     if recovered:
                         leads  = recovered
-                        # Use the writer's verbatim output as the chat reply
-                        # — the supervisor's paraphrase has lost the data.
                         answer = writer_raw
 
             if leads:
@@ -857,7 +1158,6 @@ def _web(port: int) -> None:
                 session["leads"] = leads
                 if leads.get("location"):
                     session["target_location"] = leads["location"]
-                # Mirror the leads' own location/categories/focus for UI hints.
                 session["history"].insert(0, leads)
                 session["history"] = session["history"][:6]
                 log.info("[%s] leads parsed: %d items in %s",
@@ -865,34 +1165,65 @@ def _web(port: int) -> None:
                          len(leads.get("leads", []) or []),
                          leads.get("location", "?"))
             else:
-                log.warning("[%s] no leads extracted from supervisor answer "
-                            "(answer length: %d chars)",
+                log.warning("[%s] no leads extracted (answer length: %d chars)",
                             thread_id[:8], len(answer or ""))
 
-            # Persist per-turn metadata for debugging — every stage's
-            # output, all supervisor variables, the extracted leads.
-            _save_run(thread_id, req.question, answer, leads, supervisor,
-                      started_at=started_at, elapsed_ms=elapsed_ms)
+            _save_run(thread_id, question, answer, leads, supervisor,
+                      started_at=started_at, elapsed_ms=elapsed_ms,
+                      source=source, loop_id=loop_id)
+
+            # Fire-and-forget email notification. Never blocks the response.
+            asyncio.create_task(_maybe_send_email_for_run(
+                thread_id, question, answer, leads,
+                source, loop_id, _format_elapsed(elapsed_ms),
+            ))
 
             return {
                 "answer":        answer,
                 "thread_id":     thread_id,
                 "elapsed_ms":    elapsed_ms,
                 "elapsed_human": _format_elapsed(elapsed_ms),
+                "source":        source,
+                "loop_id":       loop_id,
             }
         except Exception as exc:
             elapsed_ms = int((_time.monotonic() - t0) * 1000)
-            log.exception("Supervisor invocation failed after %s",
-                          _format_elapsed(elapsed_ms))
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "answer":        f"Error: {exc}",
-                    "thread_id":     thread_id,
-                    "elapsed_ms":    elapsed_ms,
-                    "elapsed_human": _format_elapsed(elapsed_ms),
-                },
-            )
+            log.exception("Supervisor invocation failed (%s) after %s",
+                          source, _format_elapsed(elapsed_ms))
+            return {
+                "answer":        f"Error: {exc}",
+                "thread_id":     thread_id,
+                "elapsed_ms":    elapsed_ms,
+                "elapsed_human": _format_elapsed(elapsed_ms),
+                "source":        source,
+                "loop_id":       loop_id,
+                "_error":        True,
+            }
+
+    # Override the loops service callable so loop fires go through the
+    # same _handle_full_turn path as user asks. They land in runs/<thread>/
+    # alongside user runs, with source='loop' + loop_id so the UI can
+    # tell them apart.
+    try:
+        from cuga.backend.loops.service import current_loop_id, get_loops_service
+        async def _loop_invoke(prompt: str, thread_id: str) -> str:
+            lid = current_loop_id.get()
+            res = await _handle_full_turn(prompt, thread_id,
+                                          source="loop", loop_id=lid)
+            return res.get("answer") or ""
+        get_loops_service().register_agent("ouroboros_supervisor", _loop_invoke)
+        log.info("registered ouroboros_supervisor with loops service "
+                 "(loop fires will be saved as runs with source='loop')")
+    except Exception as _err:
+        log.warning("could not override loops callback: %s", _err)
+
+    @app.post("/ask")
+    async def api_ask(req: AskReq):
+        thread_id = req.thread_id or str(uuid.uuid4())
+        result = await _handle_full_turn(req.question, thread_id, source="user")
+        if result.pop("_error", False):
+            return JSONResponse(status_code=500, content=result)
+        return result
 
     @app.get("/session/{thread_id}")
     async def api_session(thread_id: str):
@@ -901,6 +1232,142 @@ def _web(port: int) -> None:
     @app.get("/health")
     async def health():
         return {"ok": True}
+
+    # ── Email panel ────────────────────────────────────────────────
+    @app.get("/email/config")
+    async def email_get():
+        cfg = _email_load()
+        # Mask the saved password before sending to client
+        cfg_safe = dict(cfg)
+        cfg_safe["smtp_password"] = "•••" if cfg.get("smtp_password") else ""
+        eff = _smtp_settings()
+        return {
+            "config":   cfg_safe,
+            "effective": {
+                "host":         eff["host"],
+                "port":         eff["port"],
+                "username":     eff["username"],
+                "from":         eff["from"],
+                "has_password": bool(eff["password"]),
+                "ready":        bool(eff["host"] and eff["port"] and
+                                     eff["username"] and eff["password"] and eff["from"]),
+            },
+        }
+
+    from pydantic import field_validator
+    class _EmailCfgReq(BaseModel):
+        recipient: str = ""
+        min_leads: int = 0
+        include_user: bool = True
+        include_loop: bool = True
+        # SMTP overrides — leave blank to use env vars
+        smtp_host: str = ""
+        smtp_port: int = 0
+        smtp_username: str = ""
+        smtp_password: str = ""    # empty means "no change"; "•••" sentinel preserved
+        smtp_from: str = ""
+
+        # Browsers (and our JS) may send "" for cleared number inputs.
+        # Pydantic v2 rejects empty-string-as-int → 422. Coerce here so
+        # callers don't need to remember.
+        @field_validator("smtp_port", "min_leads", mode="before")
+        @classmethod
+        def _empty_int_to_zero(cls, v):
+            if v == "" or v is None:
+                return 0
+            return v
+
+    @app.post("/email/config")
+    async def email_set(req: _EmailCfgReq):
+        new_cfg = req.model_dump()
+        existing = _email_load()
+        # Preserve existing password if client sent placeholder (or blank)
+        if not new_cfg.get("smtp_password") or new_cfg["smtp_password"] == "•••":
+            new_cfg["smtp_password"] = existing.get("smtp_password", "")
+        _email_save(new_cfg)
+        log.info("email config saved: recipient=%s min_leads=%d user=%s loop=%s "
+                 "smtp_overrides=%s",
+                 new_cfg["recipient"], new_cfg["min_leads"],
+                 new_cfg["include_user"], new_cfg["include_loop"],
+                 bool(new_cfg["smtp_host"] or new_cfg["smtp_username"]))
+        # Return masked
+        out = dict(new_cfg); out["smtp_password"] = "•••" if new_cfg["smtp_password"] else ""
+        return {"ok": True, "config": out}
+
+    @app.post("/email/test")
+    async def email_test(req: _EmailCfgReq):
+        """Send a test email using the request body's settings.
+
+        The body is REQUIRED (was previously Optional, which FastAPI handled
+        unreliably — Pydantic-model body params with `Optional[...] = None`
+        sometimes deserialize as None even when JSON is sent. Save endpoint
+        worked because it used a required signature). UI always sends a body;
+        keeping it required is correct and simpler."""
+        saved = _email_load()
+        env_pw = os.getenv("SMTP_PASSWORD", "")
+        diag = {
+            "body_password_chars": len(req.smtp_password or ""),
+            "body_password_is_sentinel": req.smtp_password == "•••",
+            "body_recipient":   req.recipient,
+            "saved_password_chars": len(saved.get("smtp_password") or ""),
+            "env_SMTP_PASSWORD_set":  bool(env_pw),
+            "saved_recipient":  saved.get("recipient", ""),
+        }
+        log.info("email_test diag: %s", diag)
+
+        # Resolve effective settings: body fields override saved file; saved
+        # password is preserved when client sends blank or sentinel.
+        recipient = (req.recipient or "").strip()
+        password = req.smtp_password
+        if not password or password == "•••":
+            password = saved.get("smtp_password", "") or env_pw
+        host = req.smtp_host or saved.get("smtp_host") or os.getenv("SMTP_HOST", "smtp.gmail.com")
+        port = int(req.smtp_port or saved.get("smtp_port") or 0) or int(os.getenv("SMTP_PORT", "587"))
+        username = req.smtp_username or saved.get("smtp_username") or os.getenv("SMTP_USERNAME", "")
+        from_addr = req.smtp_from or saved.get("smtp_from") or os.getenv("FROM_EMAIL", username)
+
+        # Validate, returning a precise message about WHAT is missing + diagnostics.
+        missing = []
+        if not recipient: missing.append("recipient")
+        if not host:      missing.append("SMTP host")
+        if not port:      missing.append("SMTP port")
+        if not username:  missing.append("SMTP username")
+        if not password:  missing.append("SMTP password")
+        if not from_addr: missing.append("From address")
+        if missing:
+            err_msg = f"missing: {', '.join(missing)}."
+            if "SMTP password" in missing:
+                err_msg += (
+                    f" (received {diag['body_password_chars']} chars from form, "
+                    f"saved={diag['saved_password_chars']} chars, "
+                    f"env_var_set={diag['env_SMTP_PASSWORD_set']})"
+                )
+            return JSONResponse(status_code=400, content={
+                "ok": False,
+                "error": err_msg,
+                "diag": diag,
+            })
+
+        subject, body = _render_email_html(
+            thread_id="test-thread",
+            question="Test email — Ouroboros email panel",
+            answer="(this is a test send; no supervisor was invoked)",
+            leads={"location": "Pleasantville, NY",
+                   "leads": [{"name": "Sample Restaurant",
+                              "category": "italian",
+                              "fit_score": 8,
+                              "deep_dive": True,
+                              "pitch": "Sample pitch text demonstrating the lead format. "
+                                       "Replace this with a real run to see actual content."}]},
+            source="user", loop_id=None, elapsed_human="0s",
+        )
+        ok, info = await asyncio.to_thread(
+            _email_send_with_creds, recipient, subject, body,
+            host, port, username, password, from_addr,
+        )
+        if not ok:
+            return JSONResponse(status_code=500, content={"ok": False, "error": info})
+        return {"ok": True, "info": info}
 
     @app.get("/runs")
     async def api_all_runs():
@@ -936,6 +1403,8 @@ def _web(port: int) -> None:
                     entry["agent_counts"]  = trace.get("counts") or {}
                     entry["total_calls"]   = trace.get("total_calls") or 0
                     entry["timestamp"]     = data.get("timestamp")
+                    entry["source"]        = data.get("source") or "user"
+                    entry["loop_id"]       = data.get("loop_id")
                 except Exception:
                     pass
                 all_runs.append(entry)
@@ -969,6 +1438,9 @@ def _web(port: int) -> None:
                 trace = data.get("agent_trace") or {}
                 entry["agent_counts"]  = trace.get("counts") or {}
                 entry["total_calls"]   = trace.get("total_calls") or 0
+                entry["timestamp"]     = data.get("timestamp")
+                entry["source"]        = data.get("source") or "user"
+                entry["loop_id"]       = data.get("loop_id")
             except Exception:
                 pass
             runs.append(entry)
