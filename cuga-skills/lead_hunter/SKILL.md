@@ -3,6 +3,11 @@ name: lead_hunter
 description: Sales-dev scout for finding local businesses that would benefit from a conversational AI agent. Given a place (and optional category or pitch focus), produces a ranked board of independent prospects with deep-dive evidence and tailored cold emails for the top 3. Triggers on "find leads in <place>", "scout <city>", "<category> in <place> who need <capability>".
 requirements:
   - httpx>=0.27
+examples:
+  - "Find leads in Pleasantville, NY — restaurants that need after-hours booking"
+  - "Scout Hoboken, NJ for salons who could use AI appointment booking"
+  - "Cafes in Asheville, NC — who needs a chat agent for menu questions?"
+  - "Independent clinics near Berkeley, CA who'd benefit from automated intake"
 ---
 
 # Lead Hunter — local-business prospecting

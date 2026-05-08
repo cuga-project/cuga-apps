@@ -2,6 +2,11 @@
 name: hiking_research
 description: Discover, filter, and evaluate hiking trails near any location using OpenStreetMap. Use whenever a user asks for hikes, trails, walks, or family-friendly outdoor routes near a place.
 requirements: []
+examples:
+  - "Easy family-friendly hikes near Yosemite, CA"
+  - "Moderate trails within 20km of Boulder, CO"
+  - "Find dog-friendly walks near Boston, MA"
+  - "Short scenic hikes near Sedona, AZ for a half-day trip"
 ---
 
 # Hiking Research Assistant

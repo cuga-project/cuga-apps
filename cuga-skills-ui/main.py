@@ -37,12 +37,16 @@ os.environ.setdefault("DYNACONF_ADVANCED_FEATURES__OPENSANDBOX_SANDBOX", "false"
 os.environ.setdefault("DYNACONF_ADVANCED_FEATURES__ENABLE_SHELL_TOOL", "false")
 
 import argparse
+import json
 import logging
 import re
 import shlex
 import shutil
 import subprocess
 import sys
+import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -96,8 +100,32 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
         return out, body
 
 
+def _coerce_examples(raw) -> list[str]:
+    """Frontmatter `examples:` may be a YAML list or a single string. Normalize."""
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        items = [raw]
+    elif isinstance(raw, (list, tuple)):
+        items = list(raw)
+    else:
+        return []
+    out: list[str] = []
+    for it in items:
+        if isinstance(it, str):
+            s = it.strip()
+            if s:
+                out.append(s)
+        elif isinstance(it, dict):
+            # Allow {prompt: "...", label: "..."} or {q: "..."} variants.
+            s = (it.get("prompt") or it.get("q") or it.get("text") or "").strip()
+            if s:
+                out.append(s)
+    return out
+
+
 def discover_skill_dirs(skills_root: Path) -> list[dict]:
-    """Find every SKILL.md under skills_root → [{name, description, dir, source}]."""
+    """Find every SKILL.md under skills_root → [{name, description, dir, source, examples}]."""
     out: list[dict] = []
     if not skills_root.is_dir():
         return out
@@ -112,6 +140,7 @@ def discover_skill_dirs(skills_root: Path) -> list[dict]:
             "description": (fm.get("description") or "").strip(),
             "dir": str(skill_md.parent),
             "source": str(skill_md),
+            "examples": _coerce_examples(fm.get("examples")),
         })
     return out
 
@@ -167,6 +196,93 @@ def list_imported() -> list[str]:
     if not _RUNTIME_SKILLS.is_dir():
         return []
     return sorted(p.name for p in _RUNTIME_SKILLS.iterdir() if (p / "SKILL.md").is_file())
+
+
+# ---------------------------------------------------------------------------
+# Run history (JSONL, one record per /ask). Stored alongside the runtime
+# cuga folder so it survives across runs. Append-only on success/error;
+# /history endpoints power the UI's "Recent runs" panel.
+# ---------------------------------------------------------------------------
+
+_HISTORY_PATH = _RUNTIME_CUGA / "history.jsonl"
+
+
+def _history_append(record: dict) -> None:
+    _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with _HISTORY_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _history_iter() -> list[dict]:
+    if not _HISTORY_PATH.is_file():
+        return []
+    out: list[dict] = []
+    with _HISTORY_PATH.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                # Tolerate a partial/corrupt last line without losing the rest.
+                continue
+    return out
+
+
+def _history_get(run_id: str) -> Optional[dict]:
+    for r in _history_iter():
+        if r.get("id") == run_id:
+            return r
+    return None
+
+
+def _history_rewrite(records: list[dict]) -> None:
+    """Atomically replace history with the given records (or delete if empty)."""
+    if not records:
+        if _HISTORY_PATH.exists():
+            _HISTORY_PATH.unlink()
+        return
+    _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = _HISTORY_PATH.with_suffix(".jsonl.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        for r in records:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    tmp.replace(_HISTORY_PATH)
+
+
+def _make_history_record(
+    question: str,
+    skills: list[str],
+    t0: float,
+    *,
+    answer: Optional[str] = None,
+    error: Optional[str] = None,
+    ok: bool = True,
+) -> dict:
+    return {
+        "id": uuid.uuid4().hex[:12],
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "question": question,
+        "skills": list(skills),
+        "duration_s": round(time.monotonic() - t0, 3),
+        "ok": ok,
+        "answer": answer or "",
+        "error": error,
+    }
+
+
+def _history_summary(record: dict) -> dict:
+    """Lightweight projection used by the /history listing."""
+    q = record.get("question") or ""
+    return {
+        "id": record.get("id"),
+        "ts": record.get("ts"),
+        "skills": record.get("skills") or [],
+        "duration_s": record.get("duration_s"),
+        "ok": record.get("ok", True),
+        "preview": (q[:200] + "…") if len(q) > 200 else q,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -351,24 +467,74 @@ def make_app(skills_root: Path) -> FastAPI:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        skills_at_run = list_imported()
+        t0 = time.monotonic()
         try:
             agent = get_agent()
         except HTTPException:
+            # No skills imported — surface the 400 without recording.
             raise
         except ModuleNotFoundError as exc:
-            return JSONResponse({
-                "error": (
-                    f"{exc}. Install cuga in this venv: "
-                    "`pip install -e /path/to/cuga-agent-skills-branch` "
-                    "(or run from a venv where it's already installed)."
-                )
-            }, status_code=500)
+            msg = (
+                f"{exc}. Install cuga in this venv: "
+                "`pip install -e /path/to/cuga-agent-skills-branch` "
+                "(or run from a venv where it's already installed)."
+            )
+            rec = _make_history_record(
+                req.question, skills_at_run, t0, error=msg, ok=False
+            )
+            _history_append(rec)
+            return JSONResponse(
+                {"error": msg, "run": _history_summary(rec)}, status_code=500
+            )
         try:
             result = await agent.invoke(req.question, thread_id="ui")
-            return {"answer": result.answer}
+            rec = _make_history_record(
+                req.question, skills_at_run, t0,
+                answer=result.answer, ok=True,
+            )
+            _history_append(rec)
+            return {"answer": result.answer, "run": _history_summary(rec)}
         except Exception as exc:
             log.exception("Agent error")
-            return JSONResponse({"error": str(exc)}, status_code=500)
+            rec = _make_history_record(
+                req.question, skills_at_run, t0, error=str(exc), ok=False
+            )
+            _history_append(rec)
+            return JSONResponse(
+                {"error": str(exc), "run": _history_summary(rec)}, status_code=500
+            )
+
+    @app.get("/history")
+    async def api_history(limit: int = 200):
+        records = _history_iter()
+        total = len(records)
+        records.reverse()  # newest first
+        return {
+            "runs": [_history_summary(r) for r in records[:max(1, limit)]],
+            "total": total,
+        }
+
+    @app.get("/history/{run_id}")
+    async def api_history_get(run_id: str):
+        rec = _history_get(run_id)
+        if not rec:
+            raise HTTPException(404, f"Unknown run: {run_id!r}")
+        return rec
+
+    @app.delete("/history/{run_id}")
+    async def api_history_delete(run_id: str):
+        records = _history_iter()
+        kept = [r for r in records if r.get("id") != run_id]
+        if len(kept) == len(records):
+            raise HTTPException(404, f"Unknown run: {run_id!r}")
+        _history_rewrite(kept)
+        return {"ok": True, "id": run_id}
+
+    @app.delete("/history")
+    async def api_history_clear():
+        _history_rewrite([])
+        return {"ok": True}
 
     @app.get("/", response_class=HTMLResponse)
     async def root():
@@ -857,6 +1023,39 @@ _HTML = r"""<!DOCTYPE html>
     margin:14px 0;color:var(--text-secondary);
   }
 
+  /* ─── Try-it example block (in skill modal) ────────────────────────── */
+  .examples-block{
+    margin:0 0 24px;
+    border:1px solid var(--border-subtle-01);
+    border-left:2px solid var(--accent-cyan);
+    background:rgba(51,177,255,0.04);
+    padding:14px 16px;
+  }
+  .examples-head{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--accent-cyan);margin-bottom:4px;
+  }
+  .examples-sub{
+    font-size:12px;color:var(--text-helper);margin-bottom:10px;
+  }
+  .examples-list{
+    list-style:none;padding:0;margin:0;
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .ex-row{
+    width:100%;text-align:left;
+    background:transparent;border:none;cursor:pointer;
+    padding:7px 10px;color:var(--text-primary);
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.4;
+    border-left:2px solid transparent;
+    transition:background 0.12s var(--motion),border-left-color 0.12s var(--motion);
+  }
+  .ex-row:hover{
+    background:var(--layer-02);
+    border-left-color:var(--accent-cyan);
+  }
+
   /* ─── Console panel (ask the agent) ───────────────────────────────── */
   .console{
     max-width:1280px;margin:0 auto;padding:48px 24px 96px;position:relative;
@@ -1049,6 +1248,86 @@ _HTML = r"""<!DOCTYPE html>
   footer .paths span{color:var(--text-placeholder)}
   footer .paths code{color:var(--text-secondary)}
 
+  /* ─── History panel ───────────────────────────────────────────────── */
+  .history-list{
+    border:1px solid var(--border-subtle-01);
+    background:var(--layer-01);
+  }
+  .history-row{
+    display:grid;
+    grid-template-columns: 150px minmax(0,1fr) auto 60px 50px 28px;
+    gap:14px;align-items:center;
+    padding:12px 18px;
+    border-bottom:1px solid var(--border-subtle-01);
+    cursor:pointer;
+    transition:background 0.12s var(--motion);
+  }
+  .history-row:last-child{border-bottom:none}
+  .history-row:hover{background:var(--layer-02)}
+  .history-row.active{
+    background:var(--layer-02);
+    box-shadow:inset 2px 0 0 var(--interactive);
+  }
+  .h-time{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    color:var(--text-helper);white-space:nowrap;
+  }
+  .h-q{
+    font-size:13px;color:var(--text-primary);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    line-height:1.4;
+  }
+  .h-skills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .h-skill{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;
+    text-transform:uppercase;letter-spacing:0.04em;
+    padding:3px 7px;background:var(--layer-02);
+    color:var(--text-helper);
+    white-space:nowrap;
+  }
+  .h-dt{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    color:var(--text-helper);text-align:right;
+  }
+  .h-status{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;
+    text-transform:uppercase;letter-spacing:0.06em;
+  }
+  .h-status.ok{color:var(--support-success)}
+  .h-status.err{color:var(--support-error)}
+  .h-del{
+    width:24px;height:24px;display:grid;place-items:center;cursor:pointer;
+    color:var(--text-placeholder);background:transparent;border:none;
+    transition:color 0.12s var(--motion),background 0.12s var(--motion);
+    font-size:16px;line-height:1;
+  }
+  .h-del:hover{color:var(--support-error);background:var(--layer-03)}
+  .h-empty{
+    padding:48px 24px;text-align:center;color:var(--text-helper);
+    font-size:13px;
+  }
+  .h-empty code{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    background:var(--layer-02);padding:1px 6px;color:var(--text-secondary);
+  }
+  @media (max-width:880px){
+    .history-row{
+      grid-template-columns: 1fr auto 28px;
+      grid-template-areas:
+        "time   status del"
+        "q      q      q"
+        "skills dt     dt";
+      gap:6px;
+    }
+    .h-time{grid-area:time}
+    .h-q{grid-area:q;white-space:normal;display:-webkit-box;
+         -webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .h-skills{grid-area:skills;justify-content:flex-start}
+    .h-dt{grid-area:dt}
+    .h-status{grid-area:status;justify-self:end}
+    .h-del{grid-area:del}
+  }
+
   /* ─── Responsive ──────────────────────────────────────────────────── */
   @media (max-width:720px){
     .topbar-search{display:none}
@@ -1178,6 +1457,22 @@ _HTML = r"""<!DOCTYPE html>
           <div class="answer-body" id="answer"></div>
         </div>
       </form>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head" style="margin-bottom:0;padding-bottom:24px">
+      <div>
+        <h2>Recent runs</h2>
+        <div class="sub" id="history-sub">Loading…</div>
+      </div>
+      <div class="filters">
+        <button class="pill" type="button" onclick="loadHistory(true)">Refresh</button>
+        <button class="pill" type="button" onclick="clearHistory()">Clear all</button>
+      </div>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="h-empty">Loading run history…</div>
     </div>
   </section>
 </main>
@@ -1414,11 +1709,20 @@ function renderExamples(){
   const installed = STATE.available.filter(s => s.installed);
   const ex = document.getElementById('examples');
   if (!installed.length){ ex.innerHTML=''; return; }
-  // Pull a 4-word hint from each installed skill's description.
-  const hints = installed.slice(0,3).map(s => {
-    const seed = (s.description||'').replace(/[.,;:].*/,'').split(/\s+/).slice(0,8).join(' ');
-    return seed || `try the ${s.name} skill`;
-  });
+  // Prefer real examples from each installed skill's frontmatter; fall back
+  // to a heuristic hint pulled from the description.
+  const hints = [];
+  for (const s of installed) {
+    const real = (s.examples || [])[0];
+    if (real) {
+      hints.push(real);
+    } else {
+      const seed = (s.description||'').replace(/[.,;:].*/,'')
+                    .split(/\s+/).slice(0,8).join(' ');
+      hints.push(seed || `try the ${s.name} skill`);
+    }
+    if (hints.length >= 4) break;
+  }
   ex.innerHTML = hints.map(h =>
     `<button type="button" class="ex" onclick="setQuestion(${JSON.stringify(h).replace(/"/g,'&quot;')})">› ${esc(h)}</button>`
   ).join('');
@@ -1506,7 +1810,9 @@ async function openModal(name){
       d.installed ? `<span class="m" style="color:var(--support-success)">● installed</span>` : `<span class="m">○ available</span>`,
     ].filter(Boolean).join('');
     const body = stripFrontmatter(d.content || '');
-    document.getElementById('m-content').innerHTML = renderMarkdown(body || '*No SKILL.md body.*');
+    const examplesHtml = renderSkillExamples(d);
+    document.getElementById('m-content').innerHTML =
+      examplesHtml + renderMarkdown(body || '*No SKILL.md body.*');
     document.getElementById('m-actions').innerHTML = renderModalActions(d);
   } catch (e) {
     document.getElementById('m-content').innerHTML = `<span style="color:var(--support-error)">${esc(e.message)}</span>`;
@@ -1541,6 +1847,40 @@ function renderModalActions(d){
 
 function stripFrontmatter(md){
   return md.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '');
+}
+function renderSkillExamples(d){
+  const ex = (d && d.examples) || [];
+  if (!ex.length) return '';
+  const installed = !!d.installed;
+  const note = installed
+    ? 'Click any example to load it into the agent console below.'
+    : 'Install this skill first, then click an example to send it.';
+  const items = ex.map(q => {
+    const safe = q.replace(/'/g, "&apos;");
+    return `<li><button type="button" class="ex-row"
+      onclick="useExample('${esc(d.name)}', ${JSON.stringify(q).replace(/"/g,'&quot;')})">
+      › ${esc(q)}
+    </button></li>`;
+  }).join('');
+  return `
+    <div class="examples-block">
+      <div class="examples-head">Try it</div>
+      <div class="examples-sub">${esc(note)}</div>
+      <ul class="examples-list">${items}</ul>
+    </div>`;
+}
+async function useExample(name, q){
+  // If skill isn't installed yet, install it first so the agent has it.
+  const sk = STATE.available.find(s => s.name === name);
+  if (sk && !sk.installed) {
+    const ok = await postAction('/import', name, 'Install');
+    if (!ok) return;
+    await loadSkills();
+  }
+  closeModal();
+  setQuestion(q);
+  const wrap = document.querySelector('.console');
+  if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function renderMarkdown(md){
   if (window.marked) {
@@ -1640,12 +1980,137 @@ async function ask(){
         out.textContent = ans;
       }
     }
+    if (d.run && d.run.id) {
+      HISTORY.activeId = d.run.id;
+    }
+    loadHistory();
   } catch (e) {
     out.innerHTML = `<span class="err">${esc(e.message)}</span>`;
   } finally {
     btn.disabled = false;
     btnText.textContent = 'Ask';
     syncAskState();
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   History — persistent run log; click a row to reload its Q + A.
+   ════════════════════════════════════════════════════════════════════ */
+const HISTORY = { runs: [], activeId: null };
+
+async function loadHistory(showToast){
+  try {
+    const r = await fetch('/history?limit=200');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    HISTORY.runs = d.runs || [];
+    renderHistory();
+    if (showToast) {
+      toast(`Loaded ${HISTORY.runs.length} run${HISTORY.runs.length===1?'':'s'}.`, 'ok');
+    }
+  } catch (e) {
+    toast('Failed to load history: ' + e.message, 'err');
+  }
+}
+
+function fmtTime(iso){
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso || '—';
+  return d.toLocaleString(undefined, {
+    month:'short', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit',
+  });
+}
+
+function renderHistory(){
+  const wrap = document.getElementById('history-list');
+  const sub = document.getElementById('history-sub');
+  if (!HISTORY.runs.length){
+    sub.textContent = 'No previous runs yet.';
+    wrap.innerHTML = `
+      <div class="h-empty">
+        Runs you submit above will appear here. Stored locally at
+        <code>${esc((STATE.runtime_cuga_folder||'.cuga') + '/history.jsonl')}</code>.
+      </div>`;
+    return;
+  }
+  sub.textContent = `${HISTORY.runs.length} run${HISTORY.runs.length>1?'s':''} · click any row to reload its Q + A`;
+  wrap.innerHTML = HISTORY.runs.map(r => {
+    const skills = r.skills || [];
+    const pills = skills.slice(0,3).map(s => `<span class="h-skill">${esc(s)}</span>`).join('')
+                + (skills.length > 3 ? `<span class="h-skill">+${skills.length-3}</span>` : '');
+    const dur = (typeof r.duration_s === 'number') ? r.duration_s.toFixed(2) + 's' : '—';
+    const active = HISTORY.activeId === r.id ? ' active' : '';
+    return `
+      <div class="history-row${active}" onclick="replayRun('${esc(r.id)}')" title="Reload this run">
+        <div class="h-time">${esc(fmtTime(r.ts))}</div>
+        <div class="h-q">${esc(r.preview || '')}</div>
+        <div class="h-skills">${pills || '<span class="h-skill">—</span>'}</div>
+        <div class="h-dt">${esc(dur)}</div>
+        <div><span class="h-status ${r.ok?'ok':'err'}">● ${r.ok?'ok':'err'}</span></div>
+        <button class="h-del" type="button" title="Delete this run"
+          onclick="event.stopPropagation();deleteRun('${esc(r.id)}')">×</button>
+      </div>`;
+  }).join('');
+}
+
+async function replayRun(id){
+  try {
+    const r = await fetch('/history/' + encodeURIComponent(id));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rec = await r.json();
+    qEl.value = rec.question || '';
+    autoresize(qEl);
+    const wrap = document.getElementById('answer-wrap');
+    const out = document.getElementById('answer');
+    const meta = document.getElementById('answer-meta');
+    wrap.classList.add('vis');
+    out.classList.remove('markdown');
+    if (rec.error) {
+      out.innerHTML = `<span class="err">${esc(rec.error)}</span>`;
+    } else {
+      const ans = rec.answer || '(empty answer)';
+      if (/[#*`>\[]/.test(ans) && window.marked) {
+        out.classList.add('markdown');
+        out.innerHTML = renderMarkdown(ans);
+      } else {
+        out.textContent = ans;
+      }
+    }
+    const dt = (typeof rec.duration_s === 'number') ? rec.duration_s.toFixed(2) : '?';
+    meta.textContent = `replay · ${dt}s · ${fmtTime(rec.ts)}`;
+    HISTORY.activeId = id;
+    renderHistory();
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    toast('Replay failed: ' + e.message, 'err');
+  }
+}
+
+async function deleteRun(id){
+  if (!confirm('Delete this run from history?')) return;
+  try {
+    const r = await fetch('/history/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (HISTORY.activeId === id) HISTORY.activeId = null;
+    await loadHistory();
+    toast('Run deleted.', 'ok');
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
+}
+
+async function clearHistory(){
+  if (!HISTORY.runs.length) return;
+  if (!confirm(`Clear all ${HISTORY.runs.length} run${HISTORY.runs.length>1?'s':''} from history?`)) return;
+  try {
+    const r = await fetch('/history', { method: 'DELETE' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    HISTORY.activeId = null;
+    await loadHistory();
+    toast('History cleared.', 'ok');
+  } catch (e) {
+    toast('Clear failed: ' + e.message, 'err');
   }
 }
 
@@ -1676,6 +2141,7 @@ function toast(msg, kind){
    Boot
    ════════════════════════════════════════════════════════════════════ */
 loadSkills();
+loadHistory();
 </script>
 </body>
 </html>"""
