@@ -28,10 +28,31 @@ cuga-skills/
 
 Discovered skills:
 
-| Skill | Description |
-| --- | --- |
-| [`hiking_research`](hiking_research/SKILL.md) | Discover, filter, and evaluate hiking trails near any location using OpenStreetMap |
-| [`lead_hunter`](lead_hunter/SKILL.md) | Sales-dev scout: ranked board of independent local businesses that would benefit from a conversational AI agent, with deep-dive evidence and tailored cold emails for the top 3. Requires `TAVILY_API_KEY` for review/owner discovery. |
+| Skill | Description | Keys |
+| --- | --- | --- |
+| [`api_doc_gen`](api_doc_gen/SKILL.md) | Generate human-readable API docs from a local OpenAPI / Swagger spec — endpoints, $ref expansion, realistic curl examples. | — |
+| [`arch_diagram`](arch_diagram/SKILL.md) | Generate Mermaid.js architecture diagrams from natural-language system descriptions, with optional web search for unfamiliar systems. | TAVILY (opt) |
+| [`box_qa`](box_qa/SKILL.md) | Browse a Box folder via JWT auth and answer questions over PDFs/DOCX/XLSX/PPTX/TXT/MD/CSV with file-cited answers. | BOX_CONFIG_PATH |
+| [`brief_budget`](brief_budget/SKILL.md) | Goal-shaped research analyst with a stated tool-call budget — you decide decomposition + tool mix; covers academic, encyclopedic, and web sources. | TAVILY (opt) |
+| [`city_beat`](city_beat/SKILL.md) | One-screen city briefing — weather, news, encyclopedia background, optional attractions and crypto spotlight. | TAVILY · OPENTRIPMAP (opt) |
+| [`code_reviewer`](code_reviewer/SKILL.md) | Pure skill — structured code review (severity-ranked issues, suggestions, insights, metrics). No scripts. | — |
+| [`drop_summarizer`](drop_summarizer/SKILL.md) | TL;DR + key points for a local document path (.txt, .md, .csv, .pdf, .docx, .pptx, .xlsx). | — |
+| [`hiking_research`](hiking_research/SKILL.md) | Discover, filter, and evaluate hiking trails near any location using OpenStreetMap. | — |
+| [`ibm_cloud_advisor`](ibm_cloud_advisor/SKILL.md) | Recommend real IBM Cloud services for a use case via the public Global Catalog, with `ibmcloud` CLI commands. | TAVILY (opt) |
+| [`ibm_docs_qa`](ibm_docs_qa/SKILL.md) | Answer IBM Cloud / IBM product questions by searching real IBM docs and synthesising sourced answers. | TAVILY |
+| [`ibm_whats_new`](ibm_whats_new/SKILL.md) | Track and digest IBM Cloud release notes / "What's New" announcements for named services. Same tools as `ibm_docs_qa`, recency-biased. | TAVILY |
+| [`lead_hunter`](lead_hunter/SKILL.md) | Sales-dev scout — ranked board of independent local businesses that would benefit from a conversational AI agent, with deep-dive evidence and tailored cold emails. | TAVILY |
+| [`movie_recommender`](movie_recommender/SKILL.md) | Recommend 5–8 films from a user-supplied taste profile, verifying titles and directors via Wikipedia before naming them. | — |
+| [`newsletter`](newsletter/SKILL.md) | Fetch RSS / Atom feeds and produce a digest — single-feed or keyword-filtered across many. Read/digest only (no cron + email). | — |
+| [`paper_scout`](paper_scout/SKILL.md) | Discover and summarise research papers via arXiv + Semantic Scholar, with citation counts and references. | — |
+| [`recipe_composer`](recipe_composer/SKILL.md) | Pure skill — suggest 3–5 cookable recipes for tonight from a user-supplied pantry, respecting diet and allergies. No scripts. | — |
+| [`stock_alert`](stock_alert/SKILL.md) | Look up crypto + stock prices with 24h change (no alerting loop). Crypto keyless via CoinGecko; stocks via Alpha Vantage. | ALPHA_VANTAGE (stocks only) |
+| [`travel_planner`](travel_planner/SKILL.md) | Prescriptive multi-day travel itinerary — Wikipedia → weather → geocode → attractions → web → write. | TAVILY · OPENTRIPMAP |
+| [`trip_designer`](trip_designer/SKILL.md) | Goal-shaped travel itinerary — you pick decomposition (by day / region / theme / budget bucket); for off-template briefs and hard constraints. | TAVILY · OPENTRIPMAP |
+| [`web_researcher`](web_researcher/SKILL.md) | One-shot web research pass — 2–4 angled searches, optional page fetches, sourced report. For ad-hoc "what's the state of X" questions. | TAVILY |
+| [`webpage_summarizer`](webpage_summarizer/SKILL.md) | Fetch any URL and produce a structured summary — title, overview, key topics, notable facts, takeaway. | — |
+| [`wiki_dive`](wiki_dive/SKILL.md) | Deep Wikipedia research — full sections, related links, structured synthesis with citations. | — |
+| [`youtube_research`](youtube_research/SKILL.md) | Research a topic via YouTube — find videos, fetch transcripts, synthesise with timestamped citations. | TAVILY |
 
 ## Importing a skill into a CUGA agent
 
