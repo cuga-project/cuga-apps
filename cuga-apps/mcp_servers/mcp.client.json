@@ -1,0 +1,33 @@
+{
+  "$comment": "Drop-in MCP client config for the cuga-apps MCP servers deployed to IBM Code Engine. Paste into Claude Desktop's claude_desktop_config.json, Cursor's mcp.json, or any MCP-compatible client. Transport: streamable-HTTP. No client-side API keys needed — TAVILY_API_KEY etc. live in the server-side CE secret.",
+  "mcpServers": {
+    "cuga-web": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-web.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    },
+    "cuga-knowledge": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-knowledge.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    },
+    "cuga-geo": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-geo.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    },
+    "cuga-finance": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-finance.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    },
+    "cuga-code": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-code.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    },
+    "cuga-local": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-local.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    },
+    "cuga-text": {
+      "type": "http",
+      "url": "https://cuga-apps-mcp-text.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/mcp"
+    }
+  }
+}

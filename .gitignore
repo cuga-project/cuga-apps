@@ -16,3 +16,4 @@ cuga-apps/apps/__pycache__/_ports.cpython-311.pyc
 *.pyc
 cuga-apps/apps/__pycache__/__init__.cpython-311.pyc
 cuga-apps/apps/__pycache__/_ports.cpython-311.pyc
+cuga-apps/apps/ouroboros/.email_store.json

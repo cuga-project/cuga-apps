@@ -69,4 +69,5 @@ APP_PORTS: dict[str, int] = {
     "code_engine_deployer":       28818,
     "recipe_composer":            28820,
     "city_beat":                  28821,
+    "ouroboros":                  28822,
 }

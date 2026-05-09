@@ -61,6 +61,12 @@ class RITSChatModel(_BaseChatModel):
     base_url: str
     api_key: str
     temperature: float = 0.0
+    # RITS prod (and the underlying OpenAI-compat backend) defaults to a
+    # low max_tokens (~1024) when the request omits the field, which
+    # silently truncates long answers — the bug surface is "scout
+    # returned 222 chars of partial JSON". Set a generous default here;
+    # callers can still override via kwargs.
+    max_tokens: int = 16000
     bound_tools: Optional[List[Dict[str, Any]]] = Field(default=None)
 
     @model_validator(mode="after")
@@ -111,7 +117,8 @@ class RITSChatModel(_BaseChatModel):
             "model": payload_model,
             "messages": msgs,
             "temperature": self.temperature,
-            **kwargs,
+            "max_tokens": self.max_tokens,
+            **kwargs,   # caller-supplied kwargs (e.g. max_tokens override) win
         }
         if self.bound_tools:
             payload["tools"] = self.bound_tools
