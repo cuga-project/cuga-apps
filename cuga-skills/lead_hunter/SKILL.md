@@ -1,6 +1,6 @@
 ---
 name: lead_hunter
-description: Sales-dev scout for finding local businesses that would benefit from a conversational AI agent. Given a place (and optional category or pitch focus), produces a ranked board of independent prospects with deep-dive evidence and tailored cold emails for the top 3. Triggers on "find leads in <place>", "scout <city>", "<category> in <place> who need <capability>".
+description: Sales-dev scout for finding local businesses that would benefit from a conversational AI agent. Given a place (and optional category or pitch focus), produces a ranked board of independent prospects with deep-dive evidence and tailored cold emails for the top 3. Triggers on "find leads in [place]", "scout [city]", "[category] in [place] who need [capability]".
 requirements:
   - httpx>=0.27
 examples:

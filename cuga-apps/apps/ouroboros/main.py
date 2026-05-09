@@ -271,6 +271,8 @@ def _render_email_html(thread_id: str, question: str, answer: str,
                 f"{html.escape((l.get('pitch', '') or '')[:240])}…</td>"
                 f"</tr>"
             )
+    empty_row = '<tr><td colspan=3 style="padding:14px;color:#888;text-align:center">No leads on this run.</td></tr>'
+    tbody = rows or empty_row
     leads_table = (
         f"<table style='width:100%;border-collapse:collapse;background:#0d1117;"
         f"border:1px solid #2a2a2a;border-radius:6px;margin-top:14px'>"
@@ -280,7 +282,7 @@ def _render_email_html(thread_id: str, question: str, answer: str,
         f"text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Fit</th>"
         f"<th style='text-align:left;padding:8px 10px;color:#8b949e;font-size:11px;"
         f"text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Pitch</th></tr></thead>"
-        f"<tbody>{rows or '<tr><td colspan=3 style=\"padding:14px;color:#888;text-align:center\">No leads on this run.</td></tr>'}</tbody></table>"
+        f"<tbody>{tbody}</tbody></table>"
     )
 
     loop_line = (
