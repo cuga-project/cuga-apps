@@ -1,0 +1,16 @@
+{
+  "number": 55,
+  "title": "fix: handle empty data array in Widget render",
+  "state": "open",
+  "author": "first-time-contributor",
+  "author_association": "FIRST_TIME_CONTRIBUTOR",
+  "body": "Fixes #101. Now renders an empty state message when `data` is `[]`. Added a unit test in `widget.test.tsx`.",
+  "changed_files": [
+    "src/widget.tsx",
+    "src/widget.test.tsx"
+  ],
+  "additions": 18,
+  "deletions": 2,
+  "diff_summary": "Added null/empty check at the top of Widget.render; if data is empty, returns <EmptyState/>. Test covers the empty case.",
+  "created_at": "2026-05-03T09:45:00Z"
+}

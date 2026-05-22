@@ -1,0 +1,17 @@
+{
+  "number": 56,
+  "title": "Refactor auth middleware and drop legacy cookie path",
+  "state": "open",
+  "author": "core-maintainer",
+  "author_association": "MEMBER",
+  "body": "Cleans up the auth layer. Removes support for the legacy `session_id` cookie (deprecated in 1.3). Anyone still on cookie auth needs to migrate to bearer tokens.\n\nNo tests added — the existing auth integration tests cover this.",
+  "changed_files": [
+    "src/auth/middleware.ts",
+    "src/auth/session.ts",
+    "src/auth/cookie.ts"
+  ],
+  "additions": 42,
+  "deletions": 210,
+  "diff_summary": "Removes cookie.ts entirely. Rewrites middleware.ts to only accept bearer tokens. Session parsing simplified.",
+  "created_at": "2026-05-04T16:10:00Z"
+}
