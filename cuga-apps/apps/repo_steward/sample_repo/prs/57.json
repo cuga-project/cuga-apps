@@ -1,0 +1,17 @@
+{
+  "number": 57,
+  "title": "feat: add dark-mode theme to <Widget>",
+  "state": "open",
+  "author": "design-contributor",
+  "author_association": "CONTRIBUTOR",
+  "body": "Adds a `theme` prop to `<Widget>` with `light` (default) and `dark` variants. Includes a CSS variables overhaul so consumers can supply their own palette. No breaking changes.",
+  "changed_files": [
+    "src/widget.tsx",
+    "src/theme.ts",
+    "src/widget.css"
+  ],
+  "additions": 145,
+  "deletions": 20,
+  "diff_summary": "New `theme` prop on Widget. Extracts palette to CSS vars. Default theme unchanged.",
+  "created_at": "2026-05-05T11:00:00Z"
+}

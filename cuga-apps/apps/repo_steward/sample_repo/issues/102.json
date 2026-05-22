@@ -1,0 +1,10 @@
+{
+  "number": 102,
+  "title": "When will 2.0 ship?",
+  "state": "open",
+  "author": "eager-user",
+  "author_association": "NONE",
+  "body": "Hey team, I saw 2.0 on the roadmap. Can you give an estimated release date? We're planning a migration and need to know when to start.\n\nMy email is jane.doe@example.com if you want to reach out directly.",
+  "labels": [],
+  "created_at": "2026-04-30T08:00:00Z"
+}
