@@ -20,10 +20,20 @@ visibly changes.
 ## Run
 
 ```
-pip install -r requirements.txt && pip install cuga
-python main.py                    # http://127.0.0.1:28822
-python main.py --provider anthropic
+# Install cuga-agent once (skills support is on main)
+git clone https://github.com/cuga-project/cuga-agent
+pip install -e ./cuga-agent
+
+# Then, in a fresh venv:
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python main.py                          # http://127.0.0.1:28822
+python main.py --provider anthropic     # or openai / ollama / litellm
 ```
+
+The shared CUGA policy storage (`milvus_policies.db`) is **deleted on
+startup** so each run starts from the markdown files in `.cuga/`. Runtime
+toggles are session-scoped.
 
 ## Demo arc (~2 minutes)
 

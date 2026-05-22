@@ -6,10 +6,10 @@ configurable governance rails, both visible in real time.
 
 ## Prerequisites
 
-Checkout the skills branch of cuga-agent once:
+Install cuga-agent once (skills support is on `main`):
 
 ```
-git clone -b feat/skills-support https://github.com/cuga-project/cuga-agent
+git clone https://github.com/cuga-project/cuga-agent
 pip install -e ./cuga-agent
 ```
 
@@ -19,9 +19,10 @@ is fine.
 ## Start
 
 ```
+python -m venv .venv && source .venv/bin/activate    # one-time
 cd cuga-apps/apps/repo_steward
 pip install -r requirements.txt
-python main.py --provider anthropic    # or openai / ollama / litellm
+python main.py --provider anthropic                  # or openai / ollama / litellm
 ```
 
 Then open **http://127.0.0.1:28822**.

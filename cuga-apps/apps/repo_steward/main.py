@@ -71,6 +71,51 @@ os.environ.setdefault("DYNACONF_SKILLS__ENABLED", "true")
 os.environ.setdefault("CUGA_FOLDER", str(_SPECIALIST_DIRS["maintainer_steward"]))
 
 
+def _purge_policy_db() -> None:
+    """Delete any cached policy storage left behind from a previous run.
+
+    CUGA persists policies in `<DBS_DIR>/cuga.db` (and a legacy
+    `milvus_policies*.db`). When we relaunch the app, the auto-loader
+    repopulates that store from the markdown in `.cuga/`, but a stale db
+    can ghost-load deleted policies or carry over `enabled=False` toggles
+    from a previous session that no longer exist on disk. Nuking the db
+    on startup makes every launch deterministic: storage state is
+    whatever the markdown files say, full stop.
+    """
+    import glob
+    import shutil
+
+    dbs_dir = os.environ.get("CUGA_DBS_DIR")
+    if not dbs_dir:
+        # Mirror cuga.config: PACKAGE_ROOT/dbs is the default.
+        try:
+            import cuga
+            dbs_dir = os.path.join(os.path.dirname(cuga.__file__), "dbs")
+        except Exception:
+            return
+
+    if not os.path.isdir(dbs_dir):
+        return
+
+    targets: list[str] = []
+    for pattern in ("cuga.db*", "milvus_policies*.db*"):
+        targets.extend(glob.glob(os.path.join(dbs_dir, pattern)))
+    for path in targets:
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                os.remove(path)
+        except Exception:
+            pass
+    if targets:
+        log.info("Purged %d cached policy db file(s) from %s",
+                 len(targets), dbs_dir)
+
+
+_purge_policy_db()
+
+
 # ---------------------------------------------------------------------------
 # Turn log — per-turn capture of which skills loaded + which policies fired.
 # Consumed by the right-hand UI panel.
