@@ -1,6 +1,6 @@
 ---
 name: no_merge_promises
-description: Strip forward-looking commitments about merge dates, release timing, or fix ETAs from maintainer responses.
+description: Strip per-PR commitments — "we'll merge this next week", "expect a review by Friday", "this fix lands tomorrow". Targets reviewer/maintainer replies on individual issues and PRs.
 triggers:
   always: true
 format_type: markdown

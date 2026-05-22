@@ -1,6 +1,6 @@
 ---
 name: changelog_entry
-description: Convert a merged PR (title + description) into a user-facing changelog entry. Use when the user asks for a changelog line or release note.
+description: Convert a single merged PR (title + description) into one user-facing changelog line. Use ONLY when the input is exactly one PR. For multi-PR release-notes documents, use the release_notes skill instead.
 ---
 
 # Changelog Entry

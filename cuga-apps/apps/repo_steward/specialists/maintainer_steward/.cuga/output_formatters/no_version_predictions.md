@@ -1,6 +1,6 @@
 ---
 name: no_version_predictions
-description: Strip forward-looking predictions about when specific versions will ship from release-notes, roadmap, and announcement text.
+description: Strip release-level predictions — "shipping in 2.0", "GA in Q3", "## 2.0 (next week)". Targets release notes, roadmap statements, and announcement text. Distinct from no_merge_promises, which targets per-PR commitments.
 triggers:
   keywords:
     - will ship

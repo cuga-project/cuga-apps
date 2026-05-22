@@ -62,12 +62,13 @@ _SPECIALIST_DIRS: dict[str, Path] = {
     "contributor_ally":   _DIR / "specialists" / "contributor_ally"   / ".cuga",
 }
 
-# Enable skills subsystem (reads .agents/skills/**/SKILL.md next to _DIR).
+# Enable skills subsystem (reads .agents/skills/**/SKILL.md per specialist).
 # Dynaconf uses the DYNACONF_ prefix for env-overrides in this codebase.
 os.environ.setdefault("DYNACONF_SKILLS__ENABLED", "true")
-# Point CUGA_FOLDER at the maintainer specialist — purely so the skills loader's
-# legacy `.cuga/skills` fallback resolves to something sensible. Skills actually
-# live under `.agents/skills/` which both specialists share.
+# Point CUGA_FOLDER at the maintainer specialist. The skills loader scans
+# `<cuga_folder>/../.agents/skills/` for SKILL.md files, so each specialist
+# carries its own copy of the shared skill set in its own `.agents/skills/`
+# (intentional duplication, since symlinks aren't reliable on Windows clones).
 os.environ.setdefault("CUGA_FOLDER", str(_SPECIALIST_DIRS["maintainer_steward"]))
 
 
@@ -671,18 +672,17 @@ But usually you don't need to — a welcome comment is about tone, not content.
 # them action-oriented and mutually exclusive; routing quality is proportional
 # to how cleanly these describe the split.
 _MAINTAINER_DESC = (
-    "Maintainer-side governance: triage issues, review pull requests, draft "
-    "changelog entries, compose release notes. Operates under strict policies "
-    "(security disclosure escalation, no merge promises, no version "
-    "predictions, PII redaction). Route here when the user's request is about "
-    "processing an issue/PR or producing release content."
+    "Processes issues and PRs. Owns four skills: issue_triage (label and "
+    "prioritize an issue), pr_review (verdict + findings on a diff), "
+    "changelog_entry (one user-facing line per merged PR), release_notes "
+    "(multi-PR release summary). Route here when the user wants to *process "
+    "an artifact* — fetch it, analyze it, classify it, or summarize it."
 )
 _CONTRIBUTOR_DESC = (
-    "Contributor-facing replies: welcome comments for first-time contributors, "
-    "friendly answers to 'how do I contribute?' questions, encouragement on "
-    "new PRs. Operates under a 'welcoming tone required' policy that rewrites "
-    "scolding or gatekeeping language. Route here when the user's request is "
-    "about addressing a contributor (not processing their artifact)."
+    "Replies addressed to contributors. Owns one skill: contributor_welcome "
+    "(short, warm comment on a first-time PR or a 'how do I contribute?' "
+    "question). Route here when the user wants to *write a message to a "
+    "person* — never to process or analyze an artifact."
 )
 
 
@@ -1029,12 +1029,13 @@ async def _policy_watcher_loop(specialists: dict, interval: float = 2.0) -> None
 # ---------------------------------------------------------------------------
 
 def _list_skills_snapshot() -> list[dict]:
-    # Skills live under .agents/skills/ (the canonical path on feat/skills-support)
-    # and are shared across specialists.
-    roots = [_DIR / ".agents" / "skills"]
+    # Skills live under each specialist's `.agents/skills/`. Each specialist
+    # has its OWN scoped skill set — the maintainer doesn't see contributor
+    # skills and vice-versa. We tag every entry with its owning specialist
+    # so the UI can show the routing implication clearly.
     out: list[dict] = []
-    seen: set[str] = set()
-    for root in roots:
+    for spec_name, cuga_dir in _SPECIALIST_DIRS.items():
+        root = cuga_dir.parent / ".agents" / "skills"
         if not root.is_dir():
             continue
         for p in sorted(root.rglob("SKILL.md")):
@@ -1043,11 +1044,11 @@ def _list_skills_snapshot() -> list[dict]:
             except Exception:
                 continue
             name, desc = _parse_skill_frontmatter(text)
-            if not name or name in seen:
+            if not name:
                 continue
-            seen.add(name)
             out.append({
                 "name":        name,
+                "specialist":  spec_name,
                 "description": desc or "",
                 "source":      str(p.relative_to(_DIR)),
             })
@@ -2059,11 +2060,25 @@ async function loadSkills() {
       body.innerHTML = '<div class="empty-state">No SKILL.md found under .agents/skills/.</div>';
       return;
     }
-    body.innerHTML = skills.map(s => `
-      <div class="list-item ${_lastUsedSkills.includes(s.name) ? 'used' : ''}">
-        <div class="title">${esc(s.name)}</div>
-        <div class="desc">${esc(s.description)}</div>
-        <div class="meta">${esc(s.source)}</div>
+    // Group by owning specialist — same shape as the Policies card.
+    const groups = {};
+    skills.forEach(s => {
+      const k = s.specialist || 'default';
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(s);
+    });
+    body.innerHTML = Object.entries(groups).map(([spec, list]) => `
+      <div class="spec-group">
+        <div class="spec-group-head">
+          <span class="spec-pill ${esc(spec)}">${esc(spec)}</span>
+          <span class="desc">${list.length} skill${list.length === 1 ? '' : 's'}</span>
+        </div>
+        ${list.map(s => `
+          <div class="list-item ${_lastUsedSkills.includes(s.name) ? 'used' : ''}">
+            <div class="title">${esc(s.name)}</div>
+            <div class="desc">${esc(s.description)}</div>
+            <div class="meta">${esc(s.source)}</div>
+          </div>`).join('')}
       </div>`).join('');
   } catch(e) { /* ignore */ }
 }

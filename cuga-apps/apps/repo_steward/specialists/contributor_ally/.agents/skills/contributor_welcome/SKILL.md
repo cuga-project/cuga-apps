@@ -1,6 +1,6 @@
 ---
 name: contributor_welcome
-description: Draft a welcoming comment for a first-time contributor's issue or PR. Use when the user indicates the author is new or the issue is labeled good-first-issue.
+description: Draft a short welcome comment to post on a specific PR or issue from a first-time contributor. Use ONLY when the input is a specific artifact (PR or issue number) and the audience is its author. For general "how do I contribute?" questions with no specific artifact, the newcomer_onboarding_protocol playbook handles those instead.
 ---
 
 # Contributor Welcome
