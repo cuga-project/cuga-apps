@@ -35,7 +35,9 @@ The honest question to ask of any agent framework is: what does this save me
 from writing myself? With CUGA the list runs long. The API you actually touch is
 small — `CugaAgent(tools=[...])`, then `await agent.invoke(msg)` — but each of
 the things below is something you'd otherwise be building and maintaining on your
-own.
+own. What makes CUGA distinct isn't any single item; it's that they arrive
+pre-assembled and benchmarked together, so they're things you configure rather
+than wire up.
 
 - **Connecting tools.** OpenAPI specs, MCP servers, and plain LangChain
   functions are all first-class, and the agent treats them as interchangeable. A
