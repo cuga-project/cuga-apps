@@ -29,7 +29,7 @@ deployment in production — it's the engine behind [IBM's Sovereign Core](https
 experience, and just as content powering a weekend project. The rest of this
 post is what that looks like from a developer's seat.
 
-## What you stop having to build
+## What CUGA gives you out of the box
 
 The honest question to ask of any agent framework is: what does this save me
 from writing myself? With CUGA the list runs long. The API you actually touch is
