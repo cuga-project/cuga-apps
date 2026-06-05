@@ -1,9 +1,3 @@
----
-title: "Build real agentic apps on CUGA: two dozen working examples on a lightweight agent harness"
-thumbnail: /blog/assets/cuga-apps/thumbnail.png
-authors:
-- user: anupama-murthi
----
 
 # Build real agentic apps on CUGA: two dozen working examples on a lightweight agent harness
 
