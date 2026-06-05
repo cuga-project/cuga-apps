@@ -25,7 +25,7 @@ every time you build a new agent.
 The idea in the name is that you start from a strong generalist and narrow it to
 your domain: give it your tools, your procedure, your guardrails. The same
 harness runs as a single-file app on your laptop and as a self-hosted, governed
-deployment in production — it's the engine behind IBM's Sovereign Core agentic
+deployment in production — it's the engine behind [IBM's Sovereign Core](https://www.ibm.com/docs/en/sovereign-core/1.0.0?topic=services-ai-agent-types) agentic
 experience, and just as content powering a weekend project. The rest of this
 post is what that looks like from a developer's seat.
 
