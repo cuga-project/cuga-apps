@@ -1,10 +1,10 @@
 # Build a working CUGA agent in one file: lessons from `cuga-apps`
 
-*Two dozen single-file apps that show how the CUGA harness works, and how the same agent runs governed inside IBM Sovereign Core.* 
+*Two dozen single-file apps that show how the CUGA harness works, and how the same agent runs governed inside IBM Sovereign Core.*
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
-[CUGA](https://github.com/cuga-project/cuga-agent) inverts that. Short for Configurable Generalist Agent, it's the open-source agent harness from IBM that handles the planning, the execution loop, the tool calls, and the state plumbing for you, so the part you write shrinks to a list of tools and a system prompt. To show what that feels like in practice, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): 24 small, working apps, each a single FastAPI file wrapping one `CugaAgent`, from a movie recommender to an IBM Cloud architecture advisor. They exist to be read and copied.
+[CUGA](https://github.com/cuga-project/cuga-agent) inverts that. Short for Configurable Generalist Agent, it's the open-source agent harness from IBM Research that handles the planning, the execution loop, the tool calls, and the state plumbing for you, so the part you write shrinks to a list of tools and a system prompt. To show what that feels like in practice, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): 24 small, working apps, each a single FastAPI file wrapping one `CugaAgent`, from a movie recommender to an IBM Cloud architecture advisor. They exist to be read and copied.
 
 This article walks through one of them, names what the harness takes off your plate, and shows where the same code goes when you need it governed for production. No new framework to learn first. If you've written a FastAPI route, you can read every line.
 
@@ -12,11 +12,13 @@ This article walks through one of them, names what the harness takes off your pl
 
 The fair question to ask of anything in this space is what it saves you from writing. CUGA's answer: the orchestration around a model that you'd otherwise rebuild every time.
 
-It plans before it acts, then executes with a mix of tool calls and generated code. On a long task that runs twenty steps, the thing that breaks most agents is losing track of intermediate results and re-deriving them (often wrong) on the next turn; CUGA holds that state and runs a reflection step that can catch a bad call and re-plan instead of barreling ahead. That machinery is why it has topped agent benchmarks like AppWorld and WebArena rather than something you tune by hand.
+It plans before it acts, then executes with a mix of tool calls and generated code (CodeAct). On a long task that runs twenty steps, the thing that breaks most agents is losing track of intermediate results and re-deriving them (often wrong) on the next turn; CUGA holds that state and runs a reflection step that can catch a bad call and re-plan instead of barreling ahead. That machinery is why it has topped agent benchmarks like AppWorld and WebArena rather than something you tune by hand.
+
+You also set the cost/latency tradeoff from config rather than code: Fast, Balanced, and Accurate reasoning modes, with code execution in whatever sandbox you trust (local, Docker/Podman, or E2B cloud). Same agent definition, different dial.
 
 None of the individual pieces is unique to CUGA. What's different is that they come pre-assembled, so you configure them instead of wiring them together. The API you touch is small — build a `CugaAgent` with a tool list and a prompt, then `await agent.invoke(...)`. Everything below that line is the harness.
 
-## One app, start to finish (feel free to replace the example app)
+## One app, start to finish
 
 Here's the IBM Cloud advisor — an agent that recommends real IBM Cloud services for an architecture. The whole thing fits in one file: a `main.py` with the agent factory, the tools, and the prompt, plus a small UI.
 
@@ -64,7 +66,7 @@ There's a pattern here that holds across every app: a split between MCP tools an
 
 The system prompt does the steering, and it reads like a procedure rather than a personality. The cloud advisor's prompt tells the agent to search the catalog before naming any service, recommend three to seven services with each one's role in the design, and never invent service names. That last rule earns its keep: an agent recommending IBM Cloud services that don't exist is worse than no agent, so the prompt forces every recommendation through a catalog lookup first. Prompts written as ordered steps with explicit "don't make things up" rules behave; prompts written as personas wander.
 
-That's the app. A tool, a procedure, four lines of constructor. The FastAPI routes and the HTML panel around it are ordinary web code.
+That's the app. A tool, a procedure, four lines of constructor. The FastAPI routes around it are ordinary web code: the browser posts a question to `/ask`, and the live panel polls a `/session/{thread_id}` endpoint for state. There's no database; state is a per-`thread_id` Python dict that only the agent writes to, through its tools. The moment the agent calls a tool mid-run, the panel redraws. The UI isn't a second copy of the logic; it's a view onto state the agent mutated.
 
 ## The convention that does the heavy lifting
 
@@ -78,9 +80,9 @@ The reason there are two dozen of these matters more than any single one. Once y
 
 Before you clone anything, you can [click through every app in the live gallery](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/): the umbrella UI tiles all of them behind a launch button, so you can poke at the cloud advisor or the movie recommender in a browser first.
 
-So cuga-apps works as a catalog of starting points, which is the real reason to care about it. Want an agent that reads documents? There's one. Want an event-driven pipeline instead of a chat app? The newsletter and drop-summarizer apps are built that way. Each app leans on a different capability (tool composition, stateful tools, web grounding, citation tracking, code synthesis), so between them they map out most of what the harness can do, and whatever you're building, one of them already exercises the piece you need. You clone the repo, find the app closest to your idea, and edit its tool list and prompt; `HOW_TO_BUILD_AN_APP_FAST.md` and `ADDING_AN_APP.md` walk through exactly that. A few apps were even generated from a one-page spec, which tells you how repeatable the shape is — regular enough for a model to reproduce means regular enough for you to learn.
+So cuga-apps works as a catalog of starting points, which is the real reason to care about it. Want an agent that reads documents? There's one. Want an event-driven pipeline instead of a chat app? The newsletter and drop-summarizer apps are built that way. Each app leans on a different capability (tool composition, stateful tools, web grounding, citation tracking, code synthesis), so between them they map out most of what the harness can do, and whatever you're building, one of them already exercises the piece you need. You clone the repo, find the app closest to your idea, and edit its tool list and prompt; `HOW_TO_BUILD_AN_APP_FAST.md` and `ADDING_AN_APP.md` walk through exactly that. A few apps were even generated by handing a coding assistant a single spec file (`cuga_external_app_spec.md`) and a one-line brief, which tells you how repeatable the shape is — regular enough for a model to reproduce means regular enough for you to learn.
 
-Not every app is equally polished. The umbrella UI tags apps "ship-ready," "for-later," or "exploratory," and the for-later ones aren't wired for a clean unattended run yet. The UI defaults to the ship-ready filter and lets you switch between those tags, so the polished set is what you see first. Start from a ship-ready app like the cloud advisor or the movie recommender and you'll have a working baseline.
+Two honest caveats before you clone. The real catalog lives in the inner `cuga-apps/cuga-apps/apps/` directory, not the outer one, which trips people up on first read. And not every app is equally polished: the umbrella UI tags apps "ship-ready," "for-later," or "exploratory," and the for-later ones aren't wired for a clean unattended run yet. The UI defaults to the ship-ready filter and lets you switch between those tags, so the polished set is what you see first. Start from a ship-ready app like the cloud advisor or the movie recommender and you'll have a working baseline.
 
 ## When the laptop version isn't enough
 
@@ -104,13 +106,13 @@ That's an Intent Guard, one of six policy types, each answering a question a tea
 - **Playbook** — can I pin a known-good procedure for a recurring task?
 - **Output Formatter** — can I force the final response into a required shape?
 
-A sixth type, `CustomPolicy`, is the escape hatch when none of those fit. Timing is worth getting right, because it isn't all one stage: an Intent Guard checks the request before the agent picks a tool, Tool Approval runs *after* the agent has generated its code and inspects which tools that code uses, and Output Formatter fires only once the final message exists. Triggers go past keyword matching too: you can match on semantic similarity, on agent state, or on a specific tool firing. Policies live in that `.cuga` folder from the constructor, versioned next to the code rather than drifting in a separate config.
+A sixth type, `CustomPolicy`, is the escape hatch when none of those fit. Timing is worth getting right, because it isn't all one stage: an Intent Guard checks the request before the agent picks a tool, Tool Approval runs *after* the agent has generated its code and inspects which tools that code uses, and Output Formatter fires only once the final message exists. Triggers go past keyword matching too: they're held in a `sqlite-vec` store and matched semantically, so a policy fires on what the user *means*, not just on an exact keyword. Match on semantic similarity, on agent state, or on a specific tool firing. The policies themselves live in that `.cuga` folder from the constructor, versioned next to the code rather than drifting in a separate config.
 
 ## Growing past one agent
 
 Two extensions matter once an app outgrows a single chat loop.
 
-When one agent would drown in its own context (too many tools, too much evidence to keep straight), you split the work. A `CugaSupervisor` delegates to specialist `CugaAgent`s, each with its own tools, prompt, and isolated context, and the supervisor only ever reasons about which specialist to hand a subtask to. Its planning surface stays small no matter how many tools sit underneath, and a flaky tool fails one delegation instead of the whole run. Adding a capability means adding a specialist, not rewriting a coordinator.
+When one agent would drown in its own context (too many tools, too much evidence to keep straight), you split the work. A `CugaSupervisor` delegates to specialist `CugaAgent`s, each with its own tools, prompt, and isolated context, and the supervisor only ever reasons about which specialist to hand a subtask to. Its planning surface stays small no matter how many tools sit underneath, and a flaky tool fails one delegation instead of the whole run. A specialist doesn't even have to be local; it can be an external agent reached over A2A, delegated to the same way. Adding a capability means adding a specialist, not rewriting a coordinator.
 
 The other extension packages know-how rather than tools: Agent Skills, a folder with a `SKILL.md` playbook the agent pulls into context only when a task calls for it, so one prompt isn't carrying everything the agent might ever need to know. Both keep the same building blocks (tools, prompts, state, policies), just composed a level up.
 
@@ -118,7 +120,7 @@ The other extension packages know-how rather than tools: Agent Skills, a folder 
 
 Here's the payoff, and the reason any of this is built the way it is. Because the harness is small, open source, model-agnostic, and already governs itself, the agent you wrote on your laptop is the same agent that runs in a locked-down deployment. You don't port it. You redeploy it.
 
-That's the foundation [IBM Sovereign Core](https://www.ibm.com/products/sovereign-core) builds on, and it's where we took CUGA next. Sovereign Core runs CUGA agents under what we call Boundary Isolation: data, control plane, and execution engine inside the same logical boundary, with agents running in transient, isolated containers in the tenant's own workspace. The model runs there too. Deployments default to `gpt-oss-120b` running fully air-gapped within your infrastructure, and tools reach only private VNETs with per-tool approval. Every reasoning step emits OpenTelemetry traces into a Grafana Tempo backend that stays in-tenant, with no telemetry phoning home. Nothing leaves the boundary [as we wrote about in details separately](https://community.ibm.com/community/user/blogs/shikha-srivastava1/2026/04/30/open-by-design-generalist-and-prebuilt-agents-in-t). 
+That's the foundation [IBM Sovereign Core](https://www.ibm.com/products/sovereign-core) builds on, and it's where we took CUGA next. [We wrote about the details separately](https://community.ibm.com/community/user/blogs/shikha-srivastava1/2026/04/30/open-by-design-generalist-and-prebuilt-agents-in-t), but the short version: Sovereign Core runs CUGA agents under what we call Boundary Isolation: data, control plane, and execution engine inside the same logical boundary, with agents running in transient, isolated containers in the tenant's own workspace. The model runs there too. Deployments default to `gpt-oss-120b` running fully air-gapped within your infrastructure, and tools reach only private VNETs with per-tool approval. Every reasoning step emits OpenTelemetry traces into a Grafana Tempo backend that stays in-tenant, with no telemetry phoning home. Nothing leaves the boundary.
 
 The agent definition doesn't change to get there; the deployment around it does. And the reason that's possible is everything above — capability, policy, and model choice all live in a runtime you can read. That's the bet we made building it: when an agent's runtime is a black box, sovereignty is a promise, but when it's open code, sovereignty is something you can check. The apps you cloned and the agent you wrote are the same open runtime that claim rests on.
 
