@@ -96,8 +96,13 @@ Valid names: `web`, `knowledge`, `geo`, `finance`, `code`, `local`, `text`,
 Pick a small one. **Recipe Composer** is a good first bite: inline tools only,
 no MCP servers required, no API keys beyond the LLM provider.
 
+> Use **Python 3.13** — `cuga` requires `>=3.10,<3.14` (3.14 is unsupported).
+
 ```bash
 git clone <this-repo> && cd agent-apps/cuga-apps/apps/recipe_composer
+
+# recommended: an isolated env on a supported Python
+uv venv --python 3.13 .venv && source .venv/bin/activate
 
 pip install -r requirements.txt
 pip install cuga
@@ -140,21 +145,47 @@ Every app has its own `README.md` with run instructions and example prompts.
 
 ## Run any ship-ready app locally
 
-Each app folder has its own `requirements.txt` listing exactly what that
+> **Prerequisite — Python 3.13.** `cuga` supports **Python `>=3.10,<3.14`**, so
+> do **not** use 3.14. The cleanest setup is a `uv` venv on 3.13:
+>
+> ```bash
+> cd cuga-apps
+> uv venv --python 3.13 .venv && source .venv/bin/activate
+> uv pip install -r requirements.apps.txt        # cuga + every app dep
+> # add only if you want video_qa / deck_forge (pulls chromadb + torch):
+> #   uv pip install -r requirements.apps.heavy.txt
+> # add only for meetup_finder's browser:
+> #   python -m playwright install chromium
+> ```
+>
+> `cuga` is listed inside `requirements.apps.txt`, so that one command installs
+> the framework too. Plain `pip install -r requirements.apps.txt` works as well.
+
+Each app folder also has its own `requirements.txt` listing exactly what that
 app imports, so you can install **only the deps for the one app you want**.
 The table below pairs every ship-ready app with its `cd` + `pip install` +
 launch command — copy a row, paste into your shell, done.
 
-If you'd rather install once and switch between many apps without
-reinstalling, the umbrella file covers every app at once:
+### Run the whole stack with one command (`launch.py`)
+
+To bring up **all 7 MCP servers + every app + the usage dashboard** at once
+(needed for the MCP-backed apps), use the launcher:
 
 ```bash
-cd cuga-apps && uv pip install -r requirements.apps.txt
+cd cuga-apps/apps
+python launch.py                      # start everything
+python launch.py status               # see what's up
+python launch.py kill --ship-ready    # free the ports of just the 21 ship-ready apps
+python launch.py stop                 # stop everything it started
 ```
-OR
+
+`launch.py` spawns each app with the interpreter that has `cuga`. If you run it
+from a Python that lacks cuga, it **auto-detects a sibling `.venv`** that has it
+(printing a `[PYTHON] …` line) — or set `CUGA_PYTHON=/path/to/venv/bin/python`
+to force one. MCP-backed apps need `requirements.mcp.txt` in that same venv:
 
 ```bash
-cd cuga-apps && pip install -r requirements.apps.txt
+cd cuga-apps && uv pip install -r requirements.apps.txt -r requirements.mcp.txt
 ```
 
 Set your LLM credentials once in your shell — every app inherits these.
@@ -182,7 +213,7 @@ export CUGA_TARGET=ce        # use the hosted MCP servers — Tavily,
 (`AGENT_SETTING_CONFIG` is auto-defaulted to `settings.<provider>.toml` per
 provider, so you don't need to set it.)
 
-The 16 ship-ready apps. Server names in the **MCP servers** column link to
+The 21 ship-ready apps. Server names in the **MCP servers** column link to
 the [Hosted MCP servers](#hosted-mcp-servers) table above, which lists every
 server's Code Engine `/mcp` endpoint. The **Setup + run** column assumes
 you're at the repo root and that `cuga` is already installed (`pip install
@@ -206,6 +237,11 @@ cuga`):
 | [IBM Cloud Advisor](cuga-apps/apps/ibm_cloud_advisor) | [web](#hosted-mcp-servers) | `cd cuga-apps/apps/ibm_cloud_advisor && pip install -r requirements.txt && python main.py --port 28812` | |
 | [IBM Docs Q&A](cuga-apps/apps/ibm_docs_qa) | [web](#hosted-mcp-servers) | `cd cuga-apps/apps/ibm_docs_qa && pip install -r requirements.txt && python main.py --port 28813` | |
 | [City Beat](cuga-apps/apps/city_beat) | [geo](#hosted-mcp-servers), [web](#hosted-mcp-servers), [knowledge](#hosted-mcp-servers), [finance](#hosted-mcp-servers) | `cd cuga-apps/apps/city_beat && pip install -r requirements.txt && python main.py --port 28821` | mixes 4 hosted MCPs + 7 inline session tools |
+| [GitHub Trending](cuga-apps/apps/github_trending) | — (inline only) | `cd cuga-apps/apps/github_trending && pip install -r requirements.txt && python main.py --port 28823` | keyless (GitHub REST); optional `GITHUB_TOKEN` raises rate limit |
+| [AI Labs News](cuga-apps/apps/ai_labs_news) | — (inline only) | `cd cuga-apps/apps/ai_labs_news && pip install -r requirements.txt && python main.py --port 28824` | keyless; reads each lab's RSS/Atom feed |
+| [Find a Doctor](cuga-apps/apps/find_a_doctor) | — (inline only) | `cd cuga-apps/apps/find_a_doctor && pip install -r requirements.txt && python main.py --port 28825` | keyless; OSM (Nominatim/Overpass) + DuckDuckGo reviews |
+| [Ouroboros](cuga-apps/apps/ouroboros) | — (inline only) | `cd cuga-apps/apps/ouroboros && pip install -r requirements.txt && python main.py --port 28822` | multi-agent (CugaSupervisor + 7 specialists); watsonx; give it `APP_MEM=4G` |
+| [Meetup Finder](cuga-apps/apps/meetup_finder) | — (inline + Playwright) | `cd cuga-apps/apps/meetup_finder && pip install -r requirements.txt && python -m playwright install chromium && python main.py --port 28826` | browser-driven (Meetup/Luma/Eventbrite); needs Chromium |
 
 After running the command, open `http://127.0.0.1:<port>` in your browser.
 The pip step is idempotent — if you already installed the deps for an
@@ -273,6 +309,39 @@ for the inline `@tool` defs.
 
 ---
 
+## Operating a public deployment
+
+These apps are deployed publicly on Code Engine, so two shared, install-once
+helpers protect and observe them. Both are installed into every app with a
+single line (`install_rate_limit(app)` / `install_usage(app)`) and tune
+entirely via env — no code changes.
+
+### Rate limiting — [`apps/_ratelimit.py`](cuga-apps/apps/_ratelimit.py)
+Layered, in-memory limits on **POST** (the expensive agent calls; GET — UI +
+polling — stays free): per-IP token bucket + per-IP daily cap + a global
+backstop (defeats IP rotation on cost) + a concurrency gate + a body-size cap.
+Denied requests get `429`/`413` + `Retry-After`. Tune via `RL_PER_MIN`,
+`RL_BURST`, `RL_PER_DAY`, `RL_GLOBAL_PER_MIN`, `RL_CONCURRENCY`,
+`RL_MAX_BODY_BYTES` (see `apps/.env.example`). Per-IP uses `X-Forwarded-For`
+(spoofable) — front with IBM CIS WAF for a hard guarantee.
+
+### Usage tracking — [`apps/_usage.py`](cuga-apps/apps/_usage.py) + [`apps/usage_collector`](cuga-apps/apps/usage_collector)
+Every app fire-and-forgets an anonymized ping (visitor = daily-salted IP hash,
+no PII) to a central **usage_collector** app, which serves a cross-app
+dashboard (requests / unique visitors per day / last-seen). Locally it works
+out of the box (`launch.py` points apps at `http://127.0.0.1:28827`); on Code
+Engine set `USAGE_COLLECTOR_URL` in the `app-env` secret to the collector's
+public `/track` URL, with `USAGE_TOKEN` for auth and optional IBM COS for
+durable history.
+
+## Deploying to Code Engine
+
+`cuga-apps/deploy_apps.sh` ships **27 apps** from one shared image
+(`build_apps_image.sh` / `Dockerfile.apps`, which bakes in cuga, sqlite-vec,
+feedparser, a headless Chromium for meetup_finder, and boto3). See
+[`CLOUD_ENGINE_DEPLOYMENT.md`](cuga-apps/CLOUD_ENGINE_DEPLOYMENT.md) for the
+full runbook.
+
 ## Repo layout
 
 ```
@@ -281,6 +350,10 @@ agent-apps/
 ├── cuga_external_app_spec.md       self-contained spec — point an LLM at this to build a new app
 ├── cuga-apps/                      the umbrella repo: 25+ apps, 8 MCP servers, the umbrella UI
 │   ├── apps/                       one folder per app
+│   │   ├── _ratelimit.py           shared rate limiting (install_rate_limit)
+│   │   ├── _usage.py               shared usage tracking (install_usage)
+│   │   ├── usage_collector/        cross-app usage dashboard (port 28827)
+│   │   └── launch.py               local orchestrator: start/stop/kill/status
 │   ├── mcp_servers/                hosted MCP servers
 │   ├── ui/                         the umbrella SPA (port 3001)
 │   ├── HOW_TO_BUILD_AN_APP_FAST.md 10-minute in-repo build guide

@@ -16,12 +16,14 @@ import ArchitecturesPage from './pages/ArchitecturesPage'
 import BuildingBlocksPage from './pages/BuildingBlocksPage'
 import ExamplesPage from './pages/ExamplesPage'
 import UseCaseIdeasPage from './pages/UseCaseIdeasPage'
+import McpServersPage from './pages/McpServersPage'
 
 export default function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/mcp-servers" element={<McpServersPage />} />
         <Route path="/use-case/:id" element={<UseCaseDetail />} />
         <Route path="/coverage" element={<CoveragePage />} />
         <Route path="/features" element={<Features />} />

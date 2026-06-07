@@ -2,10 +2,10 @@
 # =====================================================================
 # build_apps_image.sh — build and push the shared cuga-apps image.
 #
-# One image, used by all 19 deployable cuga-apps. Each CE app picks which
+# One image, used by all 26 deployable cuga-apps. Each CE app picks which
 # main.py to run via `--command python --argument /app/apps/<name>/main.py`,
-# so we don't need 19 different images — just one shared one with all
-# apps baked in.
+# so we don't need 26 different images — just one shared one with all
+# apps baked in (incl. a headless Chromium for meetup_finder).
 #
 # Always builds for linux/amd64 (Code Engine runs amd64; Apple Silicon
 # would otherwise emit unrunnable arm64 images).

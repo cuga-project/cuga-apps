@@ -38,6 +38,8 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from _carbon import carbon_head, carbon_css  # noqa: E402
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -319,6 +321,11 @@ def _web(port: int) -> None:
         return HTMLResponse(_WEB_HTML)
 
     print(f"\n  YouTube Research  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -326,121 +333,99 @@ def _web(port: int) -> None:
 # HTML
 # ---------------------------------------------------------------------------
 
-_WEB_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>YouTube Research</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#0f0f13;color:#e2e2e8;min-height:100vh}
+_APP_CSS = """<style>
+  body { background: var(--cds-background); }
 
-header{background:#1a1a24;border-bottom:1px solid #2e2e40;padding:14px 28px;
-  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-header h1{font-size:17px;font-weight:700;color:#fff}
-.sub{font-size:12px;color:#6b6b7e}.sub span{color:#f87171;font-weight:600}
-.spacer{flex:1}
-.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
-.badge-on{background:#0d3330;color:#5eead4}
-.badge-off{background:#450a0a;color:#f87171}
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:var(--cds-sp-06);
+    max-width:74rem;margin:0 auto;padding:var(--cds-sp-06) var(--cds-sp-06)}
+  @media(max-width:720px){.layout{grid-template-columns:1fr}}
 
-.layout{display:grid;grid-template-columns:280px 1fr;gap:20px;
-  max-width:1120px;margin:0 auto;padding:20px 24px}
-@media(max-width:720px){.layout{grid-template-columns:1fr}}
+  .card{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+    padding:var(--cds-sp-06);margin-bottom:var(--cds-sp-05)}
+  .card:last-child{margin-bottom:0}
+  .card-title{font-size:0.75rem;font-weight:600;color:var(--cds-text-secondary);
+    letter-spacing:.32px;text-transform:uppercase;margin-bottom:var(--cds-sp-05)}
+  .section-label{font-size:0.75rem;font-weight:600;color:var(--cds-text-secondary);
+    letter-spacing:.32px;text-transform:uppercase;margin:var(--cds-sp-05) 0 var(--cds-sp-04);
+    padding-top:var(--cds-sp-05);border-top:1px solid var(--cds-border-subtle)}
+  .section-label:first-child{margin-top:0;padding-top:0;border-top:none}
 
-.card{background:#1a1a24;border:1px solid #2e2e40;border-radius:12px;
-  padding:18px;margin-bottom:16px}
-.card:last-child{margin-bottom:0}
-.card-title{font-size:11px;font-weight:700;color:#6b6b7e;letter-spacing:.08em;
-  text-transform:uppercase;margin-bottom:14px}
-.section-label{font-size:11px;font-weight:600;color:#4a4a60;letter-spacing:.06em;
-  text-transform:uppercase;margin:16px 0 10px;padding-top:16px;
-  border-top:1px solid #1e1e2e}
-.section-label:first-child{margin-top:0;padding-top:0;border-top:none}
+  .field{margin-bottom:var(--cds-sp-04)}
 
-label{display:block;font-size:11px;color:#6b6b7e;margin-bottom:4px;font-weight:500;
-  text-transform:uppercase;letter-spacing:.05em}
-input[type=text],input[type=password]{width:100%;background:#0f0f13;
-  border:1px solid #2e2e40;border-radius:7px;padding:8px 12px;font-size:13px;
-  color:#e2e2e8;outline:none;transition:border-color .15s}
-input:focus{border-color:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.1)}
-input::placeholder{color:#4a4a60}
-.field{margin-bottom:10px}
+  .status-row{display:flex;align-items:center;gap:var(--cds-sp-03);margin-top:var(--cds-sp-04);
+    padding:var(--cds-sp-03) var(--cds-sp-04);background:var(--cds-layer-02);
+    border:1px solid var(--cds-border-subtle);font-size:0.75rem}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot.on{background:var(--cds-support-success)}
+  .dot.off{background:var(--cds-border-strong)}
+  .status-text{color:var(--cds-text-secondary);flex:1}
+  .status-text strong{color:var(--cds-text-primary)}
 
-button{background:#dc2626;color:#fff;border:none;border-radius:7px;
-  padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
-  transition:background .15s,opacity .15s;white-space:nowrap;width:100%;margin-top:10px}
-button:hover{background:#b91c1c}
-button:disabled{opacity:.45;cursor:default}
+  .badge{padding:var(--cds-sp-02) var(--cds-sp-03);border-radius:0.9375rem;
+    font-size:0.75rem;font-weight:400;line-height:1}
+  .badge-on{background:var(--cds-support-success-bg);color:var(--cds-support-success)}
+  .badge-off{background:var(--cds-support-error-bg);color:var(--cds-support-error)}
 
-.status-row{display:flex;align-items:center;gap:7px;margin-top:10px;
-  padding:8px 12px;background:#0f0f13;border:1px solid #1e1e2e;border-radius:7px;
-  font-size:12px}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.dot.on{background:#10b981;box-shadow:0 0 5px #10b981}
-.dot.off{background:#374151}
-.status-text{color:#6b6b7e;flex:1}
-.status-text strong{color:#e2e2e8}
+  .chips{display:flex;flex-wrap:wrap;gap:var(--cds-sp-03);margin-bottom:var(--cds-sp-04)}
+  .chip{background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);
+    border-radius:0.9375rem;padding:var(--cds-sp-02) var(--cds-sp-04);
+    font-size:0.75rem;color:var(--cds-text-secondary);cursor:pointer;
+    transition:all var(--cds-dur-mod) var(--cds-ease-productive)}
+  .chip:hover{background:var(--cds-interactive);border-color:var(--cds-interactive);color:#fff}
 
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.chip{background:#111827;border:1px solid #1e293b;border-radius:6px;
-  padding:5px 10px;font-size:12px;color:#94a3b8;cursor:pointer;transition:all .15s}
-.chip:hover{background:#dc2626;border-color:#dc2626;color:#fff}
+  .chat-row{display:flex;gap:0}
+  .chat-input{flex:1}
+  .chat-row .cds-btn{flex:none;min-width:9rem}
 
-.chat-row{display:flex;gap:8px}
-.chat-input{flex:1;padding:9px 14px;border-radius:8px;font-size:14px;
-  background:#0f0f13;border:1px solid #2e2e40;color:#e2e2e8;outline:none}
-.chat-input:focus{border-color:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.1)}
-.chat-send{width:auto;margin-top:0;padding:9px 20px}
+  .result{margin-top:var(--cds-sp-05);padding:var(--cds-sp-05);background:var(--cds-layer-02);
+    border:1px solid var(--cds-border-subtle);font-size:0.875rem;line-height:1.7;
+    color:var(--cds-text-primary);display:none;overflow-x:auto}
+  .result.visible{display:block}
+  .result a{color:var(--cds-link-primary);text-decoration:none}
+  .result a:hover{color:var(--cds-link-hover);text-decoration:underline}
+  .result strong{color:var(--cds-text-primary);font-weight:600}
+  .thinking{color:var(--cds-text-secondary);font-size:0.8125rem;
+    display:inline-flex;align-items:center;gap:var(--cds-sp-04)}
 
-.result{margin-top:14px;padding:16px;background:#111827;border:1px solid #1e293b;
-  border-radius:9px;font-size:14px;line-height:1.75;color:#e2e8f0;display:none;
-  overflow-x:auto}
-.result.visible{display:block}
-.result a{color:#f87171;text-decoration:none}
-.result a:hover{text-decoration:underline}
-.result strong{color:#fff}
-.thinking{color:#6b6b7e;font-style:italic;font-size:13px}
-.spinner{display:inline-block;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.fadein{animation:fadein .2s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .fadein{animation:fadein .2s ease}
 
-.report-item{border:1px solid #2e2e40;border-radius:8px;margin-bottom:8px;overflow:hidden}
-.report-header{padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer}
-.report-header:hover{background:#1f2937}
-.report-query{font-size:12px;font-weight:600;color:#c5cae9;flex:1;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.report-time{font-size:10px;color:#6b7280}
-.report-toggle{font-size:11px;color:#4b5563}
-.report-body{padding:12px 14px;font-size:13px;line-height:1.7;color:#d1d5db;
-  border-top:1px solid #2e2e40;background:#0f0f13;display:none;white-space:pre-wrap}
-.report-body.open{display:block}
-.empty{font-size:13px;color:#4b5563;text-align:center;padding:28px}
-</style>
-</head>
-<body>
+  .report-item{border:1px solid var(--cds-border-subtle);margin-bottom:var(--cds-sp-03);overflow:hidden}
+  .report-header{padding:var(--cds-sp-04) var(--cds-sp-05);display:flex;align-items:center;
+    gap:var(--cds-sp-03);cursor:pointer;
+    transition:background var(--cds-dur-fast) var(--cds-ease-productive)}
+  .report-header:hover{background:var(--cds-layer-hover)}
+  .report-query{font-size:0.8125rem;font-weight:600;color:var(--cds-text-primary);flex:1;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .report-time{font-size:0.75rem;color:var(--cds-text-helper);font-family:var(--cds-font-mono)}
+  .report-toggle{font-size:0.75rem;color:var(--cds-text-secondary)}
+  .report-body{padding:var(--cds-sp-04) var(--cds-sp-05);font-size:0.8125rem;line-height:1.7;
+    color:var(--cds-text-secondary);border-top:1px solid var(--cds-border-subtle);
+    background:var(--cds-layer-02);display:none;white-space:pre-wrap}
+  .report-body.open{display:block}
+  .empty{font-size:0.8125rem;color:var(--cds-text-placeholder);text-align:center;padding:var(--cds-sp-07)}
+</style>"""
 
-<header>
-  <h1>YouTube Research</h1>
-  <p class="sub">Powered by <span>CugaAgent</span></p>
-  <div class="spacer"></div>
-  <span class="badge" id="apiBadge">Checking…</span>
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;YouTube&nbsp;Research</div>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Powered by CugaAgent</span>
+    <span class="badge" id="apiBadge">Checking…</span>
+  </div>
 </header>
 
 <div class="layout">
 
-  <!-- ══ Left panel ══ -->
+  <!-- Left panel -->
   <div>
     <div class="card">
       <div class="section-label">API Keys</div>
       <div class="field">
-        <label>Tavily <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#4a4a60">— web search</span></label>
-        <input id="tavilyKey" type="password" placeholder="tvly-…" />
+        <label class="cds-label">Tavily <span style="text-transform:none;letter-spacing:0;color:var(--cds-text-helper)">— web search</span></label>
+        <input class="cds-input" id="tavilyKey" type="password" placeholder="tvly-…" />
       </div>
-      <button id="saveBtn" onclick="saveCreds()">Save key</button>
+      <button class="cds-btn cds-btn--md cds-btn--full" id="saveBtn" onclick="saveCreds()">Save key</button>
       <div class="status-row">
         <span class="dot off" id="apiDot"></span>
         <span class="status-text" id="apiLabel">Not configured</span>
@@ -449,17 +434,17 @@ button:disabled{opacity:.45;cursor:default}
 
     <div class="card">
       <div class="section-label">How it works</div>
-      <p style="font-size:12px;color:#6b6b7e;line-height:1.6">
-        <strong style="color:#e2e2e8">Topic mode</strong> — type a topic and the agent
+      <p style="font-size:0.8125rem;color:var(--cds-text-secondary);line-height:1.6">
+        <strong style="color:var(--cds-text-primary)">Topic mode</strong> — type a topic and the agent
         searches the web for YouTube videos, fetches their transcripts, and synthesises
         findings with citations and timestamps.<br><br>
-        <strong style="color:#e2e2e8">URL mode</strong> — paste one or more YouTube URLs
+        <strong style="color:var(--cds-text-primary)">URL mode</strong> — paste one or more YouTube URLs
         directly and ask any question about the content.
       </p>
     </div>
   </div>
 
-  <!-- ══ Right panel ══ -->
+  <!-- Right panel -->
   <div>
 
     <!-- Research chat -->
@@ -476,10 +461,10 @@ button:disabled{opacity:.45;cursor:default}
         <span class="chip" onclick="ask(this.textContent)">Prompt engineering best practices</span>
       </div>
       <div class="chat-row">
-        <input class="chat-input" id="chatInput" type="text"
+        <input class="cds-input chat-input" id="chatInput" type="text"
           placeholder="Enter a topic to research, or paste YouTube URL(s)…"
           onkeydown="if(event.key==='Enter')ask()">
-        <button class="chat-send" id="chatSend" onclick="ask()">Research</button>
+        <button class="cds-btn chat-send" id="chatSend" onclick="ask()">Research</button>
       </div>
       <div class="result" id="chatResult"></div>
     </div>
@@ -505,7 +490,7 @@ async function ask(question) {
   inp.value = q
   btn.disabled = true; btn.textContent = 'Researching…'
   res.className = 'result visible fadein'
-  res.innerHTML = '<span class="thinking"><span class="spinner">⟳</span> Searching YouTube and fetching transcripts… this may take a minute.</span>'
+  res.innerHTML = '<span class="thinking"><span class="cds-spinner cds-spinner--sm"></span> Searching YouTube and fetching transcripts… this may take a minute.</span>'
 
   try {
     const r = await fetch('/ask', {
@@ -521,7 +506,7 @@ async function ask(question) {
     res.innerHTML = renderMd(data.answer)
     await loadReports()
   } catch (err) {
-    res.innerHTML = '<span style="color:#f87171">Error: ' + esc(err.message) + '</span>'
+    res.innerHTML = '<div class="cds-notification cds-notification--error">Error: ' + esc(err.message) + '</div>'
   } finally {
     btn.disabled = false; btn.textContent = 'Research'
   }
@@ -535,10 +520,10 @@ function renderMd(text) {
     // Links: [text](url)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     // Timestamps [MM:SS] — highlight
-    .replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, '<span style="color:#f87171;font-weight:600">[$1]</span>')
+    .replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, '<span style="color:var(--cds-link-primary);font-weight:600;font-family:var(--cds-font-mono)">[$1]</span>')
     // Headings
-    .replace(/^### (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:#fff;margin:14px 0 6px">$1</div>')
-    .replace(/^## (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:#fff;margin:18px 0 8px">$1</div>')
+    .replace(/^### (.+)$/gm, '<div style="font-size:0.875rem;font-weight:600;color:var(--cds-link-primary);margin:14px 0 6px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-size:1rem;font-weight:600;color:var(--cds-text-primary);margin:18px 0 8px">$1</div>')
     // Bullets
     .replace(/^- (.+)$/gm, '<div style="padding-left:16px;margin:3px 0">• $1</div>')
     // Newlines
@@ -617,9 +602,17 @@ fetch('/settings').then(r => r.json()).then(s => {
 })
 loadReports()
 </script>
-</body>
-</html>
 """
+
+_WEB_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("YouTube Research")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)
 
 
 # ---------------------------------------------------------------------------

@@ -13,26 +13,30 @@ _HTML = r"""<!DOCTYPE html>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>City Beat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:       #0f1117;
-    --card:     #1a1a2e;
-    --border:   #2d2d4a;
-    --accent:   #38bdf8;   /* sky blue */
-    --accent2:  #a78bfa;   /* violet */
-    --accent3:  #facc15;   /* sun yellow */
-    --text:     #e2e8f0;
-    --muted:    #8892a4;
-    --danger:   #f87171;
-    --success:  #4ade80;
+    /* Carbon Gray 100 (dark) tokens mapped onto City Beat's variable names */
+    --bg:       #161616;   /* $background */
+    --card:     #262626;   /* $layer-01  */
+    --border:   #393939;   /* $border-subtle */
+    --accent:   #4589ff;   /* IBM blue (blue-50, dark) */
+    --accent2:  #be95ff;   /* purple-40 */
+    --accent3:  #f1c21b;   /* support-warning */
+    --text:     #f4f4f4;   /* $text-primary */
+    --muted:    #8d8d8d;   /* $text-helper */
+    --danger:   #fa4d56;   /* red-50 (dark) */
+    --success:  #42be65;   /* green-40 (dark) */
   }
 
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-size: 14px;
     min-height: 100vh;
     display: flex;
@@ -264,6 +268,23 @@ _HTML = r"""<!DOCTYPE html>
     color: var(--accent2); cursor: pointer;
   }
   .watchlist .city-pill:hover { border-color: var(--accent2); }
+
+  /* ── Carbon polish: square structural corners, IBM-blue button, focus rings ── */
+  .city-card, .block, .msg, .msg.agent, .msg.user, .input-row input,
+  .btn, .empty-state .hint { border-radius: 0 !important; }
+  .msg.user { border-bottom-right-radius: 0 !important; color: #fff; }
+  .msg.agent { border-bottom-left-radius: 0 !important; }
+  .btn {
+    background: var(--accent); color: #fff; font-weight: 400;
+    transition: background .15s cubic-bezier(0.2,0,0.38,0.9);
+  }
+  .btn:hover { background: #0353e9; opacity: 1; }
+  .btn:focus-visible, .btn:focus {
+    outline: 2px solid var(--accent); outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px #fff;
+  }
+  .input-row input:focus { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: -2px; }
+  .city-card .tagline { font-style: normal; }
 </style>
 </head>
 <body>

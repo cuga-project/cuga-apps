@@ -1,0 +1,12 @@
+# usage_collector — standalone Python deps.
+# Install: pip install -r requirements.txt
+#
+# Central usage dashboard. Receives fire-and-forget pings from every app
+# (apps/_usage.py) and aggregates per-app, per-day counts. No LLM, no cuga.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# Optional: durable snapshots to IBM Cloud Object Storage / any S3. Only needed
+# if USAGE_S3_BUCKET is set; otherwise a local JSON file is used.
+boto3>=1.28

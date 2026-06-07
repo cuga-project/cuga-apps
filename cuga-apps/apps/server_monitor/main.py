@@ -559,6 +559,11 @@ def _web(port: int) -> None:
     async def ui():
         return HTMLResponse(_HTML)
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -572,11 +577,14 @@ _HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Server Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: #0f1117;
     color: #e2e8f0;
     min-height: 100vh;
@@ -754,6 +762,137 @@ _HTML = """<!DOCTYPE html>
   }
   .trigger-btn:hover { background: #374151; }
   .trigger-btn:disabled { color: #4b5563; cursor: default; }
+
+  /* ─── Carbon polish — IBM Carbon Gray 100 theme ────────────────────── */
+  :root {
+    --cds-background:     #161616;
+    --cds-layer-01:       #262626;
+    --cds-layer-02:       #393939;
+    --cds-border-subtle:  #393939;
+    --cds-border-strong:  #6f6f6f;
+    --cds-text-primary:   #f4f4f4;
+    --cds-text-secondary: #c6c6c6;
+    --cds-text-helper:    #8d8d8d;
+    --cds-link:           #78a9ff;
+    --cds-interactive:    #0f62fe;
+    --cds-button-hover:   #0353e9;
+    --cds-focus:          #0f62fe;
+    --cds-font-mono:      'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  }
+
+  /* Surfaces */
+  body { background: var(--cds-background); color: var(--cds-text-primary); }
+  header {
+    background: #161616;
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  header h1 { color: var(--cds-text-primary); font-weight: 600; }
+  .card {
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
+  }
+  .card-header { border-bottom: 1px solid var(--cds-border-subtle); }
+  .card-header h2 { color: var(--cds-text-primary); font-weight: 600; }
+
+  /* Square all structural corners (Carbon) */
+  .card, .card-header, .header-btn, .save-btn, .chat-input, .chat-send,
+  .chat-result, .alert-entry, .alert-entry-header, .alert-body,
+  .trigger-btn, .settings-row input[type=number], .gauge-bg, .gauge-fill {
+    border-radius: 0 !important;
+  }
+
+  /* Status badges & chips keep the Carbon pill radius */
+  .badge { border-radius: 0.9375rem; font-weight: 600; }
+  .badge.ok       { background: rgba(36,161,72,0.20);  color: #42be65; }
+  .badge.warning  { background: rgba(241,194,27,0.22); color: #f1c21b; }
+  .badge.critical { background: rgba(218,30,40,0.22);  color: #fa4d56; }
+  .badge.unknown  { background: var(--cds-layer-02);   color: #c6c6c6; }
+
+  /* Gauge fills onto Carbon support colors */
+  .gauge-bg     { background: var(--cds-layer-02); }
+  .gauge-ok       { background: #42be65; }
+  .gauge-warning  { background: #f1c21b; }
+  .gauge-critical { background: #fa4d56; }
+
+  /* Alert chips (rounded pills) onto Carbon support tints */
+  .chip-warning, .sev-warning  { background: rgba(241,194,27,0.20); color: #f1c21b; }
+  .chip-critical, .sev-critical { background: rgba(218,30,40,0.20); color: #fa4d56; }
+  .chip-ok, .sev-ok            { background: rgba(36,161,72,0.20);  color: #42be65; }
+
+  /* Prompt chips */
+  .chip {
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
+  }
+  .chip:hover {
+    background: var(--cds-interactive);
+    border-color: var(--cds-interactive);
+    color: #fff;
+  }
+
+  /* Inputs — Carbon field: flat fill, bottom border, square */
+  .chat-input, .settings-row input[type=number] {
+    background: var(--cds-layer-01);
+    border: none;
+    border-bottom: 1px solid var(--cds-border-strong);
+    color: var(--cds-text-primary);
+  }
+  .chat-input:focus, .settings-row input[type=number]:focus {
+    border-color: transparent;
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+
+  /* Primary buttons → IBM blue with Carbon focus ring */
+  .save-btn, .chat-send {
+    background: var(--cds-interactive);
+    color: #fff;
+    border: none;
+    font-weight: 400;
+  }
+  .save-btn:hover, .chat-send:hover { background: var(--cds-button-hover); }
+  .save-btn:focus, .save-btn:focus-visible,
+  .chat-send:focus, .chat-send:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px #fff;
+  }
+  .save-btn:disabled, .chat-send:disabled {
+    background: var(--cds-layer-02); color: var(--cds-text-helper);
+  }
+
+  /* Secondary / tertiary buttons */
+  .header-btn, .trigger-btn {
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-primary);
+  }
+  .header-btn:hover, .trigger-btn:hover { background: #4c4c4c; }
+  .header-btn:focus, .header-btn:focus-visible,
+  .trigger-btn:focus, .trigger-btn:focus-visible {
+    outline: 2px solid var(--cds-focus); outline-offset: -2px;
+  }
+
+  /* Results / log surfaces */
+  .chat-result {
+    background: var(--cds-background);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
+    font-family: var(--cds-font-mono);
+  }
+  .alert-entry { border: 1px solid var(--cds-border-subtle); }
+  .alert-entry-header:hover { background: var(--cds-layer-02); }
+  .alert-body {
+    background: var(--cds-background);
+    border-top: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
+    font-family: var(--cds-font-mono);
+  }
+  .empty-log { color: var(--cds-text-helper); }
+
+  /* Accent / numeric values in IBM Plex Mono for the dashboard feel */
+  .metric-val, .alert-time { font-family: var(--cds-font-mono); }
 </style>
 </head>
 <body>

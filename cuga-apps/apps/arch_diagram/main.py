@@ -433,6 +433,11 @@ def _web(port: int) -> None:
         return HTMLResponse(_WEB_HTML)
 
     print(f"\n  Architecture Diagram Generator  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -440,123 +445,141 @@ def _web(port: int) -> None:
 # HTML
 # ---------------------------------------------------------------------------
 
-_WEB_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Architecture Diagram Generator</title>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#0f0f13;color:#e2e2e8;min-height:100vh;display:flex;flex-direction:column}
+from _carbon import carbon_head, carbon_css  # noqa: E402
 
-header{background:#1a1a24;border-bottom:1px solid #2e2e40;padding:14px 28px;
-  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;flex-shrink:0}
-header h1{font-size:17px;font-weight:700;color:#fff}
-.sub{font-size:12px;color:#6b6b7e}.sub span{color:#818cf8;font-weight:600}
-.spacer{flex:1}
+_APP_CSS = """<style>
+body{display:flex;flex-direction:column;min-height:100vh}
 
-.layout{display:grid;grid-template-columns:260px 1fr;gap:0;flex:1;overflow:hidden;
-  max-width:1400px;width:100%;margin:0 auto}
+/* Layout */
+.layout{display:grid;grid-template-columns:272px 1fr;gap:0;flex:1;overflow:hidden;
+  max-width:1480px;width:100%;margin:0 auto}
 @media(max-width:720px){.layout{grid-template-columns:1fr}}
 
-/* Left sidebar */
-.sidebar{padding:16px;overflow-y:auto;border-right:1px solid #2e2e40}
-.card{background:#1a1a24;border:1px solid #2e2e40;border-radius:12px;
-  padding:16px;margin-bottom:14px}
-.card:last-child{margin-bottom:0}
-.section-label{font-size:11px;font-weight:600;color:#4a4a60;letter-spacing:.06em;
-  text-transform:uppercase;margin:14px 0 8px}
-.section-label:first-child{margin-top:0}
-label{display:block;font-size:11px;color:#6b6b7e;margin-bottom:4px;font-weight:500;
-  text-transform:uppercase;letter-spacing:.05em}
-input[type=text],input[type=password]{width:100%;background:#0f0f13;
-  border:1px solid #2e2e40;border-radius:7px;padding:7px 10px;font-size:12px;
-  color:#e2e2e8;outline:none}
-input:focus{border-color:#818cf8}
-.field{margin-bottom:8px}
-.btn{background:#6366f1;color:#fff;border:none;border-radius:7px;
-  padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;width:100%;margin-top:8px}
-.btn:hover{background:#4f46e5}
-.btn:disabled{opacity:.45}
-.btn-sm{padding:5px 10px;font-size:11px;width:auto;margin-top:0}
-.btn-ghost{background:#1f2937;border:1px solid #374151;color:#9ca3af}
-.btn-ghost:hover{background:#374151}
-.btn-danger{background:#7f1d1d;color:#fca5a5}
-.btn-danger:hover{background:#991b1b}
-.status-row{display:flex;align-items:center;gap:7px;margin-top:8px;
-  padding:6px 10px;background:#0f0f13;border:1px solid #1e1e2e;border-radius:7px;font-size:11px}
-.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.dot.on{background:#10b981;box-shadow:0 0 4px #10b981}
-.dot.off{background:#374151}
-.status-text{color:#6b6b7e;flex:1}
+.sub{font-size:.75rem;color:var(--cds-text-helper)}
+.sub span{color:var(--cds-text-primary);font-weight:600}
 
-/* Right panel — diagram + chat */
-.main{display:flex;flex-direction:column;overflow:hidden}
+/* Left sidebar */
+.sidebar{padding:var(--cds-sp-05);overflow-y:auto;border-right:1px solid var(--cds-border-subtle);
+  background:var(--cds-background)}
+.card{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+  padding:var(--cds-sp-05);margin-bottom:var(--cds-sp-05)}
+.card:last-child{margin-bottom:0}
+.section-label{font-size:.75rem;font-weight:600;color:var(--cds-text-secondary);
+  letter-spacing:.06em;text-transform:uppercase;margin:var(--cds-sp-05) 0 var(--cds-sp-03)}
+.section-label:first-child{margin-top:0}
+label{display:block;font-size:.75rem;color:var(--cds-text-secondary);margin-bottom:var(--cds-sp-03);
+  font-weight:400;letter-spacing:.32px}
+input[type=text],input[type=password]{width:100%;background:var(--cds-field-01);
+  border:none;border-bottom:1px solid var(--cds-border-strong);padding:var(--cds-sp-03) var(--cds-sp-04);
+  font-size:.875rem;color:var(--cds-text-primary);font-family:var(--cds-font-sans)}
+input[type=text]:focus,input[type=password]:focus{outline:2px solid var(--cds-focus);outline-offset:-2px}
+.field{margin-bottom:var(--cds-sp-03)}
+
+.btn{background:var(--cds-button-primary);color:var(--cds-text-on-color);border:1px solid transparent;
+  padding:var(--cds-sp-03) var(--cds-sp-05);font-size:.875rem;font-weight:400;cursor:pointer;width:100%;
+  margin-top:var(--cds-sp-03);font-family:var(--cds-font-sans);
+  transition:background var(--cds-dur-mod) var(--cds-ease-productive)}
+.btn:hover{background:var(--cds-button-primary-hover)}
+.btn:active{background:var(--cds-button-primary-active)}
+.btn:focus-visible,.btn:focus{outline:2px solid var(--cds-focus);outline-offset:-2px;
+  box-shadow:inset 0 0 0 1px var(--cds-focus-inset)}
+.btn:disabled{background:var(--cds-layer-accent);color:var(--cds-text-placeholder);cursor:not-allowed}
+.btn-sm{padding:var(--cds-sp-02) var(--cds-sp-04);font-size:.75rem;width:auto;margin-top:0}
+.btn-ghost{background:transparent;border:1px solid var(--cds-border-strong);color:var(--cds-text-primary)}
+.btn-ghost:hover{background:var(--cds-layer-hover)}
+.btn-danger{background:var(--cds-button-danger);color:#fff}
+.btn-danger:hover{background:var(--cds-button-danger-hover)}
+
+.status-row{display:flex;align-items:center;gap:var(--cds-sp-03);margin-top:var(--cds-sp-03);
+  padding:var(--cds-sp-03) var(--cds-sp-04);background:var(--cds-field-01);
+  border:1px solid var(--cds-border-subtle);font-size:.75rem}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.on{background:var(--cds-support-success)}
+.dot.off{background:var(--cds-border-strong)}
+.status-text{color:var(--cds-text-secondary);flex:1}
+
+/* Right panel */
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--cds-background)}
 
 /* Pinned diagram */
-#pinnedDiagram{background:#1a1a24;border-bottom:1px solid #2e2e40;display:none;flex-shrink:0}
+#pinnedDiagram{background:var(--cds-layer-01);border-bottom:1px solid var(--cds-border-subtle);
+  display:none;flex-shrink:0}
 #pinnedDiagram.visible{display:block}
-.pinned-header{display:flex;align-items:center;gap:8px;padding:10px 20px 0}
-.pinned-title{font-size:11px;font-weight:700;color:#6b6b7e;letter-spacing:.08em;text-transform:uppercase;flex:1}
-#pinnedRender{background:#fff;border-radius:8px;margin:10px 20px;padding:16px;
-  text-align:center;overflow-x:auto;max-height:360px;overflow-y:auto}
+.pinned-header{display:flex;align-items:center;gap:var(--cds-sp-03);padding:var(--cds-sp-04) var(--cds-sp-06) 0}
+.pinned-title{font-size:.75rem;font-weight:600;color:var(--cds-text-secondary);
+  letter-spacing:.08em;text-transform:uppercase;flex:1}
+#pinnedRender{background:#fff;border:1px solid var(--cds-border-subtle);margin:var(--cds-sp-04) var(--cds-sp-06);
+  padding:var(--cds-sp-05);text-align:center;overflow-x:auto;max-height:360px;overflow-y:auto}
 #pinnedRender svg{max-width:100%;height:auto}
-#pinnedError{display:none;margin:0 20px 10px;padding:8px 12px;background:#451a03;
-  border:1px solid #78350f;border-radius:7px;font-size:11px;color:#fbbf24}
-.pinned-actions{display:flex;gap:6px;padding:0 20px 12px;justify-content:flex-end}
+#pinnedError{display:none;margin:0 var(--cds-sp-06) var(--cds-sp-04);padding:var(--cds-sp-03) var(--cds-sp-04);
+  background:var(--cds-support-warning-bg);border-left:3px solid var(--cds-support-warning);
+  font-size:.75rem;color:var(--cds-text-primary)}
+.pinned-actions{display:flex;gap:var(--cds-sp-03);padding:0 var(--cds-sp-06) var(--cds-sp-05);justify-content:flex-end}
 
 /* Chat thread */
-#chatThread{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+#chatThread{flex:1;overflow-y:auto;padding:var(--cds-sp-05) var(--cds-sp-06);
+  display:flex;flex-direction:column;gap:var(--cds-sp-05)}
 .msg{max-width:85%;animation:fadein .2s ease}
-.msg-user{align-self:flex-end;background:#6366f1;color:#fff;border-radius:12px 12px 2px 12px;
-  padding:10px 14px;font-size:13px;line-height:1.5}
-.msg-agent{align-self:flex-start;background:#1a1a24;border:1px solid #2e2e40;
-  border-radius:12px 12px 12px 2px;padding:12px 16px;font-size:13px;line-height:1.7;color:#d1d5db}
-.msg-agent strong{color:#fff}
-.msg-agent code{background:#0f0f13;padding:1px 5px;border-radius:3px;font-size:12px}
-.msg-diagram{background:#fff;border-radius:8px;padding:12px;margin:8px 0;
-  text-align:center;overflow-x:auto}
+.msg-user{align-self:flex-end;background:var(--cds-interactive);color:#fff;
+  padding:var(--cds-sp-04) var(--cds-sp-05);font-size:.875rem;line-height:1.5}
+.msg-agent{align-self:flex-start;background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+  padding:var(--cds-sp-04) var(--cds-sp-05);font-size:.875rem;line-height:1.6;color:var(--cds-text-primary)}
+.msg-agent strong{color:var(--cds-text-primary);font-weight:600}
+.msg-agent code{background:var(--cds-layer-accent);color:var(--cds-link-primary);
+  padding:1px 5px;font-size:.8125rem;font-family:var(--cds-font-mono)}
+.msg-diagram{background:#fff;border:1px solid var(--cds-border-subtle);
+  padding:var(--cds-sp-04);margin:var(--cds-sp-03) 0;text-align:center;overflow-x:auto}
 .msg-diagram svg{max-width:100%;height:auto}
-.msg-thinking{color:#6b6b7e;font-style:italic;font-size:13px;padding:10px 14px}
-.welcome{text-align:center;color:#4a4a60;padding:40px 20px;flex:1;display:flex;
-  flex-direction:column;align-items:center;justify-content:center;gap:16px}
-.welcome h2{font-size:18px;color:#6b6b7e;font-weight:600}
+.msg-thinking{color:var(--cds-text-secondary);font-style:italic;font-size:.875rem;padding:var(--cds-sp-04) var(--cds-sp-05)}
+.welcome{text-align:center;color:var(--cds-text-secondary);padding:var(--cds-sp-08) var(--cds-sp-05);flex:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--cds-sp-05)}
+.welcome h2{font-size:1.25rem;color:var(--cds-text-primary);font-weight:400}
 
 /* Chips */
-.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px}
-.chip{background:#111827;border:1px solid #1e293b;border-radius:6px;
-  padding:5px 10px;font-size:12px;color:#94a3b8;cursor:pointer;transition:all .15s}
-.chip:hover{background:#6366f1;border-color:#6366f1;color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:var(--cds-sp-03);justify-content:center;max-width:600px}
+.chip{background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:.9375rem;
+  padding:var(--cds-sp-02) var(--cds-sp-04);font-size:.75rem;color:var(--cds-text-secondary);cursor:pointer;
+  transition:all var(--cds-dur-mod) var(--cds-ease-productive)}
+.chip:hover{background:var(--cds-interactive);border-color:var(--cds-interactive);color:#fff}
 
 /* Input bar */
-.input-bar{padding:12px 20px;border-top:1px solid #2e2e40;background:#1a1a24;flex-shrink:0}
-.input-row{display:flex;gap:8px;align-items:flex-end}
-#chatInput{flex:1;background:#0f0f13;border:1px solid #2e2e40;border-radius:8px;
-  padding:10px 14px;font-size:14px;color:#e2e2e8;outline:none;font-family:inherit;
-  resize:none;min-height:44px;max-height:120px;line-height:1.4}
-#chatInput:focus{border-color:#818cf8}
-#chatInput::placeholder{color:#4a4a60}
-#chatSend{background:#6366f1;color:#fff;border:none;border-radius:8px;
-  padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;height:44px;white-space:nowrap}
-#chatSend:hover{background:#4f46e5}
-#chatSend:disabled{opacity:.45;cursor:default}
-.refine-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.refine-chips .chip{font-size:11px;padding:3px 8px}
+.input-bar{padding:var(--cds-sp-04) var(--cds-sp-06);border-top:1px solid var(--cds-border-subtle);
+  background:var(--cds-background);flex-shrink:0}
+.input-row{display:flex;gap:var(--cds-sp-03);align-items:flex-end}
+#chatInput{flex:1;background:var(--cds-field-01);border:none;border-bottom:1px solid var(--cds-border-strong);
+  padding:var(--cds-sp-04) var(--cds-sp-05);font-size:.875rem;color:var(--cds-text-primary);
+  font-family:var(--cds-font-sans);resize:none;min-height:48px;max-height:120px;line-height:1.4}
+#chatInput:focus{outline:2px solid var(--cds-focus);outline-offset:-2px}
+#chatInput::placeholder{color:var(--cds-text-placeholder)}
+#chatSend{background:var(--cds-button-primary);color:var(--cds-text-on-color);border:1px solid transparent;
+  padding:0 var(--cds-sp-06);font-size:.875rem;font-weight:400;cursor:pointer;height:48px;white-space:nowrap;
+  font-family:var(--cds-font-sans);transition:background var(--cds-dur-mod) var(--cds-ease-productive)}
+#chatSend:hover{background:var(--cds-button-primary-hover)}
+#chatSend:focus-visible,#chatSend:focus{outline:2px solid var(--cds-focus);outline-offset:-2px;
+  box-shadow:inset 0 0 0 1px var(--cds-focus-inset)}
+#chatSend:disabled{background:var(--cds-layer-accent);color:var(--cds-text-placeholder);cursor:default}
+.refine-chips{display:flex;flex-wrap:wrap;gap:var(--cds-sp-02);margin-top:var(--cds-sp-03)}
+.refine-chips .chip{font-size:.6875rem;padding:var(--cds-sp-01) var(--cds-sp-03)}
 
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;animation:spin .7s linear infinite}
-</style>
-</head>
-<body>
+</style>"""
 
-<header>
-  <h1>Architecture Diagram Generator</h1>
-  <p class="sub">Powered by <span>CugaAgent</span> + Mermaid.js</p>
-  <div class="spacer"></div>
+_WEB_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Architecture Diagram Generator")
+    + '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>'
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head>"
+    + r"""<body>
+
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Architecture&nbsp;Diagram&nbsp;Generator</div>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Powered by CugaAgent + Mermaid.js</span>
+  </div>
 </header>
 
 <div class="layout">
@@ -567,7 +590,7 @@ input:focus{border-color:#818cf8}
     <div class="card">
       <div class="section-label">Settings</div>
       <div class="field">
-        <label>Tavily key <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#4a4a60">— optional</span></label>
+        <label>Tavily key <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--cds-text-helper)">— optional</span></label>
         <input id="tavilyKey" type="password" placeholder="tvly-…" />
       </div>
       <button class="btn" id="saveBtn" onclick="saveCreds()">Save</button>
@@ -579,19 +602,19 @@ input:focus{border-color:#818cf8}
 
     <div class="card">
       <div class="section-label">Diagram types</div>
-      <p style="font-size:11px;color:#6b6b7e;line-height:1.6">
-        <strong style="color:#e2e2e8">Flowchart</strong> — components &amp; connections<br>
-        <strong style="color:#e2e2e8">Sequence</strong> — request flows<br>
-        <strong style="color:#e2e2e8">ER diagram</strong> — database schema<br>
-        <strong style="color:#e2e2e8">State</strong> — lifecycles<br><br>
-        <span style="color:#4a4a60">The agent picks automatically, or ask for a specific type.</span>
+      <p style="font-size:.8125rem;color:var(--cds-text-secondary);line-height:1.6">
+        <strong style="color:var(--cds-text-primary);font-weight:600">Flowchart</strong> — components &amp; connections<br>
+        <strong style="color:var(--cds-text-primary);font-weight:600">Sequence</strong> — request flows<br>
+        <strong style="color:var(--cds-text-primary);font-weight:600">ER diagram</strong> — database schema<br>
+        <strong style="color:var(--cds-text-primary);font-weight:600">State</strong> — lifecycles<br><br>
+        <span style="color:var(--cds-text-helper)">The agent picks automatically, or ask for a specific type.</span>
       </p>
     </div>
 
     <div class="card">
       <div class="section-label">Session</div>
       <button class="btn btn-danger" onclick="resetConversation()" style="width:100%">New diagram</button>
-      <p style="font-size:10px;color:#4a4a60;margin-top:6px;line-height:1.4">
+      <p style="font-size:.6875rem;color:var(--cds-text-helper);margin-top:6px;line-height:1.4">
         Clears the conversation and starts fresh. The agent forgets previous context.
       </p>
     </div>
@@ -618,7 +641,7 @@ input:focus{border-color:#818cf8}
     <div id="chatThread">
       <div class="welcome" id="welcomeScreen">
         <h2>Describe a system to get started</h2>
-        <p style="color:#4a4a60;font-size:13px;max-width:500px">
+        <p style="color:var(--cds-text-secondary);font-size:13px;max-width:500px">
           The agent will create an architecture diagram and you can refine it
           conversationally — add components, change diagram types, drill into subsystems.
         </p>
@@ -751,7 +774,7 @@ async function ask(question) {
     thinkEl.remove()
     const errEl = document.createElement('div')
     errEl.className = 'msg msg-agent'
-    errEl.innerHTML = '<span style="color:#f87171">Error: ' + esc(err.message) + '</span>'
+    errEl.innerHTML = '<span style="color:var(--cds-support-error)">Error: ' + esc(err.message) + '</span>'
     thread.appendChild(errEl)
   } finally {
     btn.disabled = false
@@ -827,8 +850,8 @@ function renderMd(text) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/^### (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:#fff;margin:12px 0 4px">$1</div>')
-    .replace(/^## (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:#fff;margin:16px 0 6px">$1</div>')
+    .replace(/^### (.+)$/gm, '<div style="font-size:13px;font-weight:600;color:var(--cds-text-primary);margin:12px 0 4px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-size:14px;font-weight:600;color:var(--cds-text-primary);margin:16px 0 6px">$1</div>')
     .replace(/^- (.+)$/gm, '<div style="padding-left:14px;margin:2px 0">&#8226; $1</div>')
     .replace(/\n/g, '<br>')
 }
@@ -914,8 +937,8 @@ async function init() {
 init()
 </script>
 </body>
-</html>
-"""
+</html>"""
+)
 
 
 # ---------------------------------------------------------------------------

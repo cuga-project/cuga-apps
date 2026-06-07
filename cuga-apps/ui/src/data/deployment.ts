@@ -34,7 +34,7 @@ export const CE_PROJECT_HASH = '1gxwxi8kos9y'
 export const CE_REGION       = 'us-east'
 
 
-// ── Apps actually deployed to CE (tier 1 + tier 2 = 21) ────────────────
+// ── Apps actually deployed to CE (tier 1 + tier 2 = 26) ────────────────
 // Maps the use-case `id` from usecases.ts to the CE app name. Most are
 // `cuga-apps-<id>` directly; the one exception is `travel-agent` whose
 // underlying directory is `travel_planner`.
@@ -59,10 +59,15 @@ const CE_APP_BY_ID: Record<string, string> = {
   'stock-alert':        'cuga-apps-stock-alert',
   'recipe-composer':    'cuga-apps-recipe-composer',
   'city-beat':          'cuga-apps-city-beat',
+  'github-trending':    'cuga-apps-github-trending',
+  'ai-labs-news':       'cuga-apps-ai-labs-news',
+  'find-a-doctor':      'cuga-apps-find-a-doctor',
 
   // Tier 2 — in-memory state
   'newsletter':         'cuga-apps-newsletter',
   'server-monitor':     'cuga-apps-server-monitor',
+  'ouroboros':          'cuga-apps-ouroboros',
+  'meetup-finder':      'cuga-apps-meetup-finder',  // browser image (Playwright)
 }
 
 

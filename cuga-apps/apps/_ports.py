@@ -70,4 +70,9 @@ APP_PORTS: dict[str, int] = {
     "recipe_composer":            28820,
     "city_beat":                  28821,
     "ouroboros":                  28822,
+    "github_trending":            28823,
+    "ai_labs_news":               28824,
+    "find_a_doctor":              28825,
+    "meetup_finder":              28826,
+    "usage_collector":            28827,
 }

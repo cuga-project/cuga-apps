@@ -35,8 +35,11 @@ cd /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-apps/apps/ouroboros
 /opt/homebrew/bin/python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
 
-# 2. CUGA SDK from the skills-branch (editable path install)
-.venv/bin/pip install -e /Users/anu/Documents/GitHub/cuga-agent-skills-branch
+# 2. CUGA SDK — latest release from PyPI.
+#    0.2.28+ ships CugaSupervisor + skills + policies on mainline, so the
+#    old skills-branch editable install is no longer needed. (Loops /
+#    scheduling were skills-branch-only and have been removed from this app.)
+.venv/bin/pip install -U 'cuga>=0.2.28'
 
 # 3. App-level deps (CUGA pulls most of these transitively, but be
 #    explicit so a future `pip install -r requirements.txt` works

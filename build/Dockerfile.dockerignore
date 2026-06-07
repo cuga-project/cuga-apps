@@ -1,0 +1,18 @@
+# BuildKit honors <dockerfile>.dockerignore (i.e. build/Dockerfile.dockerignore)
+# so this stays inside build/ and never adds a file at the repo root.
+# Keeps the build context small — without it the context would include the
+# multi-GB .venv dirs and node_modules.
+**/.git
+**/.venv
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/dist
+**/.DS_Store
+**/*.log
+cuga-skills-ui
+# the UI is rebuilt in-image; don't ship its prebuilt dist or local env
+cuga-apps/ui/dist
+cuga-apps/ui/node_modules

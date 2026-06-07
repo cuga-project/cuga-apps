@@ -186,6 +186,12 @@ services:
       # 28818 — code_engine_deployer is local-only (needs host docker + ibmcloud + user's IBM auth)
       - "28820:28820"   # recipe_composer
       - "28821:28821"   # city_beat
+      - "28822:28822"   # ouroboros
+      - "28823:28823"   # github_trending
+      - "28824:28824"   # ai_labs_news
+      - "28825:28825"   # find_a_doctor
+      - "28826:28826"   # meetup_finder (Playwright/Chromium — baked into Dockerfile.apps)
+      - "28827:28827"   # usage_collector (cross-app usage dashboard)
     # First mount: secrets are read at runtime (sourced by entrypoint.sh)
     # instead of being injected via env_file: — keeps them out of `docker
     # inspect` and out of the image. See entrypoint.sh.

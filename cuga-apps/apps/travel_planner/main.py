@@ -59,6 +59,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Public deployment: layered, in-memory rate limiting on POST. Installed at
+# module scope because this app is served via uvicorn.run("main:app", ...),
+# which re-imports the module — a pre-uvicorn call wouldn't reach this instance.
+from _ratelimit import install_rate_limit
+install_rate_limit(app)
+from _usage import install_usage
+install_usage(app)
+
 _static = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_static), name="static")
 

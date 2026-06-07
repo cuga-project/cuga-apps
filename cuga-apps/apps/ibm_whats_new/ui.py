@@ -1,109 +1,175 @@
-_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IBM What's New Monitor · CugaAgent</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f1117;color:#e2e2e8;min-height:100vh;padding:36px 24px 80px}
-header{text-align:center;margin-bottom:28px}
-h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px}
-.sub{font-size:13px;color:#6b6b7e}.sub span{color:#60a5fa;font-weight:500}
-.layout{display:grid;grid-template-columns:280px 1fr;gap:18px;max-width:1080px;margin:0 auto;align-items:start}
-@media(max-width:740px){.layout{grid-template-columns:1fr}}
-.card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:12px;padding:18px;margin-bottom:16px}
-.card:last-child{margin-bottom:0}
-.card-title{font-size:11px;font-weight:700;color:#6b6b7e;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
-.sect{font-size:11px;font-weight:600;color:#4a4a60;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px;padding-top:16px;border-top:1px solid #1e1e2e}
-.sect:first-child{margin-top:0;padding-top:0;border-top:none}
-label{display:block;font-size:11px;color:#6b6b7e;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
-input[type=text],input[type=password],select{width:100%;background:#0f1117;border:1px solid #2d2d4a;border-radius:7px;padding:8px 12px;font-size:13px;color:#e2e2e8;outline:none;transition:border-color .15s}
-input:focus,select:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.12)}
-input::placeholder{color:#4a4a60}
-.field{margin-bottom:10px}
-button{background:#2563eb;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap;width:100%;margin-top:10px}
-button:hover{background:#1d4ed8}button:disabled{opacity:.45;cursor:default}
-button.secondary{background:#1e1e2e;border:1px solid #2d2d4a;color:#94a3b8}
-button.secondary:hover{background:#252535}
-button.danger-sm{background:transparent;border:1px solid #7f1d1d;color:#f87171;width:auto;margin:0;padding:3px 8px;font-size:12px;border-radius:5px}
-button.danger-sm:hover{background:#7f1d1d}
-button.btn-sm{background:#1e1e2e;border:1px solid #2d2d4a;color:#94a3b8;width:auto;margin:0;padding:3px 10px;font-size:12px;border-radius:5px}
-button.btn-sm:hover{background:#252535}
-.status-row{display:flex;align-items:center;gap:7px;margin-top:10px;padding:8px 12px;background:#0f1117;border:1px solid #1e1e2e;border-radius:7px;font-size:12px}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.dot.on{background:#10b981;box-shadow:0 0 5px #10b981}.dot.off{background:#374151}
-.status-text{color:#6b6b7e;flex:1}.status-text strong{color:#e2e2e8}
-.svc-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e1e2e;gap:8px}
-.svc-item:last-child{border-bottom:none}
-.svc-name{font-size:13px;color:#e2e2e8;flex:1}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{background:#111827;border:1px solid #1e293b;border-radius:6px;padding:5px 10px;font-size:12px;color:#94a3b8;cursor:pointer;transition:background .1s}
-.chip:hover{background:#1e293b;color:#e2e8f0}
-.result{margin-top:14px;padding:14px;background:#111827;border:1px solid #1e293b;border-radius:9px;font-size:14px;line-height:1.7;color:#e2e8f0;display:none}
-.result.visible{display:block}
-.thinking{color:#6b6b7e;font-style:italic;font-size:13px}
-.spinner{display:inline-block;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.fadein{animation:fadein .2s ease}
-.digest-entry{padding:10px 12px;background:#0f1117;border:1px solid #1e1e2e;border-radius:8px;margin-bottom:8px;font-size:12px}
-.digest-meta{color:#6b6b7e;margin-bottom:6px;display:flex;align-items:center;gap:8px}
-.digest-summary{color:#94a3b8;line-height:1.5}
-.badge-update{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;background:#1e3a5f;color:#60a5fa}
-.badge-none{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;background:#1e1e2e;color:#6b6b7e}
-.digest-updates{margin-top:8px}
-.update-block{padding:8px;background:#111827;border-left:2px solid #2563eb;border-radius:0 6px 6px 0;margin-top:6px;white-space:pre-wrap;word-break:break-word;color:#c7d2fe;font-size:12px;line-height:1.6}
-</style>
-</head>
-<body>
-<header>
-  <h1>IBM What's New Monitor</h1>
-  <p class="sub">Powered by <span>CugaAgent</span> · IBM Cloud release notes</p>
+"""
+IBM What's New Monitor UI — self-contained HTML page served by FastAPI.
+
+Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
+`_carbon` foundation. Layout: left config column (services, schedule, email),
+right column (ask chat + recent digests). All ids, fetch() URLs, POST body
+shapes, JS function names and routes are preserved — restyle only.
+"""
+
+from _carbon import carbon_head, carbon_css
+
+_APP_CSS = """<style>
+  body { background: var(--cds-background); padding: 0 0 var(--cds-sp-09); }
+
+  .sub { font-size: 0.8125rem; color: var(--cds-text-helper); }
+  .sub span { color: var(--cds-link-primary); font-weight: 500; }
+
+  .layout {
+    display: grid; grid-template-columns: 300px 1fr; gap: var(--cds-sp-06);
+    max-width: 72rem; margin: 0 auto; padding: var(--cds-sp-06) var(--cds-sp-05);
+    align-items: start;
+  }
+  @media (max-width: 740px) { .layout { grid-template-columns: 1fr; } }
+
+  .card { margin-bottom: var(--cds-sp-05); }
+  .card:last-child { margin-bottom: 0; }
+
+  .card-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--cds-text-secondary);
+    letter-spacing: 0.32px; text-transform: uppercase; margin-bottom: var(--cds-sp-05);
+  }
+  .sect {
+    font-size: 0.75rem; font-weight: 600; color: var(--cds-text-helper);
+    letter-spacing: 0.32px; text-transform: uppercase;
+    margin: var(--cds-sp-05) 0 var(--cds-sp-04);
+    padding-top: var(--cds-sp-05); border-top: 1px solid var(--cds-border-subtle);
+  }
+  .sect:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+  .field { margin-bottom: var(--cds-sp-04); }
+
+  /* Compact inputs/buttons for the dense config column */
+  .row-add { display: flex; gap: var(--cds-sp-03); align-items: stretch; }
+  .row-add .cds-input { min-height: 2.5rem; }
+  .row-add .cds-btn { min-height: 2.5rem; }
+
+  .svc-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--cds-sp-03) 0; border-bottom: 1px solid var(--cds-border-subtle); gap: var(--cds-sp-03);
+  }
+  .svc-item:last-child { border-bottom: none; }
+  .svc-name { font-size: 0.875rem; color: var(--cds-text-primary); flex: 1; }
+
+  .empty-note { font-size: 0.75rem; color: var(--cds-text-placeholder); padding: var(--cds-sp-02) 0; }
+
+  .status-row {
+    display: flex; align-items: center; gap: var(--cds-sp-03);
+    margin-top: var(--cds-sp-04); padding: var(--cds-sp-03) var(--cds-sp-04);
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    font-size: 0.75rem;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: var(--cds-support-success); }
+  .dot.off { background: var(--cds-border-strong); }
+  .status-text { color: var(--cds-text-secondary); flex: 1; }
+  .status-text strong { color: var(--cds-text-primary); font-weight: 600; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: var(--cds-sp-03); margin-top: var(--cds-sp-04); }
+  .chip {
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-02) var(--cds-sp-04);
+    font-size: 0.75rem; color: var(--cds-text-secondary); cursor: pointer;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive);
+  }
+  .chip:hover { background: var(--cds-interactive); border-color: var(--cds-interactive); color: #fff; }
+
+  .ask-row { display: flex; gap: var(--cds-sp-03); }
+  .ask-row .cds-input { flex: 1; }
+  .ask-row .cds-btn { flex: none; }
+
+  .result {
+    margin-top: var(--cds-sp-05); padding: var(--cds-sp-05);
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    font-size: 0.875rem; line-height: 1.7; color: var(--cds-text-primary);
+    display: none;
+  }
+  .result.visible { display: block; }
+  .result a { color: var(--cds-link-primary); }
+  .result a:hover { color: var(--cds-link-hover); text-decoration: underline; }
+  .result strong { color: var(--cds-text-primary); font-weight: 600; }
+
+  .thinking { color: var(--cds-text-secondary); font-size: 0.875rem; display: inline-flex; align-items: center; gap: var(--cds-sp-03); }
+  .spinner { display: inline-block; width: 1rem; height: 1rem; border: 1.5px solid var(--cds-layer-accent); border-top-color: var(--cds-interactive); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .fadein { animation: fadein .2s ease; }
+
+  .digest-entry {
+    padding: var(--cds-sp-04); background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle); margin-bottom: var(--cds-sp-03); font-size: 0.75rem;
+  }
+  .digest-meta { color: var(--cds-text-secondary); margin-bottom: var(--cds-sp-03); display: flex; align-items: center; gap: var(--cds-sp-03); flex-wrap: wrap; }
+  .digest-summary { color: var(--cds-text-secondary); line-height: 1.5; }
+  .badge-update {
+    font-size: 0.6875rem; padding: 2px 8px; border-radius: 0.9375rem; font-weight: 600;
+    letter-spacing: 0.16px; text-transform: uppercase;
+    background: var(--cds-support-info-bg); color: var(--cds-link-primary);
+  }
+  .badge-none {
+    font-size: 0.6875rem; padding: 2px 8px; border-radius: 0.9375rem; font-weight: 600;
+    letter-spacing: 0.16px; text-transform: uppercase;
+    background: var(--cds-layer-accent); color: var(--cds-text-helper);
+  }
+  .digest-updates { margin-top: var(--cds-sp-03); }
+  .update-block {
+    padding: var(--cds-sp-03); background: var(--cds-layer-01);
+    border-left: 2px solid var(--cds-interactive); margin-top: var(--cds-sp-03);
+    white-space: pre-wrap; word-break: break-word; color: var(--cds-text-primary);
+    font-size: 0.75rem; line-height: 1.6;
+  }
+</style>"""
+
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;What's&nbsp;New&nbsp;Monitor</div>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01 sub">Powered by <span>CugaAgent</span> · IBM Cloud release notes</span>
+  </div>
 </header>
 
 <div class="layout">
 
   <!-- ══ Left panel ══ -->
   <div>
-    <div class="card">
+    <div class="cds-tile card">
 
       <div class="sect">Tracked Services</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="svcInput" type="text" placeholder="e.g. Event Streams" style="margin:0"
+      <div class="row-add">
+        <input id="svcInput" class="cds-input" type="text" placeholder="e.g. Event Streams"
                onkeydown="if(event.key==='Enter')addService()" />
-        <button onclick="addService()" style="width:auto;margin:0;padding:8px 12px">+ Add</button>
+        <button class="cds-btn cds-btn--sm" onclick="addService()" style="width:auto;white-space:nowrap">+ Add</button>
       </div>
-      <div id="svcList" style="margin-top:10px;min-height:20px"></div>
+      <div id="svcList" style="margin-top:var(--cds-sp-04);min-height:20px"></div>
 
       <div class="sect">Digest Schedule</div>
       <div class="field">
-        <select id="scheduleSelect" onchange="setSchedule(this.value)">
+        <select id="scheduleSelect" class="cds-select" onchange="setSchedule(this.value)">
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
           <option value="off">Off</option>
         </select>
       </div>
-      <button onclick="runDigest()" id="digestBtn" class="secondary">Run Digest Now</button>
+      <button onclick="runDigest()" id="digestBtn" class="cds-btn cds-btn--secondary cds-btn--full">Run Digest Now</button>
 
       <div class="sect">Email Settings</div>
       <div class="field">
-        <label>SMTP Host</label>
-        <input id="eHost" type="text" placeholder="smtp.gmail.com" value="smtp.gmail.com" />
+        <label class="cds-label">SMTP Host</label>
+        <input id="eHost" class="cds-input" type="text" placeholder="smtp.gmail.com" value="smtp.gmail.com" />
       </div>
       <div class="field">
-        <label>Username</label>
-        <input id="eUser" type="text" placeholder="you@example.com" />
+        <label class="cds-label">Username</label>
+        <input id="eUser" class="cds-input" type="text" placeholder="you@example.com" />
       </div>
       <div class="field">
-        <label>Password</label>
-        <input id="ePassword" type="password" placeholder="app password" />
+        <label class="cds-label">Password</label>
+        <input id="ePassword" class="cds-input" type="password" placeholder="app password" />
       </div>
       <div class="field">
-        <label>Send digests to</label>
-        <input id="eTo" type="text" placeholder="recipient@example.com" />
+        <label class="cds-label">Send digests to</label>
+        <input id="eTo" class="cds-input" type="text" placeholder="recipient@example.com" />
       </div>
-      <button id="emailSaveBtn" onclick="saveEmail()">Save email settings</button>
+      <button id="emailSaveBtn" onclick="saveEmail()" class="cds-btn cds-btn--full">Save email settings</button>
       <div class="status-row">
         <span class="dot off" id="emailDot"></span>
         <span class="status-text" id="emailLabel">Not configured</span>
@@ -116,12 +182,12 @@ button.btn-sm:hover{background:#252535}
   <div>
 
     <!-- Chat -->
-    <div class="card">
+    <div class="cds-tile card">
       <div class="card-title">Ask about IBM Cloud Updates</div>
-      <div style="display:flex;gap:8px">
-        <input id="qInput" type="text" placeholder="What changed in Code Engine this month?"
-               onkeydown="if(event.key==='Enter')ask()" style="margin:0" />
-        <button onclick="ask()" id="askBtn" style="width:auto;margin:0">Ask</button>
+      <div class="ask-row">
+        <input id="qInput" class="cds-input" type="text" placeholder="What changed in Code Engine this month?"
+               onkeydown="if(event.key==='Enter')ask()" />
+        <button onclick="ask()" id="askBtn" class="cds-btn" style="width:auto">Ask</button>
       </div>
       <div class="chips">
         <span class="chip" onclick="qa('What is new in IBM Code Engine in 2026?')">Code Engine</span>
@@ -130,18 +196,18 @@ button.btn-sm:hover{background:#252535}
         <span class="chip" onclick="qa('Recent IBM Kubernetes Service release notes')">Kubernetes Service</span>
         <span class="chip" onclick="qa('What changed in IBM Event Streams recently?')">Event Streams</span>
         <span class="chip" onclick="qa('IBM Databases for PostgreSQL recent updates')">Databases for PostgreSQL</span>
-        <span class="chip" onclick="qa('Any new IBM Cloud security or IAM features?')">IAM & Security</span>
+        <span class="chip" onclick="qa('Any new IBM Cloud security or IAM features?')">IAM &amp; Security</span>
         <span class="chip" onclick="qa('What IBM Cloud services had breaking changes recently?')">Breaking changes</span>
         <span class="chip" onclick="qa('Summarize IBM Cloud announcements from the past month')">Monthly summary</span>
       </div>
       <div class="result fadein" id="askResult"></div>
-      <div id="emailNowRow" style="display:none;margin-top:8px;text-align:right">
-        <button class="btn-sm" onclick="emailNow()">Email this</button>
+      <div id="emailNowRow" style="display:none;margin-top:var(--cds-sp-04);text-align:right">
+        <button class="cds-btn cds-btn--tertiary cds-btn--sm" onclick="emailNow()" style="width:auto">Email this</button>
       </div>
     </div>
 
     <!-- Digest log -->
-    <div class="card">
+    <div class="cds-tile card">
       <div class="card-title">Recent Digests</div>
       <div id="digestLog"></div>
     </div>
@@ -164,14 +230,14 @@ async function loadServices() {
 function renderServices(svcs) {
   const el = document.getElementById('svcList')
   if (!svcs.length) {
-    el.innerHTML = '<div style="font-size:12px;color:#4a4a60;padding:4px 0">No services tracked yet</div>'
+    el.innerHTML = '<div class="empty-note">No services tracked yet</div>'
     return
   }
   el.innerHTML = svcs.map(s => {
     const esc = s.replace(/'/g, "\\'")
     return `<div class="svc-item">
       <span class="svc-name">${s}</span>
-      <button class="danger-sm" onclick="removeService('${esc}')">×</button>
+      <button class="cds-btn cds-btn--danger cds-btn--sm" onclick="removeService('${esc}')" style="width:auto;padding:0 var(--cds-sp-04)">×</button>
     </div>`
   }).join('')
 }
@@ -219,7 +285,7 @@ async function ask() {
   document.getElementById('emailNowRow').style.display = 'none'
   btn.disabled = true
   result.className = 'result visible fadein'
-  result.innerHTML = '<span class="thinking"><span class="spinner">⟳</span> Searching IBM docs…</span>'
+  result.innerHTML = '<span class="thinking"><span class="spinner"></span> Searching IBM docs…</span>'
 
   try {
     const res = await fetch('/ask', {
@@ -233,7 +299,7 @@ async function ask() {
     result.innerHTML = renderMd(data.answer)
     document.getElementById('emailNowRow').style.display = ''
   } catch (err) {
-    result.innerHTML = '<span style="color:#f87171">Error: ' + err.message + '</span>'
+    result.innerHTML = '<span style="color:var(--cds-support-error)">Error: ' + err.message + '</span>'
   } finally {
     btn.disabled = false
   }
@@ -251,7 +317,7 @@ function renderMd(text) {
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>')
-    .replace(/\\[(.*?)\\]\\((.*?)\\)/g,'<a href="$2" target="_blank" style="color:#60a5fa">$1</a>')
+    .replace(/\\[(.*?)\\]\\((.*?)\\)/g,'<a href="$2" target="_blank">$1</a>')
     .replace(/\\n/g,'<br>')
 }
 
@@ -278,7 +344,7 @@ async function loadDigestLog() {
 function renderDigestLog(entries) {
   const el = document.getElementById('digestLog')
   if (!entries.length) {
-    el.innerHTML = '<div style="font-size:12px;color:#4a4a60;padding:4px 0">No digests run yet — click "Run Digest Now" or wait for schedule</div>'
+    el.innerHTML = '<div class="empty-note">No digests run yet — click "Run Digest Now" or wait for schedule</div>'
     return
   }
   el.innerHTML = entries.map(e => {
@@ -287,7 +353,7 @@ function renderDigestLog(entries) {
     const badge   = hasUpd
       ? `<span class="badge-update">${e.updates.length} update${e.updates.length > 1 ? 's' : ''}</span>`
       : '<span class="badge-none">no changes</span>'
-    const sentTag = e.sent ? ' · <span style="color:#10b981">emailed</span>' : ''
+    const sentTag = e.sent ? ' · <span style="color:var(--cds-support-success)">emailed</span>' : ''
     const updBlocks = hasUpd
       ? '<div class="digest-updates">' + e.updates.map(u => `<div class="update-block">${u.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`).join('') + '</div>'
       : ''
@@ -342,5 +408,14 @@ fetch('/email/status').then(r => r.json()).then(s => {
 loadServices()
 loadDigestLog()
 </script>
-</body>
-</html>"""
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("IBM What's New Monitor")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)

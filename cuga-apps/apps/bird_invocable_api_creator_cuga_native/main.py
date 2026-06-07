@@ -57,6 +57,8 @@ for _p in (str(_DIR), str(_DEMOS_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from _carbon import carbon_head, carbon_css  # noqa: E402  (apps root on sys.path)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -570,6 +572,11 @@ def _web(port: int, require_approval: bool) -> None:
 
     print(f"\n  Bird Invocable API Creator (CUGA-native)  →  http://127.0.0.1:{port}")
     print(f"  HITL approval on tool_register: {'ON' if require_approval else 'off'}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -577,55 +584,120 @@ def _web(port: int, require_approval: bool) -> None:
 # Minimal UI — DB picker, question list, single-question run, policy peek.
 # ============================================================================
 
-_HTML = """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Bird Invocable API Creator — CUGA-native</title>
-<style>
- body{font-family:-apple-system,sans-serif;background:#0f1117;color:#e2e8f0;margin:0;padding:24px;max-width:1100px;margin:auto}
- h1{font-size:18px;margin-bottom:4px}
- .sub{font-size:12px;color:#6b7280;margin-bottom:18px}
- .card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:8px;padding:14px;margin-bottom:14px}
- .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
- select,button,input{font:inherit;background:#0f1117;border:1px solid #374151;color:#e2e8f0;border-radius:5px;padding:5px 9px;font-size:12px}
- button{background:#0d9488;border:none;color:#fff;cursor:pointer;padding:6px 14px}
- button:hover{background:#0f766e}
- .qlist{max-height:50vh;overflow:auto;border:1px solid #2d2d4a;border-radius:6px}
- .qrow{padding:7px 10px;border-bottom:1px solid #2d2d4a;cursor:pointer;font-size:12px;display:flex;gap:8px}
- .qrow:hover{background:#1f2937}
- .qrow.sel{background:#0d3330}
- .qid{color:#5eead4;font-weight:600;width:40px}
- pre{font-family:ui-monospace,monospace;font-size:11px;background:#0f1117;border:1px solid #374151;border-radius:6px;padding:9px;white-space:pre-wrap;max-height:280px;overflow:auto}
- .pill{display:inline-block;padding:2px 8px;border-radius:8px;background:#0d3330;color:#5eead4;font-size:10px;margin-right:4px}
- .pill-warn{background:#451a03;color:#fbbf24}
-</style></head><body>
+_APP_CSS = """<style>
+  body { background: var(--cds-background); }
 
-<h1>🪶 Bird Invocable API Creator <span style="color:#5eead4">(CUGA-native)</span></h1>
+  .wrap { max-width: 69rem; margin: 0 auto; padding: var(--cds-sp-06) var(--cds-sp-06) var(--cds-sp-08); }
+
+  .page-title { display: flex; align-items: baseline; gap: var(--cds-sp-03); margin-bottom: var(--cds-sp-02); }
+  .page-title h1 { font-size: 1.25rem; line-height: 1.4; font-weight: 600; }
+  .page-title .native { font-size: 0.875rem; font-weight: 400; color: var(--cds-link-primary); }
+  .sub { font-size: 0.75rem; color: var(--cds-text-helper); letter-spacing: 0.32px; margin-bottom: var(--cds-sp-06); }
+
+  .card {
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-05);
+    margin-bottom: var(--cds-sp-05);
+  }
+  .row { display: flex; gap: var(--cds-sp-03); align-items: center; margin-bottom: var(--cds-sp-03); }
+  .row:last-child { margin-bottom: 0; }
+  .card-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.32px; text-transform: uppercase; color: var(--cds-text-secondary); }
+  .card-label.w { width: 5.5rem; }
+
+  select.cds-select { min-height: 2.5rem; }
+  .card .cds-btn { min-height: 2.5rem; flex: none; }
+
+  #status { font-size: 0.75rem; color: var(--cds-text-helper); }
+
+  #policies { font-size: 0.75rem; display: flex; flex-wrap: wrap; gap: var(--cds-sp-02); }
+  #qcount { font-size: 0.75rem; color: var(--cds-text-helper); margin-left: auto; }
+
+  .qlist {
+    max-height: 50vh; overflow: auto;
+    border: 1px solid var(--cds-border-subtle);
+    background: var(--cds-layer-02);
+  }
+  .qrow {
+    padding: var(--cds-sp-03) var(--cds-sp-04);
+    border-bottom: 1px solid var(--cds-border-subtle);
+    cursor: pointer; font-size: 0.75rem;
+    display: flex; gap: var(--cds-sp-03); align-items: center;
+    transition: background var(--cds-dur-fast) var(--cds-ease-productive);
+  }
+  .qrow:last-child { border-bottom: none; }
+  .qrow:hover { background: var(--cds-layer-hover); }
+  .qrow.sel { background: var(--cds-support-info-bg); box-shadow: inset 2px 0 0 var(--cds-interactive); }
+  .qid { color: var(--cds-link-primary); font-weight: 600; width: 2.5rem; font-family: var(--cds-font-mono); }
+
+  pre {
+    font-family: var(--cds-font-mono);
+    font-size: 0.6875rem; line-height: 1.5;
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-primary);
+    padding: var(--cds-sp-04);
+    white-space: pre-wrap; max-height: 280px; overflow: auto;
+  }
+
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 0 var(--cds-sp-03); height: 1.5rem;
+    border-radius: 0.9375rem;
+    background: var(--cds-support-info-bg); color: var(--cds-link-primary);
+    font-size: 0.6875rem; letter-spacing: 0.16px; white-space: nowrap;
+  }
+  .pill-warn { background: var(--cds-support-warning-bg); color: var(--cds-text-primary); }
+
+  #insp .meta-label { font-size: 0.75rem; color: var(--cds-text-helper); margin: var(--cds-sp-04) 0 var(--cds-sp-02); letter-spacing: 0.32px; }
+  #insp .q-text { font-size: 0.875rem; line-height: 1.5; color: var(--cds-text-primary); }
+  .insp-empty { color: var(--cds-text-placeholder); font-size: 0.875rem; }
+</style>"""
+
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Bird&nbsp;Invocable&nbsp;API&nbsp;Creator</div>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Playbooks · ToolGuides · IntentGuard · OutputFormatter</span>
+    <span class="cds-tag cds-tag--blue">CUGA-native</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="page-title">
+  <h1>🪶 Bird Invocable API Creator</h1>
+  <span class="native">CUGA-native</span>
+</div>
 <div class="sub">Thin prompt + Playbooks + ToolGuides + IntentGuard + OutputFormatter</div>
 
 <div class="card">
   <div class="row">
-    <strong style="font-size:12px;width:90px">Database</strong>
-    <select id="db" style="flex:1"></select>
-    <button onclick="batch()">⚡ Batch</button>
-    <button onclick="loadAll()">↺</button>
+    <strong class="card-label w">Database</strong>
+    <select id="db" class="cds-select" style="flex:1"></select>
+    <button class="cds-btn cds-btn--sm" onclick="batch()">⚡ Batch</button>
+    <button class="cds-btn cds-btn--secondary cds-btn--sm" onclick="loadAll()">↺</button>
   </div>
-  <div id="status" style="font-size:11px;color:#6b7280"></div>
+  <div id="status"></div>
 </div>
 
 <div class="card">
-  <div class="row"><strong style="font-size:12px">Active CUGA policies</strong></div>
-  <div id="policies" style="font-size:11px"></div>
+  <div class="row"><strong class="card-label">Active CUGA policies</strong></div>
+  <div id="policies"></div>
 </div>
 
 <div class="card">
-  <div class="row"><strong style="font-size:12px">Questions</strong>
-    <span id="qcount" style="font-size:11px;color:#6b7280;margin-left:auto"></span>
+  <div class="row"><strong class="card-label">Questions</strong>
+    <span id="qcount"></span>
   </div>
   <div id="qlist" class="qlist"></div>
 </div>
 
 <div class="card">
-  <div class="row"><strong style="font-size:12px">Inspector</strong></div>
-  <div id="insp"><span style="color:#4b5563;font-size:12px">Pick a question above.</span></div>
+  <div class="row"><strong class="card-label">Inspector</strong></div>
+  <div id="insp"><span class="insp-empty">Pick a question above.</span></div>
+</div>
+
 </div>
 
 <script>
@@ -666,7 +738,7 @@ function renderQs() {
     const icon = !rec ? '·' : rec.validated ? '✓' : rec.tool_sequence ? '✗' : '·';
     return `<div class="qrow ${CURRENT_QID===q.question_id?'sel':''}" onclick="pickQ(${q.question_id})">
       <span class="qid">#${q.question_id}</span>
-      <span style="color:#5eead4;width:14px">${icon}</span>
+      <span style="color:var(--cds-interactive);width:14px">${icon}</span>
       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.question)}</span>
     </div>`;
   }).join('');
@@ -679,15 +751,15 @@ async function pickQ(qid) {
   const data = (meta&&meta.data)||meta||{};
   const rec = DATASET[qid] || null;
   document.getElementById('insp').innerHTML = `
-    <div style="font-size:13px;line-height:1.4">${esc(data.question||'')}</div>
-    <div style="font-size:11px;color:#6b7280;margin:8px 0 3px">Gold SQL:</div>
+    <div class="q-text">${esc(data.question||'')}</div>
+    <div class="meta-label">Gold SQL:</div>
     <pre>${esc(data.SQL||'(unavailable)')}</pre>
     ${rec ? `
-      <div style="font-size:11px;color:#6b7280;margin:8px 0 3px">Recorded sequence (validated=${rec.validated}):</div>
+      <div class="meta-label">Recorded sequence (validated=${rec.validated}):</div>
       <pre>${esc(JSON.stringify(rec.tool_sequence,null,2))}</pre>
     `:''}
-    <button onclick="runQ()">▶ Run agent on this question</button>
-    <pre id="ans" style="display:none;margin-top:10px"></pre>
+    <button class="cds-btn cds-btn--sm" style="margin-top:var(--cds-sp-04)" onclick="runQ()">▶ Run agent on this question</button>
+    <pre id="ans" style="display:none;margin-top:var(--cds-sp-04)"></pre>
   `;
 }
 
@@ -716,7 +788,18 @@ async function batch() {
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 init();
-</script></body></html>"""
+</script>
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Bird Invocable API Creator — CUGA-native")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)
 
 
 # ============================================================================

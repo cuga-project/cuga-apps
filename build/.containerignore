@@ -1,0 +1,16 @@
+# Same excludes as the repo-root ignore, for the manual podman path:
+#   podman build -f build/Dockerfile --ignorefile build/.containerignore \
+#       -t cuga-apps-allinone:latest .
+# (use this if you don't want the repo-root .dockerignore/.containerignore).
+**/.venv
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.git
+**/dist
+**/.DS_Store
+**/*.log
+cuga-skills-ui
+docs

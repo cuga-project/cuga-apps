@@ -1,130 +1,152 @@
 """
 IBM Docs Q&A UI — self-contained HTML page served by FastAPI.
+
+Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
+`_carbon` foundation. Layout: left chat input + history column, right answer panel.
 """
 
-_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IBM Docs Q&A</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#0f1117;color:#e2e8f0;min-height:100vh}
+from _carbon import carbon_head, carbon_css
 
-header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
-  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-header h1{font-size:16px;font-weight:700;color:#fff}
-.ibm-logo{font-size:13px;font-weight:800;color:#1d4ed8;letter-spacing:.04em}
-.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
-.badge-blue{background:#1e3a5f;color:#60a5fa}
-.spacer{flex:1}
-.hdr-hint{font-size:11px;color:#4b5563}
+_APP_CSS = """<style>
+  body { background: var(--cds-background); }
 
-.layout{display:grid;grid-template-columns:360px 1fr;gap:20px;
-  max-width:1400px;margin:0 auto;padding:20px 24px;
-  height:calc(100vh - 57px);overflow:hidden}
-@media(max-width:900px){.layout{grid-template-columns:1fr;height:auto;overflow:visible}}
+  .layout {
+    display: grid; grid-template-columns: 360px 1fr; gap: var(--cds-sp-06);
+    max-width: 88rem; margin: 0 auto;
+    padding: var(--cds-sp-06) var(--cds-sp-06);
+    height: calc(100vh - 3rem); overflow: hidden;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; overflow: visible; } }
 
-.panel{display:flex;flex-direction:column;gap:16px;overflow:hidden}
+  .panel { display: flex; flex-direction: column; gap: var(--cds-sp-05); overflow: hidden; }
 
-.card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;overflow:hidden}
-.card-header{padding:12px 16px;border-bottom:1px solid #2d2d4a;
-  display:flex;align-items:center;gap:8px}
-.card-header h2{font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;
-  text-transform:uppercase}
-.card-body{padding:16px}
+  .card {
+    background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .card-header {
+    padding: var(--cds-sp-04) var(--cds-sp-05);
+    border-bottom: 1px solid var(--cds-border-subtle);
+    display: flex; align-items: center; gap: var(--cds-sp-03);
+  }
+  .card-header h2 {
+    font-size: 0.75rem; font-weight: 600; color: var(--cds-text-secondary);
+    letter-spacing: 0.32px; text-transform: uppercase;
+  }
+  .card-body { padding: var(--cds-sp-05); }
 
-/* Chips */
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
-.chip{padding:4px 10px;border-radius:12px;font-size:11px;background:#111827;
-  border:1px solid #1e293b;color:#94a3b8;cursor:pointer;transition:all .15s;
-  line-height:1.4}
-.chip:hover{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+  /* Chips */
+  .chips { display: flex; flex-wrap: wrap; gap: var(--cds-sp-03); margin-bottom: var(--cds-sp-04); }
+  .chip {
+    padding: var(--cds-sp-02) var(--cds-sp-04); border-radius: 0.9375rem;
+    font-size: 0.75rem; background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle); color: var(--cds-text-secondary);
+    cursor: pointer; line-height: 1.4;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive);
+  }
+  .chip:hover { background: var(--cds-interactive); border-color: var(--cds-interactive); color: #fff; }
 
-/* Input row */
-.chat-row{display:flex;gap:8px}
-.chat-input{flex:1;padding:9px 13px;border-radius:7px;font-size:13px;
-  background:#0f1117;border:1px solid #374151;color:#e2e8f0;outline:none;
-  transition:border-color .15s}
-.chat-input:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
-.chat-input::placeholder{color:#4b5563}
-.send-btn{padding:9px 18px;border-radius:7px;font-size:13px;font-weight:600;
-  cursor:pointer;border:none;background:#1d4ed8;color:#fff;white-space:nowrap;
-  transition:background .15s}
-.send-btn:hover{background:#1e40af}
-.send-btn:disabled{background:#374151;color:#6b7280;cursor:default}
+  /* Input row */
+  .chat-row { display: flex; gap: 0; }
+  .chat-input { flex: 1; border-bottom: 1px solid var(--cds-border-strong); }
+  .chat-row .send-btn { flex: none; min-width: 5rem; }
 
-/* Status */
-.status-msg{font-size:12px;color:#6b7280;margin-top:8px;min-height:18px;
-  display:flex;align-items:center;gap:6px}
-.spinner{width:12px;height:12px;border:2px solid #374151;border-top-color:#60a5fa;
-  border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
+  /* Status */
+  .status-msg {
+    font-size: 0.75rem; color: var(--cds-text-helper); margin-top: var(--cds-sp-03);
+    min-height: 18px; display: flex; align-items: center; gap: var(--cds-sp-03);
+  }
 
-/* Chat history in left panel */
-.chat-history{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;
-  padding-top:4px}
-.msg{border-radius:8px;padding:10px 13px;font-size:13px;line-height:1.6}
-.msg-user{background:#1e3a5f;color:#bfdbfe;align-self:flex-end;max-width:95%;
-  border-bottom-right-radius:2px}
-.msg-agent{background:#1a1a2e;border:1px solid #2d2d4a;color:#cbd5e1;
-  align-self:flex-start;max-width:100%;border-bottom-left-radius:2px}
+  /* Chat history in left panel */
+  .chat-history {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+    gap: var(--cds-sp-04); padding-top: var(--cds-sp-02);
+  }
+  .msg { padding: var(--cds-sp-03) var(--cds-sp-04); font-size: 0.8125rem; line-height: 1.6; }
+  .msg-user {
+    background: var(--cds-support-info-bg); color: var(--cds-text-primary);
+    align-self: flex-end; max-width: 95%;
+    border-left: 2px solid var(--cds-interactive);
+  }
+  .msg-agent {
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary); align-self: flex-start; max-width: 100%;
+  }
+  .history-placeholder {
+    font-size: 0.75rem; color: var(--cds-text-placeholder);
+    text-align: center; padding: var(--cds-sp-05) 0;
+  }
 
-/* Right: answer panel */
-.answer-wrap{flex:1;overflow-y:auto}
-.answer-empty{padding:48px 24px;text-align:center;color:#4b5563;font-size:13px;
-  line-height:1.8}
-.answer-empty strong{display:block;color:#6b7280;font-size:15px;margin-bottom:6px}
-.answer-card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;
-  padding:20px;margin-bottom:16px}
-.answer-q{font-size:11px;color:#4b5563;font-style:italic;margin-bottom:14px;
-  padding-bottom:10px;border-bottom:1px solid #1e293b}
+  /* Right: answer panel */
+  .answer-wrap { flex: 1; overflow-y: auto; padding: var(--cds-sp-05); }
+  .answer-empty {
+    padding: var(--cds-sp-09) var(--cds-sp-06); text-align: center;
+    color: var(--cds-text-placeholder); font-size: 0.875rem; line-height: 1.8;
+  }
+  .answer-empty strong { display: block; color: var(--cds-text-secondary); font-size: 1rem; margin-bottom: var(--cds-sp-03); }
+  .answer-empty em { color: var(--cds-text-secondary); font-style: normal; font-family: var(--cds-font-mono); }
+  .answer-card {
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-06); margin-bottom: var(--cds-sp-05);
+  }
+  .answer-q {
+    font-size: 0.75rem; color: var(--cds-text-helper); font-style: italic;
+    margin-bottom: var(--cds-sp-05); padding-bottom: var(--cds-sp-04);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
 
-/* Markdown */
-.md h1,.md h2,.md h3{color:#f1f5f9;font-weight:700;margin:14px 0 6px}
-.md h1{font-size:16px}.md h2{font-size:14px}.md h3{font-size:13px}
-.md p{color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:10px}
-.md ul,.md ol{padding-left:18px;margin-bottom:10px}
-.md li{color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:4px}
-.md strong{color:#e2e8f0;font-weight:600}
-.md em{color:#94a3b8}
-.md a{color:#60a5fa;text-decoration:none}
-.md a:hover{text-decoration:underline}
-.md code{background:#0f1117;color:#93c5fd;padding:1px 5px;border-radius:4px;
-  font-size:12px;font-family:"JetBrains Mono","Fira Code",monospace}
-.md pre{background:#0a0a14;border:1px solid #1e293b;border-radius:8px;
-  padding:14px 16px;margin:10px 0;overflow-x:auto}
-.md pre code{background:none;color:#e2e8f0;padding:0;font-size:12px;line-height:1.6}
-.md hr{border:none;border-top:1px solid #2d2d4a;margin:14px 0}
-.md blockquote{border-left:3px solid #1d4ed8;padding-left:12px;margin:8px 0;
-  color:#94a3b8;font-size:13px}
-.md table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
-.md th{background:#0f1117;color:#94a3b8;padding:7px 10px;text-align:left;
-  border:1px solid #2d2d4a;font-weight:600}
-.md td{padding:7px 10px;border:1px solid #1e293b;color:#cbd5e1}
-.md tr:nth-child(even) td{background:#111827}
+  /* Markdown */
+  .md h1, .md h2, .md h3 { color: var(--cds-text-primary); font-weight: 600; margin: var(--cds-sp-05) 0 var(--cds-sp-03); }
+  .md h1 { font-size: 1rem; } .md h2 { font-size: 0.9375rem; } .md h3 { font-size: 0.875rem; color: var(--cds-link-primary); }
+  .md p { color: var(--cds-text-secondary); font-size: 0.875rem; line-height: 1.7; margin-bottom: var(--cds-sp-04); }
+  .md ul, .md ol { padding-left: var(--cds-sp-06); margin-bottom: var(--cds-sp-04); }
+  .md li { color: var(--cds-text-secondary); font-size: 0.875rem; line-height: 1.7; margin-bottom: var(--cds-sp-02); }
+  .md strong { color: var(--cds-text-primary); font-weight: 600; }
+  .md em { color: var(--cds-text-secondary); }
+  .md a { color: var(--cds-link-primary); text-decoration: none; }
+  .md a:hover { color: var(--cds-link-hover); text-decoration: underline; }
+  .md code {
+    background: var(--cds-layer-accent); color: var(--cds-link-primary);
+    padding: 1px 5px; font-size: 0.75rem; font-family: var(--cds-font-mono);
+  }
+  .md pre {
+    background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-05); margin: var(--cds-sp-04) 0; overflow-x: auto;
+  }
+  .md pre code { background: none; color: var(--cds-text-primary); padding: 0; font-size: 0.75rem; line-height: 1.6; }
+  .md hr { border: none; border-top: 1px solid var(--cds-border-subtle); margin: var(--cds-sp-05) 0; }
+  .md blockquote {
+    border-left: 3px solid var(--cds-interactive); padding-left: var(--cds-sp-04);
+    margin: var(--cds-sp-03) 0; color: var(--cds-text-helper); font-size: 0.875rem;
+  }
+  .md table { width: 100%; border-collapse: collapse; margin: var(--cds-sp-04) 0; font-size: 0.75rem; }
+  .md th {
+    background: var(--cds-layer-accent); color: var(--cds-text-primary);
+    padding: var(--cds-sp-03) var(--cds-sp-04); text-align: left;
+    border: 1px solid var(--cds-border-subtle); font-weight: 600;
+  }
+  .md td { padding: var(--cds-sp-03) var(--cds-sp-04); border: 1px solid var(--cds-border-subtle); color: var(--cds-text-secondary); }
+  .md tr:nth-child(even) td { background: var(--cds-layer-01); }
 
-/* Sources section */
-.sources{margin-top:14px;padding-top:12px;border-top:1px solid #1e293b}
-.sources-label{font-size:11px;font-weight:700;color:#4b5563;letter-spacing:.06em;
-  text-transform:uppercase;margin-bottom:6px}
-.source-item{display:flex;gap:6px;align-items:flex-start;margin-bottom:5px}
-.source-dot{width:5px;height:5px;border-radius:50%;background:#1d4ed8;
-  flex-shrink:0;margin-top:5px}
-.source-link{font-size:12px;color:#60a5fa;text-decoration:none;line-height:1.5}
-.source-link:hover{text-decoration:underline}
-</style>
-</head>
-<body>
+  /* Sources section */
+  .sources { margin-top: var(--cds-sp-05); padding-top: var(--cds-sp-04); border-top: 1px solid var(--cds-border-subtle); }
+  .sources-label {
+    font-size: 0.75rem; font-weight: 600; color: var(--cds-text-helper);
+    letter-spacing: 0.32px; text-transform: uppercase; margin-bottom: var(--cds-sp-03);
+  }
+  .source-item { display: flex; gap: var(--cds-sp-03); align-items: flex-start; margin-bottom: var(--cds-sp-02); }
+  .source-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cds-interactive); flex-shrink: 0; margin-top: 6px; }
+  .source-link { font-size: 0.75rem; color: var(--cds-link-primary); text-decoration: none; line-height: 1.5; }
+  .source-link:hover { color: var(--cds-link-hover); text-decoration: underline; }
+</style>"""
 
-<header>
-  <span class="ibm-logo">IBM</span>
-  <h1>Docs Q&A</h1>
-  <span class="badge badge-blue">ibm.com · cloud.ibm.com</span>
-  <div class="spacer"></div>
-  <span class="hdr-hint">Searches real IBM docs · follow-up supported</span>
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Docs&nbsp;Q&amp;A</div>
+  <span class="cds-tag cds-tag--blue">ibm.com · cloud.ibm.com</span>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Searches real IBM docs · follow-up supported</span>
+  </div>
 </header>
 
 <div class="layout">
@@ -145,20 +167,20 @@ header h1{font-size:16px;font-weight:700;color:#fff}
           <span class="chip" onclick="ask(this.textContent)">What is IBM watsonx.ai and how do I get started?</span>
         </div>
         <div class="chat-row">
-          <input class="chat-input" id="chat-input" type="text"
+          <input class="cds-input chat-input" id="chat-input" type="text"
             placeholder="Ask any IBM Cloud question…"
             onkeydown="if(event.key==='Enter')ask()">
-          <button class="send-btn" id="send-btn" onclick="ask()">Ask</button>
+          <button class="cds-btn send-btn" id="send-btn" onclick="ask()">Ask</button>
         </div>
         <div class="status-msg" id="status-msg"></div>
       </div>
     </div>
 
-    <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div class="card" style="flex:1;overflow:hidden">
       <div class="card-header"><h2>🗂 Question History</h2></div>
       <div class="card-body" style="flex:1;overflow-y:auto;padding-top:10px">
         <div class="chat-history" id="chat-history">
-          <div style="font-size:12px;color:#4b5563;text-align:center;padding:16px 0">
+          <div class="history-placeholder">
             Questions will appear here
           </div>
         </div>
@@ -168,9 +190,9 @@ header h1{font-size:16px;font-weight:700;color:#fff}
 
   <!-- ── Right: Answer panel ───────────────────────────────────── -->
   <div class="panel">
-    <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+    <div class="card" style="flex:1;overflow:hidden">
       <div class="card-header"><h2>📄 Answer from IBM Docs</h2></div>
-      <div class="answer-wrap" id="answer-wrap" style="padding:0 0 0 0">
+      <div class="answer-wrap" id="answer-wrap">
         <div class="answer-empty" id="answer-empty">
           <strong>No answer yet</strong>
           Ask a question on the left — the agent will search IBM documentation,
@@ -274,7 +296,7 @@ async function ask(question) {
   inp.value = '';
   btn.disabled = true;
   btn.textContent = '…';
-  stat.innerHTML = '<div class="spinner"></div> Searching IBM docs…';
+  stat.innerHTML = '<div class="cds-spinner cds-spinner--sm"></div> Searching IBM docs…';
 
   // Add to history immediately
   addHistoryItem(q, null);
@@ -291,7 +313,7 @@ async function ask(question) {
     renderAnswer(q, answer);
     stat.innerHTML = '';
   } catch(e) {
-    stat.innerHTML = `<span style="color:#f87171">Error: ${esc(e.message)}</span>`;
+    stat.innerHTML = `<span style="color:var(--cds-support-error)">Error: ${esc(e.message)}</span>`;
   }
   btn.disabled = false;
   btn.textContent = 'Ask';
@@ -300,7 +322,7 @@ async function ask(question) {
 function addHistoryItem(q, status) {
   const hist = document.getElementById('chat-history');
   // Clear placeholder
-  if(hist.children.length === 1 && hist.children[0].style.textAlign === 'center') {
+  if(hist.children.length === 1 && hist.children[0].classList.contains('history-placeholder')) {
     hist.innerHTML = '';
   }
   const div = document.createElement('div');
@@ -337,5 +359,14 @@ function renderAnswer(question, answer) {
   wrap.scrollTop = 0;
 }
 </script>
-</body>
-</html>"""
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("IBM Docs Q&A")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)

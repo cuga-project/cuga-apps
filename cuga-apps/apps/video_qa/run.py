@@ -236,6 +236,11 @@ def _web(port: int, provider: str | None = None, llm_model: str | None = None):
         return _WEB_HTML
 
     print(f"\n  Video Q&A · CugaAgent  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -245,43 +250,75 @@ _WEB_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Video Q&A · CugaAgent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root{
+  /* Carbon White (g10) */
+  --cds-background:#ffffff;
+  --cds-layer-01:#f4f4f4;
+  --cds-layer-02:#ffffff;
+  --cds-field-01:#f4f4f4;
+  --cds-border-subtle:#e0e0e0;
+  --cds-border-strong:#8d8d8d;
+  --cds-text-primary:#161616;
+  --cds-text-secondary:#525252;
+  --cds-text-placeholder:#a8a8a8;
+  --cds-link-primary:#0f62fe;
+  --cds-link-hover:#0043ce;
+  --cds-interactive:#0f62fe;
+  --cds-button-primary:#0f62fe;
+  --cds-button-primary-hover:#0353e9;
+  --cds-button-primary-active:#002d9c;
+  --cds-focus:#0f62fe;
+  --cds-support-success:#24a148;
+  --cds-support-success-bg:rgba(36,161,72,0.12);
+  --cds-support-error:#da1e28;
+  --cds-support-info-bg:rgba(0,67,206,0.12);
+  --cds-font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --cds-font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f0f13;color:#e2e2e8;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 80px;}
-h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px}
-.sub{font-size:13px;color:#6b6b7e;margin-bottom:32px}.sub span{color:#7c7cf8;font-weight:500}
-.card{width:100%;max-width:640px;background:#1a1a24;border:1px solid #2e2e40;border-radius:12px;padding:20px;margin-bottom:16px;}
-label{display:block;font-size:12px;color:#6b6b7e;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
-input[type=text],select{width:100%;background:#0f0f13;border:1px solid #2e2e40;border-radius:8px;padding:10px 14px;font-size:14px;color:#e2e2e8;outline:none;transition:border-color .15s;}
-input[type=text]:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
-input[type=text]::placeholder{color:#4a4a60}
+body{font-family:var(--cds-font-sans);background:var(--cds-background);color:var(--cds-text-primary);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 80px;-webkit-font-smoothing:antialiased;letter-spacing:0.16px;}
+h1{font-size:22px;font-weight:600;color:var(--cds-text-primary);margin-bottom:4px}
+.sub{font-size:13px;color:var(--cds-text-secondary);margin-bottom:32px}.sub span{color:var(--cds-link-primary);font-weight:500}
+.card{width:100%;max-width:640px;background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);border-radius:0;padding:20px;margin-bottom:16px;}
+label{display:block;font-size:12px;color:var(--cds-text-secondary);margin-bottom:6px;font-weight:400;text-transform:uppercase;letter-spacing:.32px}
+input[type=text],select{width:100%;background:var(--cds-field-01);border:none;border-bottom:1px solid var(--cds-border-strong);border-radius:0;padding:10px 14px;font-size:14px;font-family:var(--cds-font-sans);color:var(--cds-text-primary);outline:none;transition:outline .11s,background .11s;}
+input[type=text]:focus,select:focus{outline:2px solid var(--cds-focus);outline-offset:-2px}
+input[type=text]::placeholder{color:var(--cds-text-placeholder)}
 .row{display:flex;gap:8px;margin-top:10px}.row input{flex:1}
-button{background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap;}
-button:hover{background:#4f52d9}button:disabled{opacity:.45;cursor:default}
-.status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;margin-bottom:12px;}
-.status-none{background:#1f1f2e;color:#6b6b7e;border:1px solid #2e2e40}
-.status-ok{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.25)}
-.status-loading{background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.25)}
+button{background:var(--cds-button-primary);color:#fff;border:1px solid transparent;border-radius:0;padding:10px 18px;font-size:14px;font-weight:400;font-family:var(--cds-font-sans);cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap;}
+button:hover{background:var(--cds-button-primary-hover)}
+button:active{background:var(--cds-button-primary-active)}
+button:focus-visible{outline:2px solid var(--cds-focus);outline-offset:-2px;box-shadow:inset 0 0 0 1px #fff}
+button:disabled,button:disabled:hover{background:#c6c6c6;color:#8d8d8d;cursor:not-allowed}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:0.9375rem;font-size:12px;font-weight:500;margin-bottom:12px;}
+.status-none{background:var(--cds-layer-02);color:var(--cds-text-secondary);border:1px solid var(--cds-border-subtle)}
+.status-ok{background:var(--cds-support-success-bg);color:var(--cds-support-success);border:1px solid var(--cds-support-success-bg)}
+.status-loading{background:var(--cds-support-info-bg);color:var(--cds-link-primary);border:1px solid var(--cds-support-info-bg)}
 .messages{display:flex;flex-direction:column;gap:12px;margin-top:16px}
-.msg{padding:12px 14px;border-radius:10px;font-size:14px;line-height:1.6}
-.msg.user{background:#1e1e2e;border:1px solid #2e2e40;color:#d4d4e4;align-self:flex-end;max-width:85%}
-.msg.agent{background:#111827;border:1px solid #1e293b;color:#e2e8f0}
-.thinking{color:#6b6b7e;font-style:italic;font-size:13px}
+.msg{padding:12px 14px;border-radius:0;font-size:14px;line-height:1.6}
+.msg.user{background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);color:var(--cds-text-primary);align-self:flex-end;max-width:85%}
+.msg.agent{background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-left:3px solid var(--cds-interactive);color:var(--cds-text-primary)}
+.thinking{color:var(--cds-text-secondary);font-style:normal;font-size:13px}
 /* transcript panel */
 .transcript-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
-.transcript-header h2{font-size:12px;font-weight:600;color:#6b6b7e;letter-spacing:.05em;text-transform:uppercase;}
-.transcript-header .chevron{font-size:11px;color:#4a4a60;transition:transform .2s;}
+.transcript-header h2{font-size:12px;font-weight:600;color:var(--cds-text-secondary);letter-spacing:.32px;text-transform:uppercase;}
+.transcript-header .chevron{font-size:11px;color:var(--cds-text-placeholder);transition:transform .2s;}
 .transcript-header.open .chevron{transform:rotate(180deg);}
 .transcript-body{margin-top:14px;max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
-.transcript-body::-webkit-scrollbar{width:4px}.transcript-body::-webkit-scrollbar-track{background:transparent}.transcript-body::-webkit-scrollbar-thumb{background:#2e2e40;border-radius:2px}
-.seg{display:flex;gap:10px;padding:7px 10px;border-radius:7px;border:1px solid transparent;transition:background .1s,border-color .1s;}
-.seg:hover{background:#111827;border-color:#1e293b;}
-.seg-ts{flex-shrink:0;font-size:11px;font-weight:600;color:#6366f1;font-variant-numeric:tabular-nums;padding-top:1px;min-width:80px;}
-.seg-text{font-size:13px;color:#c4c4d4;line-height:1.5;}
-.seg-filter{width:100%;background:#0f0f13;border:1px solid #2e2e40;border-radius:7px;padding:7px 12px;font-size:13px;color:#e2e2e8;outline:none;margin-bottom:10px;}
-.seg-filter:focus{border-color:#6366f1;}
-.seg-filter::placeholder{color:#4a4a60}
-.empty-state{text-align:center;color:#4a4a60;font-size:13px;padding:24px 0;}
+.transcript-body::-webkit-scrollbar{width:8px}.transcript-body::-webkit-scrollbar-track{background:transparent}.transcript-body::-webkit-scrollbar-thumb{background:var(--cds-border-strong);border-radius:0}
+.seg{display:flex;gap:10px;padding:7px 10px;border-radius:0;border:1px solid transparent;transition:background .1s,border-color .1s;}
+.seg:hover{background:var(--cds-layer-02);border-color:var(--cds-border-subtle);}
+.seg-ts{flex-shrink:0;font-size:11px;font-weight:600;color:var(--cds-link-primary);font-family:var(--cds-font-mono);font-variant-numeric:tabular-nums;padding-top:1px;min-width:80px;}
+.seg-text{font-size:13px;color:var(--cds-text-secondary);line-height:1.5;}
+.seg-filter{width:100%;background:var(--cds-field-01);border:none;border-bottom:1px solid var(--cds-border-strong);border-radius:0;padding:7px 12px;font-size:13px;font-family:var(--cds-font-sans);color:var(--cds-text-primary);outline:none;margin-bottom:10px;}
+.seg-filter:focus{outline:2px solid var(--cds-focus);outline-offset:-2px;}
+.seg-filter::placeholder{color:var(--cds-text-placeholder)}
+.empty-state{text-align:center;color:var(--cds-text-placeholder);font-size:13px;padding:24px 0;}
+code{font-family:var(--cds-font-mono);}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .fadein{animation:fadein .2s ease}
 .spinner{display:inline-block;animation:spin .7s linear infinite}
@@ -289,14 +326,14 @@ button:hover{background:#4f52d9}button:disabled{opacity:.45;cursor:default}
 </style>
 </head>
 <body>
-<h1>Audio Q&A</h1>
+<h1><span style="font-weight:400;color:var(--cds-text-secondary)">IBM</span> Audio Q&A</h1>
 <p class="sub">Powered by <span>CugaAgent</span> · Whisper + ChromaDB + LLM</p>
 
 <div class="card">
   <label>Audio file</label>
-  <p style="font-size:12px;color:#6b6b7e;margin-bottom:8px">
-    Copy your file to <code style="background:#111827;padding:1px 5px;border-radius:4px;color:#818cf8">apps/video_qa/videos/</code> on the host, then enter <code style="background:#111827;padding:1px 5px;border-radius:4px;color:#818cf8">/audio/filename.mp3</code> below.
-    Supported: <code style="background:#111827;padding:1px 5px;border-radius:4px;color:#818cf8">.wav &nbsp;.mp3 &nbsp;.m4a &nbsp;.flac &nbsp;.ogg &nbsp;.aac</code>
+  <p style="font-size:12px;color:var(--cds-text-secondary);margin-bottom:8px">
+    Copy your file to <code style="background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);padding:1px 5px;color:var(--cds-link-primary)">apps/video_qa/videos/</code> on the host, then enter <code style="background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);padding:1px 5px;color:var(--cds-link-primary)">/audio/filename.mp3</code> below.
+    Supported: <code style="background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);padding:1px 5px;color:var(--cds-link-primary)">.wav &nbsp;.mp3 &nbsp;.m4a &nbsp;.flac &nbsp;.ogg &nbsp;.aac</code>
   </p>
   <div class="row">
     <input id="audioPath" type="text" placeholder="/audio/recording.mp3" />
@@ -450,7 +487,7 @@ async function ask() {
     thinkEl.innerHTML = renderAnswer(data.answer)
   } catch(err) {
     thinkEl.className = 'msg agent fadein'
-    thinkEl.style.color = '#f87171'
+    thinkEl.style.color = 'var(--cds-support-error)'
     thinkEl.textContent = 'Error: ' + err.message
   } finally { btn.disabled = false; msgs.scrollTop = msgs.scrollHeight }
 }
@@ -460,7 +497,7 @@ function renderAnswer(text) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>')
     .replace(/\\b(\\d{1,2}:\\d{2}(?::\\d{2})?)\\b/g,(ts)=>{
-      return `<span style="background:rgba(99,102,241,.15);color:#818cf8;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:600;margin:0 2px;border:1px solid rgba(99,102,241,.25);">${ts}</span>`
+      return `<span style="background:var(--cds-support-info-bg);color:var(--cds-link-primary);border-radius:0.9375rem;padding:1px 8px;font-size:12px;font-weight:500;margin:0 2px;font-family:var(--cds-font-mono);">${ts}</span>`
     })
     .replace(/\\n/g,'<br>')
 }

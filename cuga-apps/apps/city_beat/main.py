@@ -387,6 +387,11 @@ def _web(port: int) -> None:
         return {"ok": True}
 
     print(f"\n  City Beat  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 

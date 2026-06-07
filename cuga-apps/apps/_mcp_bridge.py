@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import socket
 import sys
 from pathlib import Path
 from typing import List
@@ -41,6 +42,10 @@ _ON_CE = bool(
     or (os.getenv("CUGA_TARGET", "") or "").lower() == "ce"
 )
 
+# CUGA_TARGET=local forces localhost (skip the cloud fallback below) for users
+# running the full local MCP stack who don't want a startup probe.
+_FORCE_LOCAL = (os.getenv("CUGA_TARGET", "") or "").lower() == "local"
+
 # Default CE project hardcodes. CE also injects CE_SUBDOMAIN (project hash)
 # and CE_REGION at runtime — we prefer those when present, fall back to the
 # constants below for non-CE / debug invocations. Change these two strings
@@ -60,6 +65,13 @@ def _ce_url(name: str) -> str:
     return f"https://cuga-apps-mcp-{name}.{project_hash}.{region}.codeengine.appdomain.cloud/mcp"
 
 
+def _local_port_open(port: int, host: str = "127.0.0.1", timeout: float = 0.25) -> bool:
+    """True if something is listening on host:port (a local MCP server is up)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout)
+        return sock.connect_ex((host, port)) == 0
+
+
 def _default_url(name: str, port: int) -> str:
     """Pick the right MCP URL for the current runtime context.
 
@@ -68,7 +80,12 @@ def _default_url(name: str, port: int) -> str:
 
       1. Code Engine        → public CE URL of the corresponding cuga-apps-mcp-* app
       2. Docker compose     → service DNS http://mcp-<name>:<port>/mcp
-      3. Bare host          → http://localhost:<port>/mcp
+      3. Bare host, local server listening → http://localhost:<port>/mcp
+      4. Bare host, no local server        → CE cloud URL (zero-config fallback)
+
+    The bare-host cloud fallback means apps "just work" without booting the
+    local MCP stack. Force one side explicitly with CUGA_TARGET=local
+    (always localhost) or CUGA_TARGET=ce (always cloud), or set MCP_<NAME>_URL.
 
     Order matters: a Dockerfile-baked CUGA_IN_DOCKER=1 plus CE-injected
     CE_APP both end up true on Code Engine, but we want CE URLs there,
@@ -78,7 +95,10 @@ def _default_url(name: str, port: int) -> str:
         return _ce_url(name)
     if _IN_DOCKER:
         return f"http://mcp-{name}:{port}/mcp"
-    return f"http://localhost:{port}/mcp"
+    if _FORCE_LOCAL or _local_port_open(port):
+        return f"http://localhost:{port}/mcp"
+    log.info("No local MCP server on :%d for %r — falling back to cloud (CE).", port, name)
+    return _ce_url(name)
 
 
 def _resolved_urls(names: List[str]) -> dict[str, str]:

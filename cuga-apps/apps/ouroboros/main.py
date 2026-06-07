@@ -16,14 +16,14 @@ CUGA capabilities tapped (skills-branch SDK):
   • Skills (declarative)  — SKILL.md + tools.py, host-loaded at startup
 
 Run:
-    python main.py --port 28822
-    python main.py --provider anthropic
+    python main.py --port 28822                          # watsonx by default
     python main.py --provider rits --model gpt-oss-120b
+    python main.py --provider anthropic
 
 Then open: http://127.0.0.1:28822
 
 Env vars:
-    LLM_PROVIDER          rits | anthropic | openai | watsonx | litellm | ollama
+    LLM_PROVIDER          watsonx (default) | rits | anthropic | openai | litellm | ollama
     LLM_MODEL             model name override
     AGENT_SETTING_CONFIG  CUGA settings TOML (defaulted in main)
     CUGA_TARGET=ce        forces public Code Engine MCP URLs
@@ -72,10 +72,10 @@ _AGENT_SETTING_CONFIG = {
                                             # monkey-patch LLMManager.
     "ollama":    "settings.openai.toml",
 }
-_provider = (os.getenv("LLM_PROVIDER") or "rits").lower()
+_provider = (os.getenv("LLM_PROVIDER") or "watsonx").lower()
 os.environ.setdefault(
     "AGENT_SETTING_CONFIG",
-    _AGENT_SETTING_CONFIG.get(_provider, "settings.rits.toml"),
+    _AGENT_SETTING_CONFIG.get(_provider, "settings.watsonx.toml"),
 )
 
 
@@ -1020,23 +1020,6 @@ HARD RULES:
   - If `top` is empty (scout returned no candidates), skip phase 2 and
     call phase 3 with enriched_list = [].
 
-OPTIONAL PHASE 4 — schedule a watch. Only if the user explicitly asks for
-recurring monitoring (e.g. "watch weekly", "re-run every 5 minutes",
-"keep checking", "rerun this each Monday"), after phase 3 returns:
-  - In a SEPARATE code block, call the loops tool directly. It is
-    available to you as `schedule_recurring`:
-        loop_id = await schedule_recurring(
-            cadence="<the cadence the user named>",
-            prompt=user_question + " (diff against last run)",
-        )
-        print(loop_id)
-    Cadence accepts: intervals like "5m"/"2h"/"1d", raw cron
-    "0 9 * * *", or shorthand like "daily", "weekly", "every weekday".
-  - Mention the scheduled loop id in your final reply on its own line:
-    "Watch scheduled: <loop_id>."
-  - Do NOT schedule unless the user asked for it. One-off lead-hunts
-    are the default.
-
 === USER REQUEST ===
 """
 
@@ -1160,12 +1143,6 @@ def make_supervisor():
         #   misc planner indecision/retries: 5–15
         # 100 caps comfortably over the median 35–50.
         cuga_lite_max_steps=100,
-        # CUGA loops: lets the supervisor schedule itself to re-run a
-        # query later (weekly diff for new businesses, daily refresh of
-        # a hot lead, etc.) by calling schedule_recurring / schedule_wakeup
-        # tools — auto-injected into every internal specialist.
-        enable_loops=True,
-        loops_agent_name="ouroboros_supervisor",
     )
     return supervisor
 
@@ -1214,17 +1191,6 @@ def _web(port: int) -> None:
     app = FastAPI(title="Ouroboros", docs_url=None, redoc_url=None)
     app.add_middleware(CORSMiddleware, allow_origins=["*"],
                        allow_methods=["*"], allow_headers=["*"])
-
-    # Mount CUGA loops UI + API (visible at /cuga/loops/). Optional — guarded
-    # so an SDK without the loops module still boots ouroboros normally.
-    try:
-        from cuga.backend.loops.api import router as _loops_router
-        from cuga.backend.loops.service import get_loops_service
-        get_loops_service().set_app_name("ouroboros")
-        app.include_router(_loops_router)
-        log.info("mounted CUGA loops at /cuga/loops/")
-    except Exception as _err:
-        log.warning("CUGA loops not mounted: %s", _err)
 
     _supervisor = None
     _policies_attached = False
@@ -1372,33 +1338,6 @@ def _web(port: int) -> None:
                 "loop_id":       loop_id,
                 "_error":        True,
             }
-
-    # Override the loops service callable so loop fires go through the
-    # same _handle_full_turn path as user asks. They land in runs/<thread>/
-    # alongside user runs, with source='loop' + loop_id so the UI can
-    # tell them apart.
-    #
-    # CRITICAL: each fire uses a FRESH thread_id, NOT the loop's stored
-    # thread_id (which is usually the user's SESSION_ID at scheduling
-    # time). Reusing the user thread caused the supervisor to see prior
-    # chat history (the previous lead board) and shortcut the cascade,
-    # producing 0-lead runs. Fresh per-fire thread = clean planner state.
-    try:
-        import time as _time
-        from cuga.backend.loops.service import current_loop_id, get_loops_service
-        async def _loop_invoke(prompt: str, _orig_thread_id: str) -> str:
-            lid = current_loop_id.get() or "unknown"
-            fresh_thread = f"loop_{lid}_{int(_time.time())}"
-            log.info("[%s] loop fire on fresh thread=%s (loop=%s, original_thread=%s)",
-                     fresh_thread[:12], fresh_thread, lid, _orig_thread_id[:12])
-            res = await _handle_full_turn(prompt, fresh_thread,
-                                          source="loop", loop_id=lid)
-            return res.get("answer") or ""
-        get_loops_service().register_agent("ouroboros_supervisor", _loop_invoke)
-        log.info("registered ouroboros_supervisor with loops service "
-                 "(loop fires use FRESH thread per fire to avoid memory reuse)")
-    except Exception as _err:
-        log.warning("could not override loops callback: %s", _err)
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
@@ -1636,6 +1575,11 @@ def _web(port: int) -> None:
         }
 
     print(f"\n  Ouroboros (multi-agent)  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 

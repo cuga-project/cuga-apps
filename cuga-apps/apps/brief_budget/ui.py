@@ -1,90 +1,63 @@
-"""Self-contained dark-themed HTML UI for Brief Budget. SSE-driven."""
+"""Self-contained HTML UI for Brief Budget. SSE-driven.
 
-_HTML = r"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Brief Budget</title>
-<style>
-  *  { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-    background: #0f1117;
-    color: #e2e8f0;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-  header {
-    padding: 14px 20px;
-    background: #1a1a2e;
-    border-bottom: 1px solid #2d2d4a;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-  }
-  header h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  header h1 span.subtitle {
-    margin-left: 12px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #94a3b8;
-    letter-spacing: 0;
-  }
+Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
+`_carbon` foundation. Layout, ids, fetch URLs, SSE handling and copy are
+preserved exactly — only the styling is restyled to the Carbon look.
+"""
+
+from _carbon import carbon_head, carbon_css
+
+_APP_CSS = """<style>
+  body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* App-level status badges (pills — Carbon's one rounded element) */
   .badge {
-    font-size: 12px;
-    padding: 5px 11px;
-    border-radius: 999px;
-    font-weight: 600;
-    border: 1px solid;
+    font-size: 0.75rem;
+    padding: 0 var(--cds-sp-03);
+    height: 1.5rem;
+    display: inline-flex; align-items: center;
+    border-radius: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.16px;
+    white-space: nowrap;
   }
-  .badge.idle    { background: #1e293b;        color: #94a3b8; border-color: #334155;  }
-  .badge.running { background: #1e3a8a33;      color: #93c5fd; border-color: #3b82f6;  }
-  .badge.done    { background: #064e3b33;      color: #6ee7b7; border-color: #10b981;  }
-  .badge.error   { background: #7f1d1d33;      color: #fca5a5; border-color: #ef4444;  }
+  .badge.idle    { background: var(--cds-layer-accent);    color: var(--cds-text-secondary); }
+  .badge.running { background: var(--cds-support-info-bg);    color: var(--cds-link-primary); }
+  .badge.done    { background: var(--cds-support-success-bg); color: var(--cds-support-success); }
+  .badge.error   { background: var(--cds-support-error-bg);   color: var(--cds-support-error); }
 
   main {
     flex: 1;
     display: grid;
     grid-template-columns: 380px 1fr;
-    gap: 14px;
-    padding: 14px;
+    gap: var(--cds-sp-05);
+    padding: var(--cds-sp-05);
     overflow: hidden;
     min-height: 0;
   }
+
   .panel {
-    background: #1a1a2e;
-    border: 1px solid #2d2d4a;
-    border-radius: 12px;
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
   .panel-header {
-    padding: 10px 14px;
-    border-bottom: 1px solid #2d2d4a;
-    font-size: 11px;
-    font-weight: 700;
-    color: #94a3b8;
-    letter-spacing: 0.06em;
+    padding: var(--cds-sp-03) var(--cds-sp-05);
+    border-bottom: 1px solid var(--cds-border-subtle);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--cds-text-secondary);
+    letter-spacing: 0.32px;
     text-transform: uppercase;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    background: var(--cds-layer-accent);
+    height: 2.5rem;
   }
   .panel-body {
-    padding: 14px;
+    padding: var(--cds-sp-05);
     overflow-y: auto;
     flex: 1;
   }
@@ -94,99 +67,115 @@ _HTML = r"""<!doctype html>
     width: 100%;
     min-height: 110px;
     resize: vertical;
-    background: #0f1117;
-    color: #e2e8f0;
-    border: 1px solid #2d2d4a;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font: inherit;
-    font-size: 14px;
+    background: var(--cds-field-01);
+    color: var(--cds-text-primary);
+    border: none;
+    border-bottom: 1px solid var(--cds-border-strong);
+    padding: var(--cds-sp-04) var(--cds-sp-05);
+    font-family: var(--cds-font-sans);
+    font-size: 0.875rem;
+    line-height: 1.43;
+    letter-spacing: 0.16px;
   }
-  textarea#q:focus { outline: none; border-color: #6366f1; }
+  textarea#q::placeholder { color: var(--cds-text-placeholder); }
+  textarea#q:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+
   .budget-row {
-    margin-top: 14px;
+    margin-top: var(--cds-sp-05);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--cds-sp-04);
   }
   .budget-row label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--cds-text-secondary);
+    letter-spacing: 0.32px;
   }
   input[type=range] {
     flex: 1;
-    accent-color: #6366f1;
+    accent-color: var(--cds-interactive);
   }
   #budgetVal {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 14px;
-    color: #fde68a;
+    font-family: var(--cds-font-mono);
+    font-size: 0.875rem;
+    color: var(--cds-text-primary);
     font-weight: 600;
     min-width: 28px;
     text-align: right;
   }
+
   button#run {
     width: 100%;
-    background: #6366f1;
-    color: #fff;
-    border: 0;
-    border-radius: 8px;
-    padding: 11px 16px;
-    font-size: 14px;
-    font-weight: 600;
+    background: var(--cds-button-primary);
+    color: var(--cds-text-on-color);
+    border: 1px solid transparent;
+    padding: 0 var(--cds-sp-05);
+    min-height: 3rem;
+    font-family: var(--cds-font-sans);
+    font-size: 0.875rem;
+    font-weight: 400;
+    letter-spacing: 0.16px;
     cursor: pointer;
-    margin-top: 14px;
-    transition: background .15s ease;
+    margin-top: var(--cds-sp-05);
+    text-align: left;
+    transition: background var(--cds-dur-mod) var(--cds-ease-productive);
   }
-  button#run:hover  { background: #818cf8; }
-  button#run:disabled { opacity: 0.55; cursor: wait; }
+  button#run:hover  { background: var(--cds-button-primary-hover); }
+  button#run:active { background: var(--cds-button-primary-active); }
+  button#run:focus-visible, button#run:focus {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px var(--cds-focus-inset);
+  }
+  button#run:disabled { background: var(--cds-layer-accent); color: var(--cds-text-placeholder); cursor: wait; box-shadow: none; }
+
   .examples {
-    margin-top: 18px;
-    border-top: 1px dashed #2d2d4a;
-    padding-top: 12px;
+    margin-top: var(--cds-sp-06);
+    border-top: 1px solid var(--cds-border-subtle);
+    padding-top: var(--cds-sp-04);
   }
   .examples-label {
-    font-size: 10.5px;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #64748b;
-    margin-bottom: 8px;
-    font-weight: 700;
+    letter-spacing: 0.32px;
+    color: var(--cds-text-helper);
+    margin-bottom: var(--cds-sp-03);
+    font-weight: 600;
   }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--cds-sp-03); }
   .chip {
-    font-size: 11.5px;
-    padding: 5px 9px;
-    border-radius: 6px;
-    background: #0f1117;
-    border: 1px solid #2d2d4a;
-    color: #cbd5e1;
+    font-size: 0.75rem;
+    padding: var(--cds-sp-02) var(--cds-sp-04);
+    border-radius: 0.9375rem;
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
     cursor: pointer;
     line-height: 1.35;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive);
   }
-  .chip:hover { border-color: #6366f1; color: #fff; background: #1e1b4b; }
+  .chip:hover { border-color: var(--cds-interactive); color: #fff; background: var(--cds-interactive); }
 
   /* Budget meter */
   .meter {
-    margin-top: 18px;
-    padding: 12px;
-    background: #0f1117;
-    border: 1px solid #2d2d4a;
-    border-radius: 8px;
+    margin-top: var(--cds-sp-06);
+    padding: var(--cds-sp-04);
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
   }
   .meter-row {
     display: flex; justify-content: space-between; align-items: baseline;
-    margin-bottom: 6px;
+    margin-bottom: var(--cds-sp-03);
   }
-  .meter-label { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.06em; }
-  .meter-vals  { font-family: ui-monospace, "SF Mono", monospace; font-size: 13px; color: #e2e8f0; }
+  .meter-label { font-size: 0.75rem; font-weight: 600; color: var(--cds-text-secondary); letter-spacing: 0.32px; }
+  .meter-vals  { font-family: var(--cds-font-mono); font-size: 0.8125rem; color: var(--cds-text-primary); }
   .meter-bar {
-    height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden;
+    height: 8px; background: var(--cds-layer-accent); overflow: hidden;
   }
   .meter-fill {
     height: 100%;
-    background: linear-gradient(90deg, #10b981, #fbbf24 70%, #ef4444);
+    background: linear-gradient(90deg, var(--cds-support-success), var(--cds-support-warning) 70%, var(--cds-support-error));
     transition: width .3s ease;
     width: 0%;
   }
@@ -195,135 +184,149 @@ _HTML = r"""<!doctype html>
   .right {
     display: grid;
     grid-template-rows: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.3fr);
-    gap: 14px;
+    gap: var(--cds-sp-05);
     overflow: hidden;
   }
 
   /* Plan panel */
   .plan-version-pill {
     display: inline-block;
-    padding: 1px 8px;
-    border-radius: 999px;
-    background: #312e81;
-    color: #fde68a;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    margin-left: 8px;
+    padding: 1px var(--cds-sp-03);
+    border-radius: 0.9375rem;
+    background: var(--cds-support-info-bg);
+    color: var(--cds-link-primary);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.16px;
+    margin-left: var(--cds-sp-03);
     vertical-align: middle;
   }
   .plan-card {
-    border: 1px solid #2d2d4a;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-    background: #0f1117;
+    border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-04);
+    margin-bottom: var(--cds-sp-04);
+    background: var(--cds-layer-02);
   }
   .plan-card.current {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 1px #6366f1 inset;
+    border-color: var(--cds-interactive);
+    box-shadow: 0 0 0 1px var(--cds-interactive) inset;
   }
   .plan-card-meta {
-    font-size: 10.5px;
-    color: #64748b;
-    margin-bottom: 6px;
+    font-size: 0.6875rem;
+    color: var(--cds-text-helper);
+    margin-bottom: var(--cds-sp-03);
     display: flex; justify-content: space-between;
   }
   .plan-card .plan-text {
-    font-size: 12.5px;
-    color: #cbd5e1;
+    font-size: 0.8125rem;
+    color: var(--cds-text-secondary);
     white-space: pre-wrap;
     line-height: 1.5;
   }
 
   /* Tool call log */
   .tool-call {
-    border-left: 3px solid #475569;
-    padding: 6px 10px;
-    margin-bottom: 6px;
-    background: #0f1117;
-    border-radius: 4px;
-    font-size: 12px;
+    border-left: 3px solid var(--cds-border-strong);
+    padding: var(--cds-sp-03) var(--cds-sp-04);
+    margin-bottom: var(--cds-sp-03);
+    background: var(--cds-layer-02);
+    font-size: 0.75rem;
   }
-  .tool-call.plan   { border-left-color: #6366f1; }
-  .tool-call.web    { border-left-color: #0ea5e9; }
-  .tool-call.acad   { border-left-color: #8b5cf6; }
-  .tool-call.encyc  { border-left-color: #10b981; }
-  .tool-call.error  { border-left-color: #ef4444; }
+  .tool-call.plan   { border-left-color: var(--cds-interactive); }
+  .tool-call.web    { border-left-color: var(--cds-support-info); }
+  .tool-call.acad   { border-left-color: #8a3ffc; }
+  .tool-call.encyc  { border-left-color: var(--cds-support-success); }
+  .tool-call.error  { border-left-color: var(--cds-support-error); }
   .tool-call .tname {
-    font-family: ui-monospace, "SF Mono", monospace;
-    font-weight: 700;
-    color: #e2e8f0;
+    font-family: var(--cds-font-mono);
+    font-weight: 600;
+    color: var(--cds-text-primary);
   }
   .tool-call .targs {
-    font-family: ui-monospace, "SF Mono", monospace;
-    color: #94a3b8;
-    font-size: 11px;
+    font-family: var(--cds-font-mono);
+    color: var(--cds-text-secondary);
+    font-size: 0.6875rem;
     margin-top: 2px;
     white-space: pre-wrap;
     word-break: break-word;
   }
   .tool-call .tprev {
-    color: #64748b;
-    font-size: 11px;
-    margin-top: 4px;
+    color: var(--cds-text-helper);
+    font-size: 0.6875rem;
+    margin-top: var(--cds-sp-02);
     font-style: italic;
     white-space: pre-wrap;
     word-break: break-word;
   }
   .tool-call .pill {
     display: inline-block;
-    padding: 0 6px;
-    border-radius: 3px;
-    background: #1e293b;
-    color: #94a3b8;
-    font-size: 10px;
-    font-weight: 700;
-    margin-left: 6px;
+    padding: 0 var(--cds-sp-03);
+    border-radius: 0.9375rem;
+    background: var(--cds-layer-accent);
+    color: var(--cds-text-secondary);
+    font-size: 0.625rem;
+    font-weight: 600;
+    margin-left: var(--cds-sp-03);
     vertical-align: middle;
   }
 
   /* Brief */
   .brief-body {
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.65;
-    color: #e2e8f0;
+    color: var(--cds-text-primary);
   }
   .brief-body h1, .brief-body h2, .brief-body h3 {
-    color: #fff;
-    margin: 18px 0 8px;
+    color: var(--cds-text-primary);
+    margin: var(--cds-sp-06) 0 var(--cds-sp-03);
+    font-weight: 600;
   }
-  .brief-body h3 { font-size: 15px; }
-  .brief-body ul { padding-left: 22px; }
-  .brief-body li { margin-bottom: 4px; }
-  .brief-body a { color: #93c5fd; text-decoration: none; }
-  .brief-body a:hover { text-decoration: underline; }
-  .brief-body strong { color: #fde68a; }
+  .brief-body h3 { font-size: 0.9375rem; }
+  .brief-body ul { padding-left: var(--cds-sp-06); }
+  .brief-body li { margin-bottom: var(--cds-sp-02); }
+  .brief-body a { color: var(--cds-link-primary); text-decoration: none; }
+  .brief-body a:hover { color: var(--cds-link-hover); text-decoration: underline; }
+  .brief-body strong { color: var(--cds-text-primary); font-weight: 600; }
   .brief-body code {
-    background: #1e293b; padding: 1px 6px; border-radius: 4px;
-    font-size: 12.5px;
+    background: var(--cds-layer-accent); color: var(--cds-link-primary);
+    padding: 1px var(--cds-sp-03);
+    font-family: var(--cds-font-mono);
+    font-size: 0.8125rem;
   }
 
   .placeholder {
-    color: #475569;
+    color: var(--cds-text-placeholder);
     font-style: italic;
-    font-size: 13px;
+    font-size: 0.8125rem;
     text-align: center;
-    padding: 20px;
+    padding: var(--cds-sp-06);
   }
   .footer-note {
-    padding: 6px 14px;
-    font-size: 11px;
-    color: #64748b;
+    padding: var(--cds-sp-03) var(--cds-sp-05);
+    font-size: 0.75rem;
+    color: var(--cds-text-helper);
     text-align: center;
-    border-top: 1px solid #1e293b;
+    border-top: 1px solid var(--cds-border-subtle);
+    background: var(--cds-layer-01);
   }
-</style>
-</head>
-<body>
-<header>
-  <h1>Brief Budget <span class="subtitle">research brief on a hard tool-call budget · the planner is the demo</span></h1>
-  <span id="status" class="badge idle">idle</span>
+  .panel-header .meta {
+    margin-left: var(--cds-sp-03); color: var(--cds-text-helper);
+    font-weight: 400; text-transform: none; letter-spacing: 0;
+  }
+  .panel-header .count {
+    color: var(--cds-text-helper); font-weight: 400; text-transform: none; letter-spacing: 0;
+  }
+</style>"""
+
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name">
+    <span class="cds-header__prefix">IBM</span>&nbsp;Brief&nbsp;Budget
+  </div>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">research brief on a hard tool-call budget · the planner is the demo</span>
+    <span id="status" class="badge idle">idle</span>
+  </div>
 </header>
 
 <main>
@@ -337,7 +340,7 @@ _HTML = r"""<!doctype html>
         <label for="budget">Budget</label>
         <input id="budget" type="range" min="5" max="40" value="15" step="1">
         <span id="budgetVal">15</span>
-        <span style="font-size:11px;color:#64748b;">tool calls</span>
+        <span style="font-size:0.75rem;color:var(--cds-text-helper);">tool calls</span>
       </div>
 
       <button id="run">Generate brief</button>
@@ -368,9 +371,9 @@ _HTML = r"""<!doctype html>
 
     <section class="panel">
       <div class="panel-header">
-        Plan <span style="margin-left:8px; color:#64748b; font-weight: 500; text-transform:none; letter-spacing: 0;">— what the agent decided to do</span>
+        Plan <span class="meta">— what the agent decided to do</span>
         <span style="flex:1"></span>
-        <span id="planCount" style="color:#64748b; font-weight: 500; text-transform: none;">no plan yet</span>
+        <span id="planCount" class="count">no plan yet</span>
       </div>
       <div class="panel-body" id="planBody">
         <div class="placeholder">The agent's plan will appear here as soon as it calls <code>propose_plan</code>.</div>
@@ -379,9 +382,9 @@ _HTML = r"""<!doctype html>
 
     <section class="panel">
       <div class="panel-header">
-        Tool calls <span style="margin-left:8px; color:#64748b; font-weight: 500; text-transform:none; letter-spacing: 0;">— each call costs 1 from the budget</span>
+        Tool calls <span class="meta">— each call costs 1 from the budget</span>
         <span style="flex:1"></span>
-        <span id="callCount" style="color:#64748b; font-weight: 500; text-transform: none;">0 calls</span>
+        <span id="callCount" class="count">0 calls</span>
       </div>
       <div class="panel-body" id="logBody">
         <div class="placeholder">Tool calls will stream here as the agent executes its plan.</div>
@@ -573,7 +576,7 @@ _HTML = r"""<!doctype html>
     const j = await resp.json();
     if (j.error || !j.session_id) {
       setStatus('error', 'error');
-      briefBody.innerHTML = `<div class="placeholder" style="color:#fca5a5">${escapeHtml(j.error || 'unknown error')}</div>`;
+      briefBody.innerHTML = `<div class="placeholder" style="color:var(--cds-support-error)">${escapeHtml(j.error || 'unknown error')}</div>`;
       runBtn.disabled = false;
       return;
     }
@@ -607,7 +610,7 @@ _HTML = r"""<!doctype html>
           break;
         case 'error':
           setStatus('error', 'error');
-          briefBody.innerHTML = `<div class="placeholder" style="color:#fca5a5">${escapeHtml(ev.error)}</div>`;
+          briefBody.innerHTML = `<div class="placeholder" style="color:var(--cds-support-error)">${escapeHtml(ev.error)}</div>`;
           break;
         case 'done':
           if (ev.status === 'done') setStatus(`done · ${ev.used}/${ev.budget} used`, 'done');
@@ -629,6 +632,14 @@ _HTML = r"""<!doctype html>
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run();
   });
 </script>
-</body>
-</html>
 """
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Brief Budget")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)

@@ -8,11 +8,21 @@
 # readiness — if an app hits the bridge before its MCP server is ready it will
 # retry (the MCP client has its own reconnect behavior).
 
-APP_DIR=/app/apps
+# In the container the apps live at /app/apps (this is the default). To run
+# locally, activate the venv and override: `APP_DIR="$PWD/apps" ./start.sh`.
+APP_DIR="${APP_DIR:-/app/apps}"
 
 log() { echo "[start.sh] $*"; }
 
 cd "$APP_DIR" || exit 1
+
+# Usage tracking: every app reports to the collector at this URL (apps/_usage.py).
+# In one container they reach it over localhost; override via env on Code Engine
+# (set USAGE_COLLECTOR_URL in the app-env secret to the collector's public URL).
+export USAGE_COLLECTOR_URL="${USAGE_COLLECTOR_URL:-http://127.0.0.1:28827/track}"
+
+log "Starting usage_collector    on :28827"
+python usage_collector/main.py --port 28827 &
 
 log "Starting web_researcher     on :28798"
 python web_researcher/main.py --port 28798 &
@@ -98,8 +108,26 @@ python recipe_composer/main.py --port 28820 &
 log "Starting city_beat           on :28821"
 python city_beat/main.py --port 28821 &
 
+log "Starting github_trending     on :28823"
+python github_trending/main.py --port 28823 &
+
+log "Starting ai_labs_news        on :28824"
+python ai_labs_news/main.py --port 28824 &
+
+log "Starting find_a_doctor       on :28825"
+python find_a_doctor/main.py --port 28825 &
+
+log "Starting ouroboros           on :28822"
+python ouroboros/main.py --port 28822 &
+
+# meetup_finder drives headless Chromium (Playwright). The image bakes it in
+# (Dockerfile.apps: playwright install --with-deps chromium) and the app
+# passes --no-sandbox when CUGA_IN_DOCKER is set.
+log "Starting meetup_finder       on :28826"
+python meetup_finder/main.py --port 28826 &
+
 # code_engine_deployer is local-only — needs host docker + ibmcloud CLI +
 # user's IBM auth. Run it from your workstation: `python code_engine_deployer/main.py --port 28818`.
 
-log "All 28 apps launched. Waiting..."
+log "All 34 apps launched. Waiting..."
 wait

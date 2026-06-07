@@ -4,24 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DeckForge — AI Presentation Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* IBM Carbon White (g10) tokens, mapped onto DeckForge's variable names */
     :root {
-      --navy:   #0f2d52;
-      --navy2:  #1a3d6b;
-      --blue:   #0089ff;
-      --green:  #00c48c;
-      --yellow: #f5a623;
-      --red:    #e84141;
-      --bg:     #0d1117;
-      --surface:#161b22;
-      --border: #30363d;
-      --text:   #e6edf3;
-      --muted:  #8b949e;
+      --navy:   #161616;   /* Carbon header (always dark) */
+      --navy2:  #e0e0e0;   /* layer accent (light counters) */
+      --blue:   #0f62fe;   /* IBM blue — primary action */
+      --green:  #24a148;   /* support success */
+      --yellow: #f1c21b;   /* support warning */
+      --red:    #da1e28;   /* support error */
+      --bg:     #ffffff;   /* background */
+      --surface:#f4f4f4;   /* layer-01 */
+      --border: #e0e0e0;   /* border subtle */
+      --text:   #161616;   /* text primary */
+      --muted:  #6f6f6f;   /* text helper */
+
+      --cds-focus: #0f62fe;
+      --font-sans: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'IBM Plex Mono', ui-monospace, "SFMono-Regular", Menlo, monospace;
     }
 
-    body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
 
     /* ── Header ── */
     .header {
@@ -55,7 +63,7 @@
       display: grid;
       grid-template-columns: 380px 1fr;
       gap: 0;
-      height: calc(100vh - 64px);
+      height: calc(100vh - 3rem);
     }
     @media (max-width: 800px) {
       .layout { grid-template-columns: 1fr; height: auto; }
@@ -163,7 +171,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.45rem;
-      font-family: 'SF Mono', 'Fira Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 0.82rem;
     }
 
@@ -241,6 +249,72 @@
       vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ───────────────────────── Carbon polish ─────────────────────────── */
+    /* Square corners on structural elements (Carbon is no-radius); only
+       tags/pills, status dots and the spinner stay rounded. */
+    .header, .panel-left, .panel-right, .progress-header, .downloads,
+    input[type=text], textarea, select, .agent-btn, .btn-generate,
+    .btn-dl, .log-entry {
+      border-radius: 0 !important;
+    }
+
+    /* Carbon header — dark shell with light wordmark */
+    .header {
+      height: 3rem; padding: 0 var(--cds-sp-05, 1rem);
+      gap: 0.75rem; border-bottom: 1px solid #393939;
+    }
+    .header-title { color: #f4f4f4; font-weight: 600; font-size: 0.875rem; letter-spacing: 0.1px; }
+    .header-subtitle { color: #c6c6c6; }
+    .llm-badge {
+      background: transparent; border: 1px solid #525252; color: #c6c6c6;
+    }
+    .llm-badge.connected { color: #42be65; border-color: #42be65; }
+
+    /* Slide counter — Carbon counter tag stays rounded */
+    .slide-counter { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+    /* Inputs — Carbon field: subtle fill, strong bottom rule, blue focus ring */
+    input[type=text], textarea, select {
+      background: #f4f4f4;
+      border: none;
+      border-bottom: 1px solid #8d8d8d;
+      transition: outline 0.11s, background 0.11s;
+    }
+    input[type=text]:focus, textarea:focus, select:focus {
+      border-bottom-color: #8d8d8d;
+      outline: 2px solid var(--cds-focus);
+      outline-offset: -2px;
+    }
+
+    /* Primary button — IBM blue with Carbon focus ring */
+    .btn-generate {
+      background: #0f62fe; color: #fff; font-weight: 400; font-size: 0.875rem;
+      transition: background 0.15s;
+    }
+    .btn-generate:hover { background: #0353e9; opacity: 1; }
+    .btn-generate:active { background: #002d9c; }
+    .btn-generate:focus-visible {
+      outline: 2px solid var(--cds-focus); outline-offset: -2px;
+      box-shadow: inset 0 0 0 1px #fff;
+    }
+
+    /* Agent selector — Carbon tile-style toggle */
+    .agent-btn { background: #ffffff; }
+    .agent-btn:hover { border-color: #0f62fe; }
+    .agent-btn.active { background: #0f62fe; border-color: #0f62fe; color: #fff; }
+
+    /* Download buttons — Carbon secondary tiles */
+    .btn-dl { background: #ffffff; }
+    .btn-dl:hover { border-color: #0f62fe; color: #0f62fe; }
+    .btn-dl.pptx { border-color: #24a148; color: #198038; }
+    .btn-dl.pptx:hover { background: rgba(36,161,72,0.10); }
+
+    /* Inline-code chips inside copy */
+    code { font-family: var(--font-mono); }
+
+    /* Links pick up IBM blue */
+    a { color: #0f62fe; }
   </style>
 </head>
 <body>
@@ -269,8 +343,8 @@
       <label for="inp-dir">Directory path</label>
       <input type="text" id="inp-dir" placeholder="Loading…" value="" />
       <div style="margin-top:6px; font-size:0.82rem; color:var(--text); opacity:0.75; line-height:1.6">
-        Drop your files into the <code style="font-size:0.8rem; background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:3px">data/</code> folder above, then click Generate.<br>
-        <span style="color:#60a5fa">Supported:</span> PDF · PPTX · MD · TXT · MP3 · WAV · M4A · MP4 · MOV · WEBM · AVI
+        Drop your files into the <code style="font-size:0.8rem; background:#e0e0e0; color:#161616; padding:1px 5px">data/</code> folder above, then click Generate.<br>
+        <span style="color:#0f62fe">Supported:</span> PDF · PPTX · MD · TXT · MP3 · WAV · M4A · MP4 · MOV · WEBM · AVI
       </div>
     </div>
 

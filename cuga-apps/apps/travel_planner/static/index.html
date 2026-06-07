@@ -6,35 +6,144 @@
   <title>Travel Planner — CUGAAgent Demo</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Inter', sans-serif; }
+    /* ── IBM Carbon White (g10) tokens ──────────────────────────────────── */
+    :root {
+      --cds-background:      #ffffff;
+      --cds-layer-01:        #f4f4f4;
+      --cds-layer-hover:     #e8e8e8;
+      --cds-layer-accent:    #e0e0e0;
+      --cds-field-01:        #f4f4f4;
+      --cds-border-subtle:   #e0e0e0;
+      --cds-border-strong:   #8d8d8d;
+      --cds-text-primary:    #161616;
+      --cds-text-secondary:  #525252;
+      --cds-text-helper:     #6f6f6f;
+      --cds-text-placeholder:#a8a8a8;
+      --cds-link-primary:    #0f62fe;
+      --cds-link-hover:      #0043ce;
+      --cds-interactive:     #0f62fe;
+      --cds-button-primary:       #0f62fe;
+      --cds-button-primary-hover: #0353e9;
+      --cds-focus:           #0f62fe;
+      --cds-support-error:   #da1e28;
+      --cds-support-success: #24a148;
+      --cds-support-warning: #f1c21b;
+      --cds-font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --cds-font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    }
+
+    body { font-family: var(--cds-font-sans); background: var(--cds-background); color: var(--cds-text-primary); }
+    .font-mono, input.font-mono { font-family: var(--cds-font-mono) !important; }
 
     /* markdown output */
-    .prose h1, .prose h2 { font-size: 1.15rem; font-weight: 700; margin: 1.2rem 0 0.4rem; color: #1e3a5f; }
-    .prose h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.3rem; color: #1e3a5f; }
-    .prose p  { margin: 0.4rem 0; line-height: 1.65; color: #374151; }
+    .prose h1, .prose h2 { font-size: 1.15rem; font-weight: 600; margin: 1.2rem 0 0.4rem; color: var(--cds-text-primary); }
+    .prose h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.3rem; color: var(--cds-text-primary); }
+    .prose p  { margin: 0.4rem 0; line-height: 1.65; color: var(--cds-text-secondary); }
     .prose ul, .prose ol { padding-left: 1.4rem; margin: 0.4rem 0; }
-    .prose li { margin: 0.2rem 0; color: #374151; }
-    .prose strong { color: #1e3a5f; }
-    .prose hr { border-color: #e5e7eb; margin: 1rem 0; }
+    .prose li { margin: 0.2rem 0; color: var(--cds-text-secondary); }
+    .prose strong { color: var(--cds-text-primary); font-weight: 600; }
+    .prose hr { border-color: var(--cds-border-subtle); margin: 1rem 0; }
     .prose table { width: 100%; border-collapse: collapse; margin: 0.6rem 0; font-size: 0.875rem; }
-    .prose th { background: #eff6ff; padding: 0.4rem 0.7rem; text-align: left; font-weight: 600; color: #1e3a5f; border: 1px solid #dbeafe; }
-    .prose td { padding: 0.35rem 0.7rem; border: 1px solid #e5e7eb; }
+    .prose th { background: var(--cds-layer-accent); padding: 0.4rem 0.7rem; text-align: left; font-weight: 600; color: var(--cds-text-primary); border: 1px solid var(--cds-border-subtle); }
+    .prose td { padding: 0.35rem 0.7rem; border: 1px solid var(--cds-border-subtle); color: var(--cds-text-secondary); }
+    .prose a { color: var(--cds-link-primary); }
 
-    .tag { display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; color: #1d4ed8; border-radius: 9999px; padding: 2px 10px; font-size: 0.8rem; cursor: pointer; border: 1px solid #bfdbfe; }
-    .tag:hover { background: #dbeafe; }
-    .tag.active { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+    /* interest tags — pills (the one rounded element in Carbon) */
+    .tag { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,67,206,0.12); color: var(--cds-link-primary); border-radius: 15px; padding: 2px 10px; font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; }
+    .tag:hover { background: rgba(0,67,206,0.2); }
+    .tag.active { background: var(--cds-interactive); color: #fff; border-color: var(--cds-interactive); }
 
-    .dot-pulse::after { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; animation: pulse 1s infinite; }
+    .dot-pulse::after { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--cds-interactive); animation: pulse 1s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-    .chat-msg-user { background: #eff6ff; border-radius: 12px 12px 4px 12px; }
-    .chat-msg-agent { background: #f9fafb; border-radius: 12px 12px 12px 4px; border: 1px solid #e5e7eb; }
+    /* chat bubbles — square Carbon corners */
+    .chat-msg-user { background: rgba(0,67,206,0.12); border-radius: 0; }
+    .chat-msg-agent { background: var(--cds-layer-01); border-radius: 0; border: 1px solid var(--cds-border-subtle); }
 
-    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--cds-border-strong); border-radius: 0; }
+
+    /* ───────────────────────── Carbon polish ──────────────────────────── */
+    /* Square all structural corners (keep .tag pills + status pills rounded) */
+    .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md,
+    button, input, select, textarea, .chat-msg-user, .chat-msg-agent {
+      border-radius: 0 !important;
+    }
+    /* status / connection pills + spinner stay rounded */
+    #status-pill, #conn-badge, #cfg-tavily-status, .rounded-full,
+    .dot-pulse::after { border-radius: 9999px !important; }
+
+    /* Backgrounds / surfaces -> Carbon layers */
+    body.bg-slate-50 { background: var(--cds-layer-01) !important; }
+    .bg-white { background: var(--cds-background) !important; }
+    .bg-slate-50 { background: var(--cds-layer-01) !important; }
+    .bg-gray-50, .bg-gray-100 { background: var(--cds-layer-01) !important; }
+
+    /* Borders -> subtle Carbon border, drop heavy shadows (Carbon = 1px borders) */
+    .border-slate-200, .border-slate-100 { border-color: var(--cds-border-subtle) !important; }
+    .shadow-sm, .shadow-2xl, .shadow-lg { box-shadow: none !important; }
+
+    /* Text colors -> Carbon text ramp */
+    .text-slate-800, .text-slate-700 { color: var(--cds-text-primary) !important; }
+    .text-slate-600, .text-slate-500 { color: var(--cds-text-secondary) !important; }
+    .text-slate-400 { color: var(--cds-text-helper) !important; }
+
+    /* Primary action buttons -> IBM blue with Carbon focus ring */
+    .bg-blue-600 { background: var(--cds-button-primary) !important; color: #fff !important; }
+    .hover\:bg-blue-700:hover, .bg-blue-600:hover { background: var(--cds-button-primary-hover) !important; }
+    .bg-blue-600:focus, .bg-blue-600:focus-visible {
+      outline: 2px solid var(--cds-focus); outline-offset: -2px;
+      box-shadow: inset 0 0 0 1px #fff !important;
+    }
+
+    /* Blue accents (links, style chips, pills) -> Carbon blue */
+    .text-blue-700, .text-blue-600, .text-blue-500, .text-blue-100 { color: var(--cds-link-primary) !important; }
+    .text-blue-500:hover { color: var(--cds-link-hover) !important; }
+    .border-blue-400, .border-blue-100 { border-color: var(--cds-interactive) !important; }
+    .bg-blue-50 { background: rgba(0,67,206,0.12) !important; }
+
+    /* Inputs / selects -> Carbon fields: filled, bottom-border, square */
+    input[type="text"], input[type="password"], input[type="number"], select {
+      background: var(--cds-field-01) !important;
+      border: none !important;
+      border-bottom: 1px solid var(--cds-border-strong) !important;
+      color: var(--cds-text-primary) !important;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--cds-focus) !important;
+      outline-offset: -2px !important;
+      box-shadow: none !important;
+      --tw-ring-shadow: 0 0 #0000 !important;
+    }
+    input::placeholder { color: var(--cds-text-placeholder) !important; }
+
+    /* Secondary / outline buttons (style chips, copy) keep square + subtle */
+    .style-btn { transition: background var(--cds-dur-mod), border-color var(--cds-dur-mod); }
+
+    /* Amber tips card -> Carbon warning notification (left rule) */
+    .bg-amber-50 {
+      background: rgba(241,194,27,0.16) !important;
+      border: none !important;
+      border-left: 3px solid var(--cds-support-warning) !important;
+    }
+    .text-amber-800, .text-amber-900 { color: var(--cds-text-primary) !important; }
+
+    /* Green connected badge -> Carbon success */
+    .bg-green-50 { background: rgba(36,161,72,0.12) !important; }
+    .text-green-700, .text-green-600 { color: var(--cds-support-success) !important; }
+    .border-green-200, .border-green-100 { border-color: transparent !important; }
+
+    /* Red error states -> Carbon error */
+    .bg-red-50 { background: rgba(218,30,40,0.12) !important; }
+    .text-red-600, .text-red-400 { color: var(--cds-support-error) !important; }
+
+    /* Loading step colors */
+    .text-blue-600 { color: var(--cds-link-primary) !important; }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">

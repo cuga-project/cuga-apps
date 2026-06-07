@@ -12,37 +12,47 @@ _HTML = r"""<!DOCTYPE html>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Ouroboros — CUGA finds its next client</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:        #07080c;
-    --bg-soft:   #0c0e15;
-    --card:      #11131d;
-    --card2:     #171a26;
-    --card3:     #1d2030;
-    --border:    #232739;
-    --border-strong: #2e3349;
-    --accent:    #34d399;   /* emerald — money */
-    --accent-glow: rgba(52,211,153,0.45);
-    --accent2:   #a78bfa;   /* violet — agentic */
-    --accent2-glow: rgba(167,139,250,0.45);
-    --accent3:   #fbbf24;   /* warm gold — top picks */
-    --accent3-glow: rgba(251,191,36,0.45);
-    --text:      #ecf0fa;
-    --text-soft: #c4cbdc;
-    --muted:     #7c8499;
-    --muted-2:   #5b6378;
-    --danger:    #f87171;
-    --success:   #4ade80;
+    /* Carbon Gray 100 (dark) — mapped onto the app's existing variable names
+       so the bespoke CSS below keeps working, but renders as IBM Carbon. */
+    --bg:        #161616;   /* --cds-background */
+    --bg-soft:   #161616;
+    --card:      #262626;   /* --cds-layer-01 */
+    --card2:     #393939;   /* --cds-layer-02 */
+    --card3:     #525252;   /* --cds-layer-03 */
+    --border:    #393939;   /* --cds-border-subtle */
+    --border-strong: #6f6f6f;
+    --accent:    #78a9ff;   /* IBM blue — links (dark) */
+    --accent-glow: rgba(15,98,254,0.30);
+    --accent2:   #4589ff;   /* IBM blue — accent */
+    --accent2-glow: rgba(69,137,255,0.30);
+    --accent3:   #f1c21b;   /* Carbon support-warning (top picks) */
+    --accent3-glow: rgba(241,194,27,0.30);
+    --text:      #f4f4f4;   /* --cds-text-primary */
+    --text-soft: #c6c6c6;   /* --cds-text-secondary */
+    --muted:     #8d8d8d;   /* --cds-text-helper */
+    --muted-2:   #6f6f6f;   /* --cds-text-placeholder */
+    --danger:    #fa4d56;   /* Carbon support-error (dark) */
+    --success:   #42be65;   /* Carbon support-success (dark) */
 
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
-    --shadow-md: 0 4px 20px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.4);
-    --shadow-lg: 0 18px 48px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4);
-    --shadow-glow-emerald: 0 0 0 1px rgba(52,211,153,0.18), 0 8px 32px rgba(52,211,153,0.12);
-    --shadow-glow-gold:    0 0 0 1px rgba(251,191,36,0.30), 0 10px 36px rgba(251,191,36,0.14);
+    /* IBM blue interaction ramp (Carbon) */
+    --cds-interactive:    #0f62fe;
+    --cds-button-primary: #0f62fe;
+    --cds-button-primary-hover: #0353e9;
+    --cds-focus:          #0f62fe;
+
+    /* Carbon tiles use 1px subtle borders, not heavy material shadows */
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: 0 2px 6px rgba(0,0,0,0.5);
+    --shadow-glow-emerald: 0 0 0 1px rgba(15,98,254,0.25);
+    --shadow-glow-gold:    0 0 0 1px rgba(241,194,27,0.35);
   }
 
   html, body { height: 100%; }
@@ -52,28 +62,20 @@ _HTML = r"""<!DOCTYPE html>
        1. subtle dot-grid texture
        2-4. soft color glows (violet top-right, emerald bottom-left, gold center)
        5. base color */
-    background-image:
-      radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
-      radial-gradient(1100px 620px at 82% -8%, rgba(167,139,250,0.14), transparent 62%),
-      radial-gradient(900px 520px at -4% 108%, rgba(52,211,153,0.10), transparent 60%),
-      radial-gradient(700px 420px at 50% 50%, rgba(251,191,36,0.04), transparent 70%);
-    background-size: 28px 28px, auto, auto, auto;
     background-color: var(--bg);
-    background-attachment: fixed;
     color: var(--text);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 14px;
-    font-feature-settings: 'cv11', 'ss01', 'ss03';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    letter-spacing: -0.005em;
+    letter-spacing: 0.16px;
   }
 
-  ::selection { background: rgba(52,211,153,0.28); color: #fff; }
+  ::selection { background: rgba(15,98,254,0.28); color: #fff; }
 
   header {
     position: sticky; top: 0; z-index: 100;
@@ -92,8 +94,8 @@ _HTML = r"""<!DOCTYPE html>
     font-weight: 900; font-size: 18px; letter-spacing: -1px;
     box-shadow:
       0 0 0 1px rgba(255,255,255,0.06),
-      0 6px 18px rgba(167,139,250,0.30),
-      0 2px 6px rgba(52,211,153,0.18);
+      0 6px 18px rgba(69,137,255,0.30),
+      0 2px 6px rgba(15,98,254,0.18);
     animation: spin-slow 18s linear infinite;
   }
   @keyframes spin-slow { to { transform: rotate(360deg); } }
@@ -131,7 +133,7 @@ _HTML = r"""<!DOCTYPE html>
   }
   .status-dot.busy {
     background: var(--accent2);
-    box-shadow: 0 0 0 3px rgba(167,139,250,0.22), 0 0 10px rgba(167,139,250,0.7);
+    box-shadow: 0 0 0 3px rgba(69,137,255,0.22), 0 0 10px rgba(69,137,255,0.7);
     animation: pulse 1.2s ease-in-out infinite;
   }
   @keyframes pulse {
@@ -187,8 +189,8 @@ _HTML = r"""<!DOCTYPE html>
     transition: color 0.18s, border-color 0.18s, background 0.18s;
   }
   .panel-title .runs-btn:hover {
-    color: var(--accent); border-color: rgba(52,211,153,0.55);
-    background: rgba(52,211,153,0.06);
+    color: var(--accent); border-color: rgba(15,98,254,0.55);
+    background: rgba(15,98,254,0.06);
   }
 
   .runs-drawer {
@@ -223,12 +225,6 @@ _HTML = r"""<!DOCTYPE html>
     border-left: 3px solid transparent;
   }
   .run-item:hover { background: rgba(255,255,255,0.025); border-left-color: var(--accent); }
-  /* Loop-fired runs get a colored left edge so they're scannable in the list */
-  .run-item.run-item-loop {
-    border-left-color: var(--accent2);
-    background: rgba(167,139,250,0.05);
-  }
-  .run-item.run-item-loop:hover { background: rgba(167,139,250,0.10); }
   .src-badge {
     font-size: 10px; font-weight: 700; padding: 2px 8px;
     border-radius: 999px; text-decoration: none;
@@ -239,22 +235,12 @@ _HTML = r"""<!DOCTYPE html>
     background: rgba(148,163,184,0.10); color: #a8b2c5;
     border: 1px solid rgba(148,163,184,0.25);
   }
-  .src-badge.src-loop {
-    background: rgba(167,139,250,0.18); color: #c4b5fd;
-    border: 1px solid rgba(167,139,250,0.45);
-    box-shadow: 0 0 0 0 rgba(167,139,250,0.35);
-    transition: box-shadow 0.18s, background 0.18s;
-  }
-  .src-badge.src-loop:hover {
-    background: rgba(167,139,250,0.28);
-    box-shadow: 0 0 14px -4px rgba(167,139,250,0.55);
-  }
   .run-item .row {
     display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
   }
   .run-item .ts {
     font-size: 11px; color: var(--accent2); font-weight: 700;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     letter-spacing: -0.01em;
   }
   .run-item .elapsed {
@@ -279,10 +265,10 @@ _HTML = r"""<!DOCTYPE html>
     border: 1px solid var(--border);
     border-radius: 999px; padding: 2px 9px; font-size: 10px;
     color: var(--accent2); font-weight: 600;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     letter-spacing: 0.01em;
   }
-  .agent-pill.scout      { color: var(--accent);  border-color: rgba(52,211,153,0.40); background: rgba(52,211,153,0.06); }
+  .agent-pill.scout      { color: var(--accent);  border-color: rgba(15,98,254,0.40); background: rgba(15,98,254,0.06); }
   .agent-pill.writer     { color: var(--accent3); border-color: rgba(251,191,36,0.40); background: rgba(251,191,36,0.06); }
   .agent-pill.no-output  { opacity: 0.45; text-decoration: line-through; }
 
@@ -328,12 +314,12 @@ _HTML = r"""<!DOCTYPE html>
   .trace-step .num {
     color: var(--muted); font-variant-numeric: tabular-nums;
     min-width: 28px; text-align: right; font-weight: 700;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
   }
   .trace-step .agent {
     color: var(--accent); font-weight: 700;
     min-width: 140px;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 11.5px; letter-spacing: -0.01em;
   }
   .trace-step .preview {
@@ -353,31 +339,6 @@ _HTML = r"""<!DOCTYPE html>
     text-transform: uppercase; letter-spacing: 1px;
     font-weight: 600;
   }
-  /* Inline "schedule this as a recurring loop" affordance under user
-     messages. Discreet on purpose — afterthought, not the main action. */
-  .msg .sched {
-    display: flex; align-items: center; gap: 6px;
-    margin-top: 8px; padding-top: 6px;
-    border-top: 1px dashed rgba(0,0,0,0.18);
-    font-size: 11px; opacity: 0.75; transition: opacity 0.15s;
-  }
-  .msg.user:hover .sched { opacity: 1; }
-  .msg .sched-label { font-weight: 600; }
-  .msg .sched select, .msg .sched button {
-    background: rgba(0,0,0,0.15); color: inherit;
-    border: 1px solid rgba(0,0,0,0.25);
-    border-radius: 4px; padding: 1px 6px; font: inherit; font-size: 11px;
-    cursor: pointer;
-  }
-  .msg .sched button:hover { background: rgba(0,0,0,0.28); }
-  .msg .sched.done {
-    color: #07201a; font-weight: 600;
-    border-top-color: rgba(0,0,0,0.25);
-  }
-  .msg .sched.err  { color: #7a1f1f; }
-  .msg .sched a {
-    color: #1e3a8a; text-decoration: underline; cursor: pointer;
-  }
   .chips {
     display: flex; flex-wrap: wrap; gap: 6px;
     padding: 12px 16px; border-bottom: 1px solid var(--border);
@@ -392,9 +353,9 @@ _HTML = r"""<!DOCTYPE html>
     white-space: nowrap; font-weight: 500;
   }
   .chip:hover {
-    border-color: rgba(52,211,153,0.55);
+    border-color: rgba(15,98,254,0.55);
     color: var(--text);
-    background: rgba(52,211,153,0.07);
+    background: rgba(15,98,254,0.07);
     transform: translateY(-1px);
   }
 
@@ -419,12 +380,11 @@ _HTML = r"""<!DOCTYPE html>
     to   { opacity: 1; transform: translateY(0); }
   }
   .msg.user {
-    background: linear-gradient(135deg, var(--accent) 0%, #2bbd87 100%);
-    color: #042118;
+    background: var(--cds-interactive);
+    color: #ffffff;
     align-self: flex-end; border-bottom-right-radius: 4px;
-    font-weight: 600;
-    box-shadow: 0 8px 24px -6px rgba(52,211,153,0.45),
-                0 1px 0 rgba(255,255,255,0.18) inset;
+    font-weight: 400;
+    box-shadow: none;
   }
   .msg.agent {
     background: rgba(255,255,255,0.02);
@@ -472,26 +432,26 @@ _HTML = r"""<!DOCTYPE html>
     transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
   }
   .input-row input:focus {
-    border-color: rgba(52,211,153,0.55);
-    background: rgba(52,211,153,0.04);
-    box-shadow: 0 0 0 4px rgba(52,211,153,0.10);
+    border-color: rgba(15,98,254,0.55);
+    background: rgba(15,98,254,0.04);
+    box-shadow: 0 0 0 4px rgba(15,98,254,0.10);
   }
   .input-row input::placeholder { color: var(--muted-2); }
 
   .btn {
-    background: linear-gradient(135deg, var(--accent) 0%, #2bbd87 100%);
-    color: #042118; border: none;
+    background: var(--cds-interactive);
+    color: #ffffff; border: none;
     border-radius: 12px; padding: 11px 20px;
     font-size: 13px; font-weight: 700;
     letter-spacing: -0.005em;
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.18s, opacity 0.15s;
-    box-shadow: 0 6px 18px -4px rgba(52,211,153,0.55),
+    box-shadow: 0 6px 18px -4px rgba(15,98,254,0.55),
                 0 1px 0 rgba(255,255,255,0.20) inset;
   }
   .btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px -6px rgba(52,211,153,0.65),
+    box-shadow: 0 10px 24px -6px rgba(15,98,254,0.65),
                 0 1px 0 rgba(255,255,255,0.28) inset;
   }
   .btn:active { transform: translateY(0); }
@@ -511,16 +471,6 @@ _HTML = r"""<!DOCTYPE html>
     border-color: var(--border-strong);
     box-shadow: none;
   }
-  .input-cadence {
-    background: var(--bg-soft); color: var(--text);
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 11px 10px; font-size: 12.5px;
-    outline: none; cursor: pointer;
-    font-family: inherit; font-weight: 500;
-    transition: border-color 0.18s;
-  }
-  .input-cadence:focus { border-color: var(--accent); }
-
   /* Right data panel */
   .data-panel { display: flex; flex-direction: column; overflow: hidden; }
   .data-panel-header {
@@ -540,8 +490,8 @@ _HTML = r"""<!DOCTYPE html>
     font-family: inherit;
   }
   .refresh-badge:hover {
-    color: var(--accent); border-color: rgba(52,211,153,0.55);
-    background: rgba(52,211,153,0.06);
+    color: var(--accent); border-color: rgba(15,98,254,0.55);
+    background: rgba(15,98,254,0.06);
   }
   .data-scroll {
     flex: 1; overflow-y: auto; padding: 26px;
@@ -564,7 +514,7 @@ _HTML = r"""<!DOCTYPE html>
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 8px 28px rgba(167,139,250,0.30));
+    filter: drop-shadow(0 8px 28px rgba(69,137,255,0.30));
     animation: spin-slow 16s linear infinite;
     opacity: 0.85;
   }
@@ -574,8 +524,8 @@ _HTML = r"""<!DOCTYPE html>
   }
   .empty-state .hint {
     font-size: 12px; color: var(--accent);
-    border: 1px dashed rgba(52,211,153,0.55);
-    background: rgba(52,211,153,0.05);
+    border: 1px dashed rgba(15,98,254,0.55);
+    background: rgba(15,98,254,0.05);
     padding: 7px 18px; border-radius: 999px;
     font-weight: 600; letter-spacing: 0.005em;
   }
@@ -583,8 +533,8 @@ _HTML = r"""<!DOCTYPE html>
   /* Hero */
   .hero {
     background:
-      radial-gradient(800px 220px at 100% 0%, rgba(167,139,250,0.16), transparent 65%),
-      radial-gradient(600px 200px at 0% 100%, rgba(52,211,153,0.10), transparent 65%),
+      radial-gradient(800px 220px at 100% 0%, rgba(69,137,255,0.16), transparent 65%),
+      radial-gradient(600px 200px at 0% 100%, rgba(15,98,254,0.10), transparent 65%),
       linear-gradient(135deg, var(--card2), var(--card));
     border: 1px solid var(--border);
     border-radius: 18px; padding: 22px 26px;
@@ -594,14 +544,14 @@ _HTML = r"""<!DOCTYPE html>
   .hero::before {
     content: ''; position: absolute; right: -60px; top: -60px;
     width: 220px; height: 220px; border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(167,139,250,0.18), transparent 72%);
+    background: radial-gradient(closest-side, rgba(69,137,255,0.18), transparent 72%);
     pointer-events: none;
     animation: drift 12s ease-in-out infinite;
   }
   .hero::after {
     content: ''; position: absolute; left: -40px; bottom: -50px;
     width: 180px; height: 180px; border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(52,211,153,0.12), transparent 72%);
+    background: radial-gradient(closest-side, rgba(15,98,254,0.12), transparent 72%);
     pointer-events: none;
     animation: drift 14s ease-in-out infinite reverse;
   }
@@ -621,7 +571,7 @@ _HTML = r"""<!DOCTYPE html>
     -webkit-text-fill-color: transparent;
   }
   .hero .place .accent {
-    background: linear-gradient(135deg, var(--accent) 0%, #6ee7b7 100%);
+    background: var(--accent);
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
   }
@@ -646,9 +596,9 @@ _HTML = r"""<!DOCTYPE html>
   }
   .pill.lat   {
     color: var(--accent2);
-    border-color: rgba(167,139,250,0.4);
-    background: rgba(167,139,250,0.08);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    border-color: rgba(69,137,255,0.4);
+    background: rgba(69,137,255,0.08);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: 10.5px;
   }
   .pill.focus {
@@ -658,8 +608,8 @@ _HTML = r"""<!DOCTYPE html>
   }
   .pill.cat   {
     color: var(--accent);
-    border-color: rgba(52,211,153,0.4);
-    background: rgba(52,211,153,0.08);
+    border-color: rgba(15,98,254,0.4);
+    background: rgba(15,98,254,0.08);
   }
 
   .section-title {
@@ -686,9 +636,9 @@ _HTML = r"""<!DOCTYPE html>
     position: relative;
   }
   .lead:hover {
-    border-color: rgba(52,211,153,0.45);
+    border-color: rgba(15,98,254,0.45);
     transform: translateY(-2px);
-    box-shadow: 0 10px 32px -10px rgba(52,211,153,0.20),
+    box-shadow: 0 10px 32px -10px rgba(15,98,254,0.20),
                 0 4px 12px rgba(0,0,0,0.35);
   }
   .lead.top {
@@ -756,8 +706,8 @@ _HTML = r"""<!DOCTYPE html>
   .lead.top .lead-score b { color: var(--accent3); }
 
   .lead-use {
-    background: rgba(52,211,153,0.05);
-    border: 1px solid rgba(52,211,153,0.20);
+    background: rgba(15,98,254,0.05);
+    border: 1px solid rgba(15,98,254,0.20);
     border-radius: 12px; padding: 10px 13px;
     font-size: 12.5px; color: var(--text-soft);
     line-height: 1.55;
@@ -781,9 +731,9 @@ _HTML = r"""<!DOCTYPE html>
     transition: color 0.18s, border-color 0.18s, background 0.18s;
   }
   .lead-meta a:hover {
-    border-color: rgba(52,211,153,0.55);
+    border-color: rgba(15,98,254,0.55);
     color: var(--accent);
-    background: rgba(52,211,153,0.08);
+    background: rgba(15,98,254,0.08);
   }
 
   .lead-evidence {
@@ -799,7 +749,7 @@ _HTML = r"""<!DOCTYPE html>
     word-break: break-word;
     transition: color 0.15s;
   }
-  .lead-evidence a:hover { color: #c4b5fd; text-decoration: underline; }
+  .lead-evidence a:hover { color: var(--accent2); text-decoration: underline; }
 
   /* Deep-dive: website signals */
   .signals {
@@ -870,9 +820,9 @@ _HTML = r"""<!DOCTYPE html>
 
   .deep-dive-flag {
     font-size: 9.5px; padding: 2px 8px; border-radius: 999px;
-    background: linear-gradient(135deg, rgba(167,139,250,0.20), rgba(167,139,250,0.08));
+    background: linear-gradient(135deg, rgba(69,137,255,0.20), rgba(69,137,255,0.08));
     color: var(--accent2);
-    border: 1px solid rgba(167,139,250,0.45);
+    border: 1px solid rgba(69,137,255,0.45);
     text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;
   }
   .outdated-flag {
@@ -906,9 +856,9 @@ _HTML = r"""<!DOCTYPE html>
     display: flex; gap: 8px; margin-top: 6px;
   }
   .btn-ghost {
-    background: rgba(52,211,153,0.06);
+    background: rgba(15,98,254,0.06);
     color: var(--accent);
-    border: 1px solid rgba(52,211,153,0.42);
+    border: 1px solid rgba(15,98,254,0.42);
     border-radius: 10px; padding: 7px 14px;
     font-size: 12px; font-weight: 700;
     cursor: pointer; text-decoration: none;
@@ -916,18 +866,18 @@ _HTML = r"""<!DOCTYPE html>
     transition: background 0.18s, border-color 0.18s, transform 0.15s;
   }
   .btn-ghost:hover {
-    background: rgba(52,211,153,0.14);
-    border-color: rgba(52,211,153,0.65);
+    background: rgba(15,98,254,0.14);
+    border-color: rgba(15,98,254,0.65);
     transform: translateY(-1px);
   }
   .btn-ghost.violet {
     color: var(--accent2);
-    border-color: rgba(167,139,250,0.42);
-    background: rgba(167,139,250,0.06);
+    border-color: rgba(69,137,255,0.42);
+    background: rgba(69,137,255,0.06);
   }
   .btn-ghost.violet:hover {
-    background: rgba(167,139,250,0.14);
-    border-color: rgba(167,139,250,0.65);
+    background: rgba(69,137,255,0.14);
+    border-color: rgba(69,137,255,0.65);
   }
 
   .modal-backdrop {
@@ -987,14 +937,14 @@ _HTML = r"""<!DOCTYPE html>
     border: 1px solid var(--border);
     border-radius: 10px; padding: 11px 14px;
     color: var(--text); font-size: 13px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
     width: 100%; outline: none; resize: vertical;
     transition: border-color 0.18s, box-shadow 0.18s;
   }
   .modal-body input[type="text"]:focus,
   .modal-body textarea:focus {
-    border-color: rgba(52,211,153,0.55);
-    box-shadow: 0 0 0 4px rgba(52,211,153,0.10);
+    border-color: rgba(15,98,254,0.55);
+    box-shadow: 0 0 0 4px rgba(15,98,254,0.10);
   }
   .modal-body textarea { min-height: 280px; line-height: 1.6; }
   .modal-foot {
@@ -1037,6 +987,144 @@ _HTML = r"""<!DOCTYPE html>
   .next-steps li::marker {
     color: var(--accent3); font-weight: 700;
   }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     CARBON POLISH — IBM Carbon Design System override.
+     Square corners on structural elements (only tags/pills/dots/spinners
+     stay rounded), IBM-blue primary actions with the Carbon focus ring,
+     IBM Plex typography. Restyle only — no behavior/markup changes.
+     ───────────────────────────────────────────────────────────────────── */
+
+  ::selection { background: var(--cds-interactive); color: #fff; }
+
+  /* Square ALL structural corners. */
+  header, main, .chat-panel, .data-panel,
+  .panel-title, .panel-title .runs-btn, .runs-drawer, .runs-drawer .head,
+  .run-item, .trace-modal, .trace-modal-head, .trace-modal-body,
+  .messages, .input-row, .input-row input,
+  .msg, .msg.user, .msg.agent, .msg.error, .msg.thinking,
+  .btn, .btn-secondary, .btn-ghost, .header-pill, .refresh-badge,
+  .hero, .lead, .lead-rank, .lead-score, .lead-use,
+  .friction-item, .next-steps, .empty-state,
+  .modal, .modal-head, .modal-body, .modal-foot, .modal-close,
+  .modal-body input[type="text"], .modal-body textarea {
+    border-radius: 0 !important;
+  }
+
+  /* Carbon header — always dark, square, subtle 1px border (no blur/glow). */
+  header {
+    background: #161616 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: 1px solid #393939 !important;
+    box-shadow: none !important;
+  }
+  /* Wordmark in flat IBM Plex (no gradient text). */
+  header h1, header h1 span {
+    background: none !important;
+    -webkit-text-fill-color: #f4f4f4 !important;
+    color: #f4f4f4 !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px !important;
+  }
+  /* Logo mark — square Carbon tile, IBM blue, no spin/conic-gradient. */
+  .logo {
+    background: var(--cds-interactive) !important;
+    border-radius: 0 !important;
+    color: #fff !important;
+    box-shadow: none !important;
+    animation: none !important;
+    font-weight: 600 !important;
+  }
+
+  /* Primary buttons — IBM blue, flat, square, Carbon focus ring. */
+  .btn {
+    background: var(--cds-button-primary) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.16px !important;
+    transition: background 150ms cubic-bezier(0.2,0,0.38,0.9) !important;
+  }
+  .btn:hover {
+    background: var(--cds-button-primary-hover) !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  .btn:active { transform: none !important; background: #002d9c !important; }
+  .btn:focus-visible, .btn:focus {
+    outline: 2px solid var(--cds-focus) !important;
+    outline-offset: -2px !important;
+    box-shadow: inset 0 0 0 1px #fff !important;
+  }
+  .btn:disabled { background: #525252 !important; color: #8d8d8d !important; box-shadow: none !important; }
+
+  /* Secondary / ghost buttons — square, Carbon gray, blue focus. */
+  .btn-secondary {
+    background: #393939 !important; color: #fff !important;
+    border: 1px solid transparent !important; box-shadow: none !important;
+  }
+  .btn-secondary:hover { background: #4c4c4c !important; box-shadow: none !important; }
+  .btn-ghost, .btn-ghost:hover { transform: none !important; }
+  .btn:focus, .btn-secondary:focus, .btn-ghost:focus,
+  .header-pill:focus, .refresh-badge:focus,
+  .runs-btn:focus, .chip:focus, .modal-close:focus {
+    outline: 2px solid var(--cds-focus) !important;
+    outline-offset: -2px !important;
+  }
+
+  /* Inputs / textareas — Carbon field: square, bottom rule, blue focus ring. */
+  .input-row input,
+  .modal-body input[type="text"], .modal-body textarea {
+    background: #262626 !important;
+    border: none !important;
+    border-bottom: 1px solid #6f6f6f !important;
+    box-shadow: none !important;
+    transition: outline 110ms cubic-bezier(0.2,0,0.38,0.9) !important;
+  }
+  .input-row input:focus,
+  .modal-body input[type="text"]:focus, .modal-body textarea:focus {
+    outline: 2px solid var(--cds-focus) !important;
+    outline-offset: -2px !important;
+    background: #262626 !important;
+    box-shadow: none !important;
+  }
+
+  /* Tiles / cards / hero — flat Carbon surfaces, 1px subtle border, no glow. */
+  .hero, .lead, .next-steps {
+    background: var(--card) !important;
+    box-shadow: none !important;
+  }
+  .hero::before, .hero::after { display: none !important; }
+  .hero .place, .hero .place .accent {
+    background: none !important;
+    -webkit-text-fill-color: #f4f4f4 !important;
+    color: #f4f4f4 !important;
+  }
+  .lead:hover, .lead.top:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: var(--cds-interactive) !important;
+  }
+  .lead.top {
+    border-color: var(--accent3) !important;
+    background: var(--card) !important;
+    box-shadow: none !important;
+  }
+  .lead-rank { border-radius: 0 !important; }
+
+  /* Empty-state mark — flat IBM blue glyph, no spin/gradient. */
+  .empty-state .icon {
+    background: none !important;
+    -webkit-text-fill-color: var(--accent) !important;
+    color: var(--accent) !important;
+    filter: none !important;
+    animation: none !important;
+  }
+
+  /* Mono contexts use IBM Plex Mono. */
+  .run-item .ts, .agent-pill, .trace-step .num, .trace-step .agent,
+  .pill.lat { font-family: 'IBM Plex Mono', ui-monospace, monospace !important; }
 </style>
 </head>
 <body>
@@ -1053,10 +1141,6 @@ _HTML = r"""<!DOCTYPE html>
           title="Configure per-run email notifications">
     ✉ Email
   </button>
-  <a class="header-pill" href="/cuga/loops/" target="_blank"
-     title="View all CUGA loops scheduled by this and other apps">
-    🔁 Loops
-  </a>
 </header>
 
 <!-- Email-config modal (NB: distinct from the per-lead "draft email" modal
@@ -1064,96 +1148,84 @@ _HTML = r"""<!DOCTYPE html>
 <div id="emailCfgBackdrop" onclick="if(event.target===this)closeEmailCfgModal()"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
             z-index:1000;align-items:center;justify-content:center">
-  <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;
+  <div style="background:#262626;border:1px solid #393939;border-radius:0;
               padding:24px;max-width:560px;width:92%;max-height:90vh;overflow-y:auto;
-              color:#e6edf3;font-family:-apple-system,system-ui,sans-serif;font-size:14px">
+              color:#f4f4f4;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <h2 style="margin:0;font-size:16px">✉️ Email notifications</h2>
       <button onclick="closeEmailCfgModal()" style="background:none;border:none;
-              color:#8b949e;font-size:20px;cursor:pointer">×</button>
+              color:#8d8d8d;font-size:20px;cursor:pointer">×</button>
     </div>
-    <p style="margin:0 0 14px;color:#8b949e;font-size:12px">
+    <p style="margin:0 0 14px;color:#8d8d8d;font-size:12px">
       Set a recipient + SMTP creds and emails will be sent automatically after
       every run. Leave SMTP fields blank to use the env vars instead.
     </p>
     <div id="emailCfgStatus" style="font-size:11px;
-         padding:8px 10px;background:#0d1117;border-radius:4px;margin-bottom:14px"></div>
+         padding:8px 10px;background:#161616;border-radius:0;margin-bottom:14px"></div>
 
     <label style="display:block;margin-top:8px">
-      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8b949e">
-        Recipient email <span style="color:#f85149">*</span>
-        <span style="color:#666"> — emails are off when this is empty</span>
+      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8d8d8d">
+        Recipient email <span style="color:#fa4d56">*</span>
+        <span style="color:#6f6f6f"> — emails are off when this is empty</span>
       </span>
       <input type="email" id="ecRecipient" placeholder="you@example.com"
-        style="width:100%;padding:7px 10px;background:#0d1117;border:1px solid #30363d;
-               border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+        style="width:100%;padding:7px 10px;background:#161616;border:1px solid #393939;
+               border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
     </label>
 
     <label style="display:block;margin-top:12px">
-      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8b949e">
+      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8d8d8d">
         Minimum leads to send (skip noisy runs)
       </span>
       <input type="number" id="ecMinLeads" min="0" max="10" value="0"
-        style="width:80px;padding:7px 10px;background:#0d1117;border:1px solid #30363d;
-               border-radius:4px;color:#e6edf3;font:inherit" />
+        style="width:80px;padding:7px 10px;background:#161616;border:1px solid #393939;
+               border-radius:0;color:#f4f4f4;font:inherit" />
     </label>
 
-    <fieldset style="margin-top:14px;border:1px solid #30363d;border-radius:4px;
-                     padding:8px 12px;color:#8b949e">
-      <legend style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
-                     padding:0 6px">Send for</legend>
-      <label style="display:inline-block;margin-right:16px">
-        <input type="checkbox" id="ecIncludeUser" /> 👤 user requests
-      </label>
-      <label style="display:inline-block">
-        <input type="checkbox" id="ecIncludeLoop" /> 🔁 loop fires
-      </label>
-    </fieldset>
-
-    <fieldset style="margin-top:14px;border:1px solid #30363d;border-radius:4px;
+    <fieldset style="margin-top:14px;border:1px solid #393939;border-radius:0;
                      padding:8px 12px">
       <legend style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
-                     padding:0 6px;color:#8b949e">SMTP credentials</legend>
+                     padding:0 6px;color:#8d8d8d">SMTP credentials</legend>
       <div style="display:grid;grid-template-columns:1fr 80px;gap:8px 10px">
         <label>Host
           <input type="text" id="ecSmtpHost" placeholder="smtp.gmail.com"
-            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
-                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
+                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
         </label>
         <label>Port
           <input type="number" id="ecSmtpPort" placeholder="587"
-            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
-                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
+                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
         </label>
         <label style="grid-column:1/3">Username
           <input type="text" id="ecSmtpUsername" placeholder="you@gmail.com"
-            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
-                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
+                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
         </label>
         <label style="grid-column:1/3">
           Password
           <span id="ecPwState" style="font-size:11px;font-weight:normal;margin-left:6px"></span>
           <input type="password" id="ecSmtpPassword" autocomplete="new-password"
-            style="width:100%;padding:6px 8px;background:#0d1117;border:2px solid #30363d;
-                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#161616;border:2px solid #393939;
+                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
         </label>
         <label style="grid-column:1/3">From address
           <input type="email" id="ecSmtpFrom" placeholder="(defaults to username)"
-            style="width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;
-                   border-radius:4px;color:#e6edf3;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
+                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
         </label>
       </div>
     </fieldset>
 
     <div style="margin-top:18px;display:flex;gap:8px;justify-content:flex-end">
       <button onclick="emailCfgTest()" id="ecTestBtn"
-              style="padding:8px 14px;background:transparent;border:1px solid #30363d;
-                     border-radius:4px;color:#aaa;cursor:pointer">
+              style="padding:8px 14px;background:transparent;border:1px solid #393939;
+                     border-radius:0;color:#c6c6c6;cursor:pointer">
         Send test email
       </button>
       <button onclick="emailCfgSave()" id="ecSaveBtn"
-              style="padding:8px 14px;background:#238636;border:1px solid #2ea043;
-                     border-radius:4px;color:white;cursor:pointer;font-weight:600">
+              style="padding:8px 14px;background:#0f62fe;border:1px solid transparent;
+                     border-radius:0;color:white;cursor:pointer;font-weight:400">
         Save
       </button>
     </div>
@@ -1196,15 +1268,6 @@ _HTML = r"""<!DOCTYPE html>
       <input type="text" id="userInput"
         placeholder="Try: 'Find restaurants in HSR Layout that need an order bot'"
         onkeydown="if(event.key==='Enter') sendMessage()" />
-      <select id="inputCadence" class="input-cadence" title="Cadence for Schedule">
-        <option value="5m">every 5 min</option>
-        <option value="30m">every 30 min</option>
-        <option value="1h">hourly</option>
-        <option value="6h">every 6 hours</option>
-        <option value="daily" selected>daily</option>
-        <option value="weekly">weekly</option>
-      </select>
-      <button class="btn btn-secondary" id="scheduleBtn" onclick="scheduleFromInput()" title="Register the typed question as a recurring loop">Schedule</button>
       <button class="btn" id="sendBtn" onclick="sendMessage()" title="Run the typed question once now">Hunt</button>
     </div>
   </div>
@@ -1281,8 +1344,6 @@ _HTML = r"""<!DOCTYPE html>
   const messagesEl = document.getElementById('messages');
   const inputEl    = document.getElementById('userInput');
   const sendBtn    = document.getElementById('sendBtn');
-  const scheduleBtn = document.getElementById('scheduleBtn');
-  const inputCadence = document.getElementById('inputCadence');
   const statusDot  = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const dataScroll = document.getElementById('dataScroll');
@@ -1303,79 +1364,9 @@ _HTML = r"""<!DOCTYPE html>
       span.textContent = meta;
       div.appendChild(span);
     }
-    // Discreet inline scheduler under each USER message: pick a cadence,
-    // click Set, and the message is registered as a recurring loop fired
-    // by the supervisor. Existing chat behavior is unchanged — this is
-    // an afterthought, not a replacement for /ask.
-    if (cls === 'user' && text && text.trim()) {
-      div.appendChild(_buildScheduleControl(text.trim()));
-    }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
-  }
-
-  function _buildScheduleControl(promptText) {
-    const row = document.createElement('div');
-    row.className = 'sched';
-    row.innerHTML =
-      '<span class="sched-label">🔁 Schedule this</span>'
-    + '<select class="sched-cadence" title="How often to re-run this question">'
-    +   '<option value="5m">every 5 min</option>'
-    +   '<option value="30m">every 30 min</option>'
-    +   '<option value="1h">hourly</option>'
-    +   '<option value="6h">every 6 hours</option>'
-    +   '<option value="daily" selected>daily</option>'
-    +   '<option value="weekly">weekly</option>'
-    + '</select>'
-    + '<button type="button" class="sched-set">Set</button>';
-    const btn = row.querySelector('.sched-set');
-    btn.addEventListener('click', () => {
-      const cadence = row.querySelector('.sched-cadence').value;
-      _scheduleMessage(row, promptText, cadence);
-    });
-    return row;
-  }
-
-  async function _scheduleMessage(row, promptText, cadence) {
-    const setBtn = row.querySelector('.sched-set');
-    setBtn.disabled = true; setBtn.textContent = '…';
-    try {
-      const r = await fetch('/cuga/loops/api/create', {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({
-          agent_name: 'ouroboros_supervisor',
-          thread_id:  SESSION_ID,
-          prompt:     promptText,
-          cadence:    cadence,
-          metadata:   {source: 'chat_inline'},
-        }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || j.detail?.[0]?.msg || ('HTTP ' + r.status));
-      const lid = j.loop?.id || '';
-      row.className = 'sched done';
-      row.innerHTML =
-        '🔁 Scheduled ' + esc(cadence) + ' · '
-      + '<a href="/cuga/loops/" target="_blank" title="' + esc(lid)
-      +   '">' + esc(lid.slice(0, 16)) + '</a> · '
-      + '<a class="sched-cancel">Cancel</a>';
-      row.querySelector('.sched-cancel').addEventListener('click', async () => {
-        try {
-          await fetch('/cuga/loops/api/' + encodeURIComponent(lid), {method: 'DELETE'});
-          row.className = 'sched';
-          row.appendChild(document.createTextNode(' (cancelled)'));
-        } catch (e) {
-          row.className = 'sched err';
-          row.appendChild(document.createTextNode(' cancel failed: ' + e.message));
-        }
-      });
-    } catch (err) {
-      row.className = 'sched err';
-      row.innerHTML = '🔁 Schedule failed: ' + esc(err.message);
-      setBtn.disabled = false; setBtn.textContent = 'Set';
-    }
   }
 
   function esc(s) {
@@ -1735,52 +1726,6 @@ _HTML = r"""<!DOCTYPE html>
     sendMessage();
   }
 
-  // Register the typed question as a recurring loop. Doesn't run /ask now —
-  // the supervisor will fire on the chosen cadence in a fresh thread.
-  async function scheduleFromInput() {
-    const question = inputEl.value.trim();
-    if (!question) {
-      inputEl.focus();
-      return;
-    }
-    const cadence = inputCadence.value || 'daily';
-    scheduleBtn.disabled = true;
-    sendBtn.disabled = true;
-    const original = scheduleBtn.textContent;
-    scheduleBtn.textContent = 'Scheduling…';
-    addMessage(question, 'user');
-    inputEl.value = '';
-    try {
-      const r = await fetch('/cuga/loops/api/create', {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({
-          agent_name: 'ouroboros_supervisor',
-          thread_id:  SESSION_ID,
-          prompt:     question,
-          cadence:    cadence,
-          metadata:   {source: 'chat_input'},
-        }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || j.detail?.[0]?.msg || ('HTTP ' + r.status));
-      const lid = j.loop?.id || '';
-      addMessage(
-        '🔁 Scheduled ' + cadence + ' · '
-        + 'loop ' + (lid ? lid.slice(0, 16) + '…' : '?')
-        + ' — manage at /cuga/loops/',
-        'agent',
-        'scheduled');
-    } catch (err) {
-      addMessage('Schedule failed: ' + err.message, 'error');
-    } finally {
-      scheduleBtn.disabled = false;
-      sendBtn.disabled = false;
-      scheduleBtn.textContent = original;
-      inputEl.focus();
-    }
-  }
-
   // ── Past runs drawer ───────────────────────────────────────────
   const runsDrawer = document.getElementById('runsDrawer');
   const runsList   = document.getElementById('runsList');
@@ -1876,22 +1821,12 @@ _HTML = r"""<!DOCTYPE html>
       ordered.forEach((r) => {
         const item = document.createElement('div');
         item.className = 'run-item';
-        const isLoop = (r.source === 'loop');
-        if (isLoop) item.classList.add('run-item-loop');
         const pills = agentPillsHtml(r.agent_counts);
         const threadTag = (_runsScope === 'all' && r.thread_id)
           ? '<span class="agent-pill" style="margin-left:6px;color:var(--muted)">'
             + esc(r.thread_id.slice(0, 8)) + '</span>'
           : '';
-        // Source badge: 🔁 loop (with link to loops UI) vs 👤 user.
-        // Always rendered so the two are visually distinct at a glance.
-        const sourceBadge = isLoop
-          ? '<a class="src-badge src-loop" href="/cuga/loops/" target="_blank" '
-            + 'onclick="event.stopPropagation()" '
-            + 'title="Fired by loop ' + esc(r.loop_id || '') + ' — open loops dashboard">'
-            + '🔁 loop' + (r.loop_id ? ' · ' + esc(r.loop_id.slice(0, 14)) : '')
-            + '</a>'
-          : '<span class="src-badge src-user" title="Manual user request">👤 user</span>';
+        const sourceBadge = '<span class="src-badge src-user" title="User request">👤 user</span>';
         item.innerHTML =
           '<div class="row">' +
             sourceBadge +
@@ -2029,8 +1964,6 @@ _HTML = r"""<!DOCTYPE html>
       const e = data.effective;
       document.getElementById('ecRecipient').value      = c.recipient || '';
       document.getElementById('ecMinLeads').value       = c.min_leads ?? 0;
-      document.getElementById('ecIncludeUser').checked  = c.include_user !== false;
-      document.getElementById('ecIncludeLoop').checked  = c.include_loop !== false;
       document.getElementById('ecSmtpHost').value       = c.smtp_host || '';
       document.getElementById('ecSmtpPort').value       = c.smtp_port || '';
       document.getElementById('ecSmtpUsername').value   = c.smtp_username || '';
@@ -2066,8 +1999,6 @@ _HTML = r"""<!DOCTYPE html>
     return {
       recipient:     document.getElementById('ecRecipient').value.trim(),
       min_leads:     parseInt(document.getElementById('ecMinLeads').value, 10) || 0,
-      include_user:  document.getElementById('ecIncludeUser').checked,
-      include_loop:  document.getElementById('ecIncludeLoop').checked,
       smtp_host:     document.getElementById('ecSmtpHost').value.trim(),
       smtp_port:     parseInt(document.getElementById('ecSmtpPort').value, 10) || 0,
       smtp_username: document.getElementById('ecSmtpUsername').value.trim(),

@@ -1,0 +1,25 @@
+# build/docker-compose.yml — bring up the all-in-one image locally.
+#
+#   cd build
+#   cp .env.example .env        # fill in your LLM provider + key
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# Build context is the repo root so the image can COPY cuga-apps/{apps,ui,
+# requirements.apps.txt} and build/. Requires BuildKit (default in modern
+# Docker) so build/Dockerfile.dockerignore is honored.
+services:
+  cuga-allinone:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile
+    image: cuga-apps-allinone:latest
+    container_name: cuga-allinone
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # MCP-backed apps use the hosted Code Engine MCP servers.
+      CUGA_TARGET: ce
+    restart: unless-stopped
