@@ -1,8 +1,6 @@
 # Build real agentic apps on CUGA: `CUGA-apps` two dozen working examples on a lightweight agent harness
 
-*Two dozen single-file apps that show how the CUGA harness works, and how the same agent runs governed inside IBM Sovereign Core.*
-
-> **TL;DR** — If you've built agents before, you know the model is rarely the hard part. The work is wiring up tools, holding state together across a long task, adding guardrails, and growing from one agent to several without a rewrite. [CUGA](https://cuga.dev) (`pip install cuga`) is a small, open-source agent harness from IBM Research that handles that plumbing and stays configurable. To show what it feels like, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): two dozen single-file apps, each a `CugaAgent` with a tool list and a system prompt. This article reads one end to end, names what the harness takes off your plate, and shows where the same agent runs governed in production. If you've written a FastAPI route, you can read every line.
+> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the open-source harness from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs governed in production without a rewrite.
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
