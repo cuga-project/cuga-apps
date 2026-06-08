@@ -365,6 +365,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         thread_id = req.thread_id or str(uuid.uuid4())
         augmented = f"[thread:{thread_id}] {req.question}"
         try:

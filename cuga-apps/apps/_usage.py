@@ -36,7 +36,9 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sys
+import threading
 import time
 
 log = logging.getLogger("usage")
@@ -46,6 +48,8 @@ _TOKEN = os.getenv("USAGE_TOKEN", "").strip()
 _SALT = os.getenv("USAGE_SALT", "cuga-usage")
 _TRUST_FWD = os.getenv("RL_TRUST_FORWARDED", "1") != "0"
 _METHODS = {m.strip().upper() for m in os.getenv("USAGE_METHODS", "POST").split(",") if m.strip()}
+# Cap on stored utterance length (chars) — keep pings tiny and bound storage.
+_UTT_MAX = int(os.getenv("USAGE_UTTERANCE_MAXLEN", "2000"))
 # Never count infra/poll/collector endpoints.
 _EXEMPT = ("/health", "/usage", "/api/stats", "/track", "/favicon", "/static")
 
@@ -91,6 +95,105 @@ async def _send(event: dict) -> None:
         headers = {"X-Usage-Token": _TOKEN} if _TOKEN else {}
         await _client.post(_COLLECTOR_URL, json=event, headers=headers)
     except Exception:  # noqa: BLE001 — tracking must never break the app
+        pass
+
+
+def _send_sync(event: dict) -> None:
+    """Blocking POST used when there's no running event loop (sync callers)."""
+    if not _COLLECTOR_URL:
+        return
+    try:
+        import httpx
+        headers = {"X-Usage-Token": _TOKEN} if _TOKEN else {}
+        httpx.post(_COLLECTOR_URL, json=event, headers=headers, timeout=2.0)
+    except Exception:  # noqa: BLE001 — tracking must never break the app
+        pass
+
+
+def _emit(event: dict) -> None:
+    """Fire-and-forget an event from either an async or a sync context.
+
+    Always logs to stdout (durable on Code Engine), then pings the collector
+    without ever blocking the caller: on the running loop via a task, otherwise
+    on a short-lived daemon thread. All transport errors are swallowed.
+    """
+    try:
+        log.info("usage %s", json.dumps(event))
+    except Exception:  # noqa: BLE001
+        pass
+    if not _COLLECTOR_URL:
+        return
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_send(event))
+    except RuntimeError:                      # no running loop → sync path
+        threading.Thread(target=_send_sync, args=(event,), daemon=True).start()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+_APP_NAME_CACHE: str | None = None
+
+
+def _detect_app_name() -> str:
+    global _APP_NAME_CACHE
+    if _APP_NAME_CACHE is None:
+        try:
+            d = os.path.basename(os.path.dirname(os.path.abspath(sys.argv[0])))
+            _APP_NAME_CACHE = d if d and d not in ("", "apps") else "app"
+        except Exception:  # noqa: BLE001
+            _APP_NAME_CACHE = "app"
+    return _APP_NAME_CACHE
+
+
+# Redact obvious secrets users might paste into a prompt before we store the
+# text. Best-effort, not a guarantee — the umbrella UI also warns users.
+_SECRET_RE = re.compile(
+    r"\b("
+    r"sk-[A-Za-z0-9]{16,}"             # OpenAI-style
+    r"|tvly-[A-Za-z0-9]{8,}"           # Tavily
+    r"|AKIA[0-9A-Z]{12,}"              # AWS access key id
+    r"|xox[baprs]-[A-Za-z0-9-]{8,}"    # Slack
+    r"|gh[pousr]_[A-Za-z0-9]{20,}"     # GitHub
+    r"|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}"  # JWT
+    r"|[A-Za-z0-9+/_-]{40,}"           # long opaque token blobs
+    r")\b"
+)
+
+
+def _scrub(text: str) -> str:
+    return _SECRET_RE.sub("«redacted»", text)
+
+
+def track_call(provider: str, *, app: str | None = None, ok: bool = True, n: int = 1) -> None:
+    """Count an external/provider API call (tavily, alpha_vantage, watsonx, …).
+
+    Fire-and-forget and safe from any context (async app handlers, sync MCP
+    tools, LangChain callbacks). Never raises.
+    """
+    try:
+        _emit({"kind": "call", "provider": str(provider)[:40],
+               "app": app or _detect_app_name(), "ok": bool(ok),
+               "n": int(n), "ts": time.time()})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def track_utterance(text: str, *, app: str | None = None) -> None:
+    """Record a user's natural-language input (chat utterance) for the dashboard.
+
+    Truncates to USAGE_UTTERANCE_MAXLEN and scrubs obvious secrets before it
+    leaves the process. Fire-and-forget; never raises.
+    """
+    try:
+        if not text:
+            return
+        clean = _scrub(str(text).strip())[:_UTT_MAX]
+        if not clean:
+            return
+        _emit({"kind": "utterance", "app": app or _detect_app_name(),
+               "text": clean, "ts": time.time()})
+    except Exception:  # noqa: BLE001
         pass
 
 

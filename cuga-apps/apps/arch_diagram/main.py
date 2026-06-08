@@ -376,6 +376,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         nonlocal _thread_id
         question = req.question.strip()
         if not question:

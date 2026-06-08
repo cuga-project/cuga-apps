@@ -89,6 +89,7 @@ async def config_status():
 
 @app.post("/api/generate")
 async def generate(req: GenerateRequest):
+    from _usage import track_utterance; track_utterance(req.topic)
     from session import DeckForgeSession
 
     sid = str(uuid4())[:8]

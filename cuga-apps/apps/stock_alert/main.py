@@ -212,6 +212,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         symbol = req.symbol.strip().upper()
         asset  = "stock" if req.is_stock else "crypto"
         # Defense-in-depth: never silently fall back to the MCP server's env

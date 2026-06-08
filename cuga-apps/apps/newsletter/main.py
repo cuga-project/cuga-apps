@@ -357,6 +357,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         feeds = _load_store().get("feeds", [])
         if feeds:
             feed_list = "\n".join(f"- {url}" for url in feeds)

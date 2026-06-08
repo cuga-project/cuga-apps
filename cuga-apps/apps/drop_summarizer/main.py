@@ -307,6 +307,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         if req.filename and req.filename in _pending_files:
             return JSONResponse(
                 {"error": f"'{req.filename}' is still being processed. Please wait a moment."},

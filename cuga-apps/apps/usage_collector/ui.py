@@ -40,6 +40,15 @@ _APP_CSS = """<style>
   .spark .bar { width: 5px; background: var(--cds-interactive); opacity: 0.35; }
   .spark .bar.today { opacity: 1; background: var(--cds-support-success); }
 
+  td.err, th.err { text-align: right; font-family: var(--cds-font-mono); color: var(--cds-support-error); }
+
+  .utts { list-style: none; margin: 0; padding: 0; background: var(--cds-layer-01); }
+  .utts li { display: flex; align-items: baseline; gap: var(--cds-sp-05); padding: var(--cds-sp-04) var(--cds-sp-05); border-bottom: 1px solid var(--cds-border-subtle); font-size: 0.8125rem; }
+  .utts li:hover { background: var(--cds-layer-hover-01); }
+  .utt-app { font-weight: 600; min-width: 9rem; color: var(--cds-text-secondary); }
+  .utt-text { flex: 1; white-space: pre-wrap; word-break: break-word; }
+  .utt-ago { white-space: nowrap; font-size: 0.6875rem; }
+
   .empty { color: var(--cds-text-secondary); padding: var(--cds-sp-07); text-align: center; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cds-support-success); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -63,6 +72,12 @@ _BODY = r"""
   <div id="tableWrap">
     <div class="empty" id="emptyState">No usage recorded yet. Once apps receive traffic, they'll appear here.</div>
   </div>
+
+  <div class="toolbar" style="margin-top: var(--cds-sp-07)"><h2>Provider API calls</h2></div>
+  <div id="provWrap"><div class="empty">No provider calls recorded yet.</div></div>
+
+  <div class="toolbar" style="margin-top: var(--cds-sp-07)"><h2>Recent utterances</h2></div>
+  <div id="uttWrap"><div class="empty">No utterances recorded yet.</div></div>
 </main>
 
 <script>
@@ -89,12 +104,37 @@ _BODY = r"""
       }).join('') + '</span>';
   }
 
+  function renderProviders(provs) {
+    const wrap = document.getElementById('provWrap');
+    if (!provs.length) { wrap.innerHTML = '<div class="empty">No provider calls recorded yet.</div>'; return; }
+    const rows = provs.map(p =>
+      '<tr><td class="app-name">' + esc(p.provider) + '</td>' +
+      '<td class="num ' + (p.calls_today ? 'today-pos' : 'muted') + '">' + (p.calls_today||0) + '</td>' +
+      '<td class="num">' + (p.calls_total||0) + '</td>' +
+      '<td class="num ' + (p.errors_total ? 'err' : 'muted') + '">' + (p.errors_total||0) + '</td></tr>').join('');
+    wrap.innerHTML = '<table><thead><tr><th>Provider</th><th class="num">Today</th>' +
+      '<th class="num">Total</th><th class="num">Errors</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderUtterances(utts) {
+    const wrap = document.getElementById('uttWrap');
+    if (!utts.length) { wrap.innerHTML = '<div class="empty">No utterances recorded yet.</div>'; return; }
+    wrap.innerHTML = '<ul class="utts">' + utts.map(u =>
+      '<li><span class="utt-app">' + esc(u.app) + '</span>' +
+      '<span class="utt-text">' + esc(u.text) + '</span>' +
+      '<span class="utt-ago muted">' + ago(u.ts) + '</span></li>').join('') + '</ul>';
+  }
+
   function render(data) {
     const t = data.totals || {};
     document.getElementById('summary').innerHTML =
       [['Apps active', t.apps||0],['Requests today', t.requests_today||0],
-       ['Unique visitors today', t.uniques_today||0],['Requests all-time', t.requests_total||0]]
+       ['Unique visitors today', t.uniques_today||0],['API calls today', t.calls_today||0],
+       ['Utterances today', t.utterances_today||0],['Requests all-time', t.requests_total||0]]
       .map(([l,n]) => '<div class="stat"><div class="num">' + n + '</div><div class="lbl">' + l + '</div></div>').join('');
+
+    renderProviders(data.providers || []);
+    renderUtterances((data.utterances || {}).recent || []);
 
     const apps = data.apps || [];
     const wrap = document.getElementById('tableWrap');

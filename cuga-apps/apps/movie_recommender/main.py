@@ -266,6 +266,7 @@ def _web(port: int):
 
     @app.post("/ask")
     async def ask(req: AskRequest):
+        from _usage import track_utterance; track_utterance(req.question)
         thread_id = req.thread_id or str(uuid.uuid4())
         # Embed thread_id in the message so the agent can pass it to tools
         augmented = f"[thread:{thread_id}] {req.question}"

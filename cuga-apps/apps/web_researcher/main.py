@@ -303,6 +303,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         try:
             result = await agent.invoke(
                 f"Research this and produce a structured report:\n\n{req.question}",

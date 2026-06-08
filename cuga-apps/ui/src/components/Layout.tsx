@@ -77,6 +77,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </button>
       </header>
 
+      {/* Privacy notice — these are public demo apps; usage (including the
+          text you type) is logged for analytics. Tell users not to paste
+          secrets/PII. */}
+      <div className="flex-shrink-0 bg-amber-100 border-b border-amber-300 px-6 py-2 text-xs text-amber-900">
+        Heads up: these are public demo apps. Your requests are logged for usage
+        analytics — please don't enter confidential information, credentials, or
+        personal data.
+      </div>
+
       {/* Content */}
       <main className="flex-1 overflow-y-auto">
         {children}

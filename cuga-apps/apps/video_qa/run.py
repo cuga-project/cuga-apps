@@ -199,6 +199,7 @@ def _web(port: int, provider: str | None = None, llm_model: str | None = None):
 
     @app.post("/ask")
     async def ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         if not _agent.video_path:
             raise HTTPException(status_code=400, detail="No video loaded. Use /load first.")
         answer = await _agent.ask(req.question)

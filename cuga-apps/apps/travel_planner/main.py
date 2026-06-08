@@ -357,6 +357,7 @@ async def config_status():
 @app.post("/plan")
 async def plan_itinerary(request: PlanRequest):
     """Generate a travel itinerary using the selected agent."""
+    from _usage import track_utterance; track_utterance(request.destination)
     agent = _get_agent(request.agent_type)
 
     interests_str = ", ".join(request.interests) if request.interests else "general sightseeing and local culture"
@@ -391,6 +392,7 @@ async def plan_itinerary(request: PlanRequest):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """Multi-turn follow-up. Use the same thread_id and agent_type as /plan."""
+    from _usage import track_utterance; track_utterance(request.message)
     agent = _get_agent(request.agent_type)
     result = await agent.invoke(request.message, thread_id=request.thread_id)
     if result.error:

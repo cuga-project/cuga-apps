@@ -7,6 +7,18 @@ per-day counters and serves a single dashboard (GET /) answering the question
 "are people actually using these apps?" — requests, unique visitors/day, and
 last-seen, across every app.
 
+It also records two extra event kinds on the same /track endpoint:
+  • kind="call"      — an external/provider API call (tavily, alpha_vantage,
+                       watsonx, …), counted per provider per day.
+  • kind="utterance" — a user's natural-language input. Counts go in the
+                       snapshot; the *text* streams to the utterances/ prefix as
+                       append-only daily batches (so a COS lifecycle rule can
+                       expire it — see build/DEPLOYMENT.md).
+
+Bucket layout (when USAGE_S3_BUCKET is set):
+  rollup/usage_db.json          aggregate snapshot (set USAGE_S3_KEY to this)
+  utterances/<day>/<batch>.jsonl  append-only utterance text
+
 Why a separate always-on app: the other apps scale to zero, so in-memory counts
 there are lost on cold start. This one runs at --max-scale/--min-scale 1 and
 persists a snapshot durably, so the history survives restarts.
@@ -49,7 +61,7 @@ import os
 import sys
 import threading
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -77,6 +89,11 @@ _S3_ENDPOINT = os.getenv("USAGE_S3_ENDPOINT", "").strip()
 _S3_KEY = os.getenv("USAGE_S3_KEY", "usage_db.json")
 _SAVE_INTERVAL = int(os.getenv("USAGE_SAVE_INTERVAL", "60"))
 _MAX_VISITORS = int(os.getenv("USAGE_MAX_VISITORS_DAY", "200000"))
+# Utterances: how many recent ones to keep for the live dashboard, and where the
+# append-only text batches land (S3 prefix or, in file mode, a local dir).
+_UTT_RECENT = int(os.getenv("USAGE_UTTERANCE_RECENT", "200"))
+_UTT_PREFIX = os.getenv("USAGE_UTTERANCE_PREFIX", "utterances")
+_UTT_TEXT_MAX = int(os.getenv("USAGE_UTTERANCE_MAXLEN", "2000"))
 
 
 def _today() -> str:
@@ -89,6 +106,14 @@ def _today() -> str:
 class _Store:
     def __init__(self) -> None:
         self._stats: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(self._blank))
+        # providers[day][provider] = {"calls": int, "errors": int}
+        self._providers: dict[str, dict[str, dict]] = defaultdict(
+            lambda: defaultdict(lambda: {"calls": 0, "errors": 0}))
+        # utt_counts[app][day] = int  (persisted totals; text is NOT kept here)
+        self._utt_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        self._utt_recent: deque = deque(maxlen=_UTT_RECENT)   # live view, in-memory
+        self._utt_buffer: list[dict] = []                     # pending COS flush
+        self._utt_seq = 0
         self._lock = threading.Lock()
         self._dirty = False
 
@@ -105,6 +130,32 @@ class _Store:
             rec["statuses"][str(status)] += 1
             rec["last_ts"] = max(rec["last_ts"], ts)
             self._dirty = True
+
+    def record_call(self, provider: str, day: str, ok: bool, n: int) -> None:
+        with self._lock:
+            rec = self._providers[day][provider]
+            if ok:
+                rec["calls"] += n
+            else:
+                rec["errors"] += n
+            self._dirty = True
+
+    def record_utterance(self, app: str, day: str, text: str, ts: float) -> None:
+        with self._lock:
+            self._utt_counts[app][day] += 1
+            item = {"app": app, "text": text, "ts": ts}
+            self._utt_recent.append(item)
+            self._utt_buffer.append({**item, "day": day})
+            self._dirty = True
+
+    def drain_utterances(self) -> list[dict]:
+        """Atomically take the pending utterance batch for a COS/file flush."""
+        with self._lock:
+            if not self._utt_buffer:
+                return []
+            batch, self._utt_buffer = self._utt_buffer, []
+            self._utt_seq += 1
+            return batch
 
     def rollup(self, days: int = 14) -> dict:
         """Per-app summary + a daily series for the last `days` days."""
@@ -133,24 +184,54 @@ class _Store:
                 tot_today += req_today
                 tot_uniq_today += uniq_today
             apps.sort(key=lambda a: (a["requests_today"], a["requests_total"]), reverse=True)
+
+            # Provider API calls — per-provider today + all-time.
+            provs: dict[str, dict] = {}
+            for day, by_prov in self._providers.items():
+                for prov, c in by_prov.items():
+                    agg = provs.setdefault(prov, {"provider": prov, "calls_today": 0,
+                                                  "calls_total": 0, "errors_total": 0})
+                    agg["calls_total"] += c["calls"]
+                    agg["errors_total"] += c["errors"]
+                    if day == today:
+                        agg["calls_today"] += c["calls"]
+            providers = sorted(provs.values(),
+                               key=lambda p: (p["calls_today"], p["calls_total"]), reverse=True)
+
+            utt_today = sum(by_day.get(today, 0) for by_day in self._utt_counts.values())
+            utt_total = sum(sum(by_day.values()) for by_day in self._utt_counts.values())
+            recent_utts = list(self._utt_recent)[-50:][::-1]   # newest first
+
             return {
                 "generated_at": time.time(),
                 "totals": {"apps": len(apps), "requests_total": tot_req,
-                           "requests_today": tot_today, "uniques_today": tot_uniq_today},
+                           "requests_today": tot_today, "uniques_today": tot_uniq_today,
+                           "calls_today": sum(p["calls_today"] for p in providers),
+                           "utterances_total": utt_total, "utterances_today": utt_today},
                 "apps": apps,
+                "providers": providers,
+                "utterances": {"total": utt_total, "today": utt_today, "recent": recent_utts},
                 "days": recent_days,
             }
 
     # ── persistence ──────────────────────────────────────────────────────
+    # The snapshot carries the bounded, anonymous aggregates (requests, uniques,
+    # provider call counts, utterance *counts*). Utterance *text* is NOT here —
+    # it streams to the utterances/ prefix as append-only batches.
     def to_snapshot(self) -> dict:
         with self._lock:
-            return {"version": 1, "saved_at": time.time(), "stats": {
-                app: {day: {"requests": d["requests"],
-                            "uniques": sorted(d["uniques"]),
-                            "statuses": dict(d["statuses"]),
-                            "last_ts": d["last_ts"]}
-                      for day, d in by_day.items()}
-                for app, by_day in self._stats.items()}}
+            return {"version": 2, "saved_at": time.time(),
+                    "stats": {
+                        app: {day: {"requests": d["requests"],
+                                    "uniques": sorted(d["uniques"]),
+                                    "statuses": dict(d["statuses"]),
+                                    "last_ts": d["last_ts"]}
+                              for day, d in by_day.items()}
+                        for app, by_day in self._stats.items()},
+                    "providers": {day: {p: dict(c) for p, c in by_prov.items()}
+                                  for day, by_prov in self._providers.items()},
+                    "utt_counts": {app: dict(by_day)
+                                   for app, by_day in self._utt_counts.items()}}
 
     def from_snapshot(self, snap: dict) -> None:
         with self._lock:
@@ -162,6 +243,15 @@ class _Store:
                     rec["uniques"] = set(d.get("uniques", []))
                     rec["statuses"] = defaultdict(int, {k: int(v) for k, v in (d.get("statuses") or {}).items()})
                     rec["last_ts"] = float(d.get("last_ts", 0.0))
+            self._providers = defaultdict(lambda: defaultdict(lambda: {"calls": 0, "errors": 0}))
+            for day, by_prov in (snap.get("providers") or {}).items():
+                for prov, c in by_prov.items():
+                    self._providers[day][prov] = {"calls": int(c.get("calls", 0)),
+                                                  "errors": int(c.get("errors", 0))}
+            self._utt_counts = defaultdict(lambda: defaultdict(int))
+            for app, by_day in (snap.get("utt_counts") or {}).items():
+                for day, n in by_day.items():
+                    self._utt_counts[app][day] = int(n)
             self._dirty = False
 
     @property
@@ -219,6 +309,38 @@ def _save_snapshot() -> None:
         log.warning("snapshot save failed: %s", exc)
 
 
+def _flush_utterances() -> None:
+    """Write pending utterance text as a new append-only batch object.
+
+    Never overwrites: each flush is a distinct key under <prefix>/<day>/, so a
+    failed flush can't corrupt earlier data. Grouped by day so a COS lifecycle
+    rule can expire whole days. No-op when there's nothing buffered.
+    """
+    batch = STORE.drain_utterances()
+    if not batch:
+        return
+    # Group by day so each object lands under its day's prefix.
+    by_day: dict[str, list[dict]] = defaultdict(list)
+    for item in batch:
+        by_day[item.get("day") or _today()].append(
+            {"app": item["app"], "text": item["text"], "ts": item["ts"]})
+    ms = int(time.time() * 1000)
+    try:
+        for day, items in by_day.items():
+            body = ("\n".join(json.dumps(it) for it in items) + "\n").encode()
+            if _S3_BUCKET:
+                key = f"{_UTT_PREFIX}/{day}/{ms}-{len(items)}.jsonl"
+                _s3_client().put_object(Bucket=_S3_BUCKET, Key=key, Body=body,
+                                        ContentType="application/x-ndjson")
+            else:
+                d = Path(_DB_PATH).parent / _UTT_PREFIX / day
+                d.mkdir(parents=True, exist_ok=True)
+                (d / f"{ms}-{len(items)}.jsonl").write_bytes(body)
+        log.info("flushed %d utterance(s) (%s)", len(batch), "S3" if _S3_BUCKET else "file")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("utterance flush failed (dropped %d): %s", len(batch), exc)
+
+
 # ── HTTP server ──────────────────────────────────────────────────────────
 def _web(port: int) -> None:
     import asyncio
@@ -233,12 +355,14 @@ def _web(port: int) -> None:
         async def _saver():
             while True:
                 await asyncio.sleep(_SAVE_INTERVAL)
+                _flush_utterances()
                 if STORE.dirty:
                     _save_snapshot()
         asyncio.create_task(_saver())
 
     @app.on_event("shutdown")
     async def _shutdown():
+        _flush_utterances()
         if STORE.dirty:
             _save_snapshot()
 
@@ -251,17 +375,31 @@ def _web(port: int) -> None:
         except Exception:  # noqa: BLE001
             return JSONResponse(status_code=400, content={"ok": False, "error": "bad json"})
         app_name = str(ev.get("app") or "unknown")[:64]
-        visitor = str(ev.get("visitor") or "")[:64]
-        try:
-            status = int(ev.get("status") or 0)
-        except (TypeError, ValueError):
-            status = 0
         try:
             ts = float(ev.get("ts") or time.time())
         except (TypeError, ValueError):
             ts = time.time()
         day = datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d")
-        STORE.record(app_name, day, visitor, status, ts)
+        kind = ev.get("kind") or "request"
+
+        if kind == "call":
+            provider = str(ev.get("provider") or "unknown")[:40]
+            try:
+                n = int(ev.get("n") or 1)
+            except (TypeError, ValueError):
+                n = 1
+            STORE.record_call(provider, day, bool(ev.get("ok", True)), n)
+        elif kind == "utterance":
+            text = str(ev.get("text") or "")[:_UTT_TEXT_MAX]
+            if text:
+                STORE.record_utterance(app_name, day, text, ts)
+        else:                                   # request (default / back-compat)
+            visitor = str(ev.get("visitor") or "")[:64]
+            try:
+                status = int(ev.get("status") or 0)
+            except (TypeError, ValueError):
+                status = 0
+            STORE.record(app_name, day, visitor, status, ts)
         return JSONResponse(status_code=202, content={"ok": True})
 
     def _dash_authed(request: Request) -> bool:

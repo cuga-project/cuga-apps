@@ -382,6 +382,7 @@ def _web(port: int) -> None:
 
     @app.post("/api/run")
     async def api_run(req: RunReq):
+        from _usage import track_utterance; track_utterance(req.question)
         question = req.question.strip()
         if not question:
             return JSONResponse({"error": "question is empty"}, status_code=400)

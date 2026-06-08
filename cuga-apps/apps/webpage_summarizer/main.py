@@ -143,6 +143,7 @@ def _web(port: int):
 
     @app.post("/ask")
     async def ask(req: AskRequest):
+        from _usage import track_utterance; track_utterance(req.question)
         thread_id = str(uuid.uuid4())
         try:
             agent = _get_agent()
