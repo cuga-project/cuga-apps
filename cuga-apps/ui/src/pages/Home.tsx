@@ -174,28 +174,18 @@ function EnvChip({ name }: { name: string }) {
   )
 }
 
-// CUGA capabilities each app exposes, derived from its wiring. These are the
-// runtime features the app actually exercises — the MCP bridge, inline tool
-// binding, CugaHost channels, and the interaction surface.
-type Cap = { label: string; cls: string }
-function capsFor(uc: (typeof USE_CASES)[number]): Cap[] {
-  const caps: Cap[] = []
-  caps.push(
-    uc.surface === 'gateway'
-      ? { label: '💬 Conversational', cls: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25' }
-      : { label: '⚡ Event-driven', cls: 'bg-amber-500/10 text-amber-600 border-amber-500/25' },
-  )
-  const mcpCount = uc.mcpUsage?.length ?? 0
-  if (mcpCount > 0) {
-    caps.push({ label: `🔌 ${mcpCount} MCP server${mcpCount > 1 ? 's' : ''}`, cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25' })
-  }
-  if ((uc.inlineTools?.length ?? 0) > 0) {
-    caps.push({ label: '🧩 Inline tools', cls: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/25' })
-  }
-  if (uc.channels.length > 0) {
-    caps.push({ label: '📡 Channels', cls: 'bg-violet-500/10 text-violet-600 border-violet-500/25' })
-  }
-  return caps
+// Curated display order for the ship-ready apps (by reliability × wow ×
+// capability-distinctiveness). Ids not listed fall to the end, preserving their
+// source order. Only affects ordering within the ship-ready stage.
+const SHIP_READY_ORDER = [
+  'travel-agent', 'city-beat', 'wiki-dive', 'paper-scout', 'find-a-doctor',
+  'hiking-research', 'arch-diagram', 'youtube-research', 'github-trending', 'ai-labs-news',
+  'recipe-composer', 'movie-recommender', 'web-researcher', 'newsletter', 'webpage-summarizer',
+  'server-monitor', 'stock-alert', 'ibm-cloud-advisor', 'ibm-docs-qa', 'meetup-finder', 'ouroboros',
+]
+const shipOrderIndex = (id: string) => {
+  const i = SHIP_READY_ORDER.indexOf(id)
+  return i === -1 ? Number.MAX_SAFE_INTEGER : i
 }
 
 // ── Domain buckets (mirrors docs/apps_overview.svg) ───────────────────────────
@@ -380,10 +370,13 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
       const matchesShip = filterShip === 'all' || stageOf(uc.id) === filterShip
       return matchesSearch && matchesCategory && matchesShip
     })
-    // Stable sort: ship-ready first, then for-later, then exploratory.
+    // Stable sort: ship-ready first (in the curated SHIP_READY_ORDER), then
+    // for-later, then exploratory (each preserving source order).
     .sort((a, b) => {
       const order: Record<Stage, number> = { 'ship-ready': 0, 'for-later': 1, 'exploratory': 2 }
-      return order[stageOf(a.id)] - order[stageOf(b.id)]
+      const byStage = order[stageOf(a.id)] - order[stageOf(b.id)]
+      if (byStage !== 0) return byStage
+      return shipOrderIndex(a.id) - shipOrderIndex(b.id)
     })
 
   if (filtered.length === 0) {
@@ -402,7 +395,6 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Category</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">Tools</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">ENV Vars</th>
-            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden md:table-cell">CUGA Capabilities</th>
             <th className="px-4 py-4 w-10"></th>
           </tr>
         </thead>
@@ -450,9 +442,13 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                     <div className="flex flex-col gap-1.5">
                       {uc.mcpUsage?.map((u) => (
                         <div key={u.server} className="flex flex-wrap items-center gap-1">
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-emerald-900/30 text-emerald-300 border border-emerald-800/40 whitespace-nowrap">
-                            mcp-{u.server}
-                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/mcp-servers#mcp-${u.server}`) }}
+                            title={`View the mcp-${u.server} server`}
+                            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-emerald-900/30 text-emerald-300 border border-emerald-800/40 whitespace-nowrap cursor-pointer hover:bg-emerald-800/50 hover:text-emerald-200 hover:underline"
+                          >
+                            mcp-{u.server} ↗
+                          </button>
                           {u.tools.slice(0, 3).map((t) => (
                             <span key={t} className="text-xs px-2 py-1 rounded-md font-mono bg-tsurf2 text-t3 border border-tborder whitespace-nowrap">
                               {t}
@@ -509,15 +505,6 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                       )}
                     </div>
                   )}
-                </td>
-                <td className="px-4 py-5 hidden md:table-cell">
-                  <div className="flex flex-wrap gap-1.5">
-                    {capsFor(uc).map((c) => (
-                      <span key={c.label} className={`text-xs px-2 py-1 border font-medium whitespace-nowrap ${c.cls}`}>
-                        {c.label}
-                      </span>
-                    ))}
-                  </div>
                 </td>
                 <td className="px-4 py-5 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="inline-flex flex-col items-end gap-1.5">

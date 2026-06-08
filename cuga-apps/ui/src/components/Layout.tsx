@@ -11,6 +11,9 @@ const NAV = [
 // mode). Opens in a new tab since it's a separate app, not a UI route.
 const STATS_URL = statsDashboardUrl()
 
+// Where to send feedback / bug reports — the cuga-apps GitHub issue tracker.
+const FEEDBACK_URL = 'https://github.com/cuga-project/cuga-apps/issues/new'
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme()
 
@@ -55,6 +58,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               Stats ↗
             </a>
           )}
+          <a
+            href={FEEDBACK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative h-full flex items-center px-4 text-sm font-medium text-t3 hover:text-t1 transition-colors"
+          >
+            Feedback ↗
+          </a>
         </nav>
 
         <div className="flex-1" />

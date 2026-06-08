@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { MCP_SERVERS, mcpServerUrl, TOOL_EXPLORER_URL, type McpServer } from '../data/mcpServers'
 
 const ACCENT: Record<McpServer['accent'], { bar: string; text: string; chip: string }> = {
@@ -14,7 +16,7 @@ function ServerCard({ s }: { s: McpServer }) {
   const a = ACCENT[s.accent]
   const url = mcpServerUrl(s.id)
   return (
-    <div className="bg-tsurf border border-tborder flex flex-col overflow-hidden">
+    <div id={`mcp-${s.id}`} className="bg-tsurf border border-tborder flex flex-col overflow-hidden scroll-mt-24">
       <div className="flex items-stretch">
         <div className={`w-1 ${a.bar}`} />
         <div className="flex-1 p-5">
@@ -60,6 +62,14 @@ function ServerCard({ s }: { s: McpServer }) {
 
 export default function McpServersPage() {
   const totalTools = MCP_SERVERS.reduce((n, s) => n + s.tools.length, 0)
+  const location = useLocation()
+  // Deep-link support: when arriving with #mcp-<id> (e.g. from a Tools badge on
+  // the Apps page), scroll that server's card into view once it's rendered.
+  useEffect(() => {
+    if (!location.hash) return
+    const el = document.getElementById(location.hash.slice(1))
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }, [location.hash])
   return (
     <div className="p-6 md:p-8 max-w-screen-2xl mx-auto">
       {/* Hero */}

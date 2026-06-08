@@ -83,8 +83,10 @@ const REMOTE_HOST_SUFFIXES = [
 function detectTarget(): DeploymentTarget {
   // Build-time override wins. `huggingface` and `ce` accepted as legacy
   // aliases for `remote` so existing build pipelines keep working.
+  // `remote-allinone` also counts as remote (it's hosted off-box, on HF).
   const buildTarget = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET
-  if (buildTarget === 'remote' || buildTarget === 'huggingface' || buildTarget === 'ce') {
+  if (buildTarget === 'remote' || buildTarget === 'huggingface'
+      || buildTarget === 'ce' || buildTarget === 'remote-allinone') {
     return 'remote'
   }
   if (typeof window !== 'undefined') {
@@ -99,6 +101,27 @@ function detectTarget(): DeploymentTarget {
 
 // Cached so React renders don't recompute on every tile.
 const TARGET = detectTarget()
+
+
+// ── remote-allinone mode (lightweight HF umbrella UI → CE all-in-one) ───
+// A static umbrella UI (e.g. a Hugging Face Static Space) that only LAUNCHES
+// apps, linking into the single all-in-one Code Engine service's path routes
+// (`<base>/a/<app>/`). The heavy backend (apps + MCP + stats) lives in that one
+// CE container; this UI carries no backend of its own.
+//
+//   VITE_DEPLOYMENT_TARGET=remote-allinone
+//   VITE_ALLINONE_BASE=https://<ce-allinone-host>   (no trailing slash needed)
+const BUILD_TARGET = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET as string | undefined
+const ALLINONE_BASE = (((import.meta as any).env?.VITE_ALLINONE_BASE as string | undefined) || '')
+  .replace(/\/+$/, '')
+
+/** Path segment behind the all-in-one nginx for an app id — identical to the
+ *  `single`-mode derivation and to generate.py's nginx routes
+ *  (cuga-apps-web-researcher → web-researcher). null if the app isn't deployed. */
+function allinoneSeg(id: string): string | null {
+  const ce = CE_APP_BY_ID[id]
+  return ce ? ce.replace(/^cuga-apps-/, '') : null
+}
 
 
 // ── URL transform ──────────────────────────────────────────────────────
@@ -116,6 +139,13 @@ const TARGET = detectTarget()
  */
 export function resolveAppUrl(uc: Pick<UseCase, 'id' | 'appUrl'>): string | null {
   if (!uc.appUrl) return null
+
+  // remote-allinone: link into the single CE all-in-one service's path route.
+  // Same `/a/<seg>/` the nginx serves, made absolute to the CE host.
+  if (BUILD_TARGET === 'remote-allinone') {
+    const seg = allinoneSeg(uc.id)
+    return seg && ALLINONE_BASE ? `${ALLINONE_BASE}/a/${seg}/` : null
+  }
 
   if (TARGET === 'remote') {
     const ceName = CE_APP_BY_ID[uc.id]
@@ -158,6 +188,9 @@ export function statsDashboardUrl(): string | null {
   const buildTarget = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET
   if (buildTarget === 'single') {
     return '/a/usage-collector/'
+  }
+  if (buildTarget === 'remote-allinone') {
+    return ALLINONE_BASE ? `${ALLINONE_BASE}/a/usage-collector/` : null
   }
   if (TARGET === 'remote') {
     return `https://cuga-apps-usage-collector.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud`
