@@ -1,6 +1,8 @@
-# Build a working CUGA agent in one file: lessons from `cuga-apps`
+# Build real agentic apps on CUGA: `CUGA-apps` two dozen working examples on a lightweight agent harness
 
 *Two dozen single-file apps that show how the CUGA harness works, and how the same agent runs governed inside IBM Sovereign Core.*
+
+> **TL;DR** — If you've built agents before, you know the model is rarely the hard part. The work is wiring up tools, holding state together across a long task, adding guardrails, and growing from one agent to several without a rewrite. [CUGA](https://cuga.dev) (`pip install cuga`) is a small, open-source agent harness from IBM Research that handles that plumbing and stays configurable. To show what it feels like, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): two dozen single-file apps, each a `CugaAgent` with a tool list and a system prompt. This article reads one end to end, names what the harness takes off your plate, and shows where the same agent runs governed in production. If you've written a FastAPI route, you can read every line.
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
@@ -17,6 +19,8 @@ It plans before it acts, then executes with a mix of tool calls and generated co
 You also set the cost/latency tradeoff from config rather than code: Fast, Balanced, and Accurate reasoning modes, with code execution in whatever sandbox you trust (local, Docker/Podman, or E2B cloud). Same agent definition, different dial.
 
 None of the individual pieces is unique to CUGA. What's different is that they come pre-assembled, so you configure them instead of wiring them together. The API you touch is small — build a `CugaAgent` with a tool list and a prompt, then `await agent.invoke(...)`. Everything below that line is the harness.
+
+Concretely, that's interchangeable tools (OpenAPI, MCP, and LangChain functions all bind the same way), long-horizon planning with variable management and self-correction (the machinery behind **#1 on [AppWorld](https://appworld.dev/)** and **[WebArena](https://webarena.dev/)**), declarative guardrails, multi-agent delegation over **A2A**, Docling-powered RAG, and one-env-var provider switching (`pip install cuga`, then OpenAI, watsonx, Ollama, and more) — each something you'd otherwise build yourself. The first word of the name does the work: *Configurable*; the hard parts are handled, so your job is just the task.
 
 ## One app, start to finish
 
@@ -74,6 +78,8 @@ One detail is easy to skip and turns out to be load-bearing: every inline tool r
 
 It looks like boilerplate. It isn't. CUGA's planner handles a *declared* failure gracefully ("geocoding didn't return anything, skip that section and keep going") and chokes on an *undeclared* one, where a raw stack trace bubbles up mid-plan and the run derails. Across the apps, the ones that worked reliably were the ones whose tools never threw a bare exception at the agent. A boring convention, but it's the difference between an agent that recovers and one that face-plants.
 
+The split above only pays off because the generic half is already running somewhere. The capabilities the apps reach for over and over — web search, Wikipedia/arXiv, geocoding and weather, finance quotes, and a few more — live in **7 public MCP servers (36 tools)** hosted on IBM Code Engine, no auth required. A small bridge resolves their URLs automatically, and the [live gallery](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/) ships an **MCP Tool Explorer** to call any of them from a form before you wire it into an agent.
+
 ## A library, not a demo
 
 The reason there are two dozen of these matters more than any single one. Once you've read the cloud advisor, you've read all of them, because they share the skeleton. The movie recommender swaps the IBM catalog tool for the `knowledge` MCP server; the web researcher leans almost entirely on `web`. Same shape, different tools and prompt.
@@ -81,6 +87,8 @@ The reason there are two dozen of these matters more than any single one. Once y
 Before you clone anything, you can [click through every app in the live gallery](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/): the umbrella UI tiles all of them behind a launch button, so you can poke at the cloud advisor or the movie recommender in a browser first.
 
 So cuga-apps works as a catalog of starting points, which is the real reason to care about it. Want an agent that reads documents? There's one. Want an event-driven pipeline instead of a chat app? The newsletter and drop-summarizer apps are built that way. Each app leans on a different capability (tool composition, stateful tools, web grounding, citation tracking, code synthesis), so between them they map out most of what the harness can do, and whatever you're building, one of them already exercises the piece you need. You clone the repo, find the app closest to your idea, and edit its tool list and prompt; `HOW_TO_BUILD_AN_APP_FAST.md` and `ADDING_AN_APP.md` walk through exactly that. A few apps were even generated by handing a coding assistant a single spec file (`cuga_external_app_spec.md`) and a one-line brief, which tells you how repeatable the shape is — regular enough for a model to reproduce means regular enough for you to learn.
+
+So what can you actually build on the pattern? The apps already fan out across families. A **research-and-knowledge** cluster pulls sourced answers out of the open web and the literature — Paper Scout ranks arXiv and Semantic Scholar papers by citation count, Wiki Dive and Web Researcher do cited synthesis, YouTube Research works from transcripts. An **everyday-productivity** cluster covers the small useful things — a daily city briefing, a multi-day travel planner, a pantry-driven recipe composer, trail discovery for a weekend hike. A **document-and-media** cluster ingests PDFs, audio, and video and answers over them with RAG. There's an **ops** corner watching live system metrics and market prices, an **enterprise** example answering questions from real IBM product documentation, and **Ouroboros**, a seven-agent lead-gen system that's the one to open when you want the multi-agent shape. Between them they exercise tool composition, stateful tools, web grounding, citation tracking, RAG over a private corpus, code synthesis, and self-correction — so whatever you're building, one app already exercises the piece you need.
 
 Two honest caveats before you clone. The real catalog lives in the inner `cuga-apps/cuga-apps/apps/` directory, not the outer one, which trips people up on first read. And not every app is equally polished: the umbrella UI tags apps "ship-ready," "for-later," or "exploratory," and the for-later ones aren't wired for a clean unattended run yet. The UI defaults to the ship-ready filter and lets you switch between those tags, so the polished set is what you see first. Start from a ship-ready app like the cloud advisor or the movie recommender and you'll have a working baseline.
 
@@ -116,6 +124,12 @@ When one agent would drown in its own context (too many tools, too much evidence
 
 The other extension packages know-how rather than tools: Agent Skills, a folder with a `SKILL.md` playbook the agent pulls into context only when a task calls for it, so one prompt isn't carrying everything the agent might ever need to know. Both keep the same building blocks (tools, prompts, state, policies), just composed a level up.
 
+## The moat: governed by construction
+
+It's worth stepping back to ask where CUGA sits relative to everything else you could build an agent on, because that positioning is what makes the redeploy story in the next section real rather than aspirational. Most of the field falls into two camps. There are minimal developer libraries, where the primitives are good but you assemble the governance — identity, audit, policy, lifecycle, approvals — yourself. And there are broad-access personal-agent runtimes, fast to demo precisely because they start with reach into your filesystem, shell, and browser, where the work becomes *constraining* access that already exists.
+
+CUGA is built for a third category: an enterprise-oriented harness where policy-as-code, human-in-the-loop approval, durable state, self-hosting, and data residency are first-class from the first line, not bolted on later. That flips the direction of the hard work. Starting from a personal-agent runtime, you *govern upward* — retrofitting controls onto something built for access, which tends to leave you maintaining a brittle external overlay or a long-lived internal fork, both expensive forever. Starting from CUGA, you *harden execution downward*: the control plane is already there, so the remaining work is tightening the sandbox around the few side-effecting tools, not inventing the governance around them. That's the moat — not any single feature, but that the governed path is the default one and the ungoverned shortcuts are the ones you have to opt into. It's also why the same agent definition carries from a laptop to a locked-down deployment without a rewrite, which is exactly where this goes next.
+
 ## Where the same agent ends up
 
 Here's the payoff, and the reason any of this is built the way it is. Because the harness is small, open source, model-agnostic, and already governs itself, the agent you wrote on your laptop is the same agent that runs in a locked-down deployment. You don't port it. You redeploy it.
@@ -143,7 +157,8 @@ If you build something on the pattern, the apps live in the open at [github.com/
 ## Resources
 
 - [cuga-apps](https://github.com/cuga-project/cuga-apps) — the apps, MCP servers, and UI in this article
+- [Live app gallery + MCP Tool Explorer](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/) — every app behind a launch button, plus a form to call each hosted MCP tool directly
 - [cuga-agent](https://github.com/cuga-project/cuga-agent) — the CUGA runtime and policy system
-- [cuga.dev](https://cuga.dev) — CUGA project home
+- [cuga.dev](https://cuga.dev) — CUGA project home (`pip install cuga`)
 - [Open by Design: Generalist and Pre-Built Agents in the Sovereign Core](https://community.ibm.com/community/user/blogs/shikha-srivastava1/2026/04/30/open-by-design-generalist-and-prebuilt-agents-in-t) — IBM Community post on how CUGA runs inside Sovereign Core (Srivastava, Marreed, Thomas, April 2026)
 - [IBM Sovereign Core](https://www.ibm.com/products/sovereign-core) — product page
