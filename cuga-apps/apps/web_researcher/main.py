@@ -375,7 +375,13 @@ def _web(port: int) -> None:
 
     @app.get("/settings")
     async def api_settings():
-        return _load_store()
+        data = _load_store()
+        # Report Tavily as configured if the key is present in the environment
+        # (e.g. TAVILY_API_KEY from the container .env) OR was saved via the UI
+        # form below — either way the mcp-web server can use it. Without this,
+        # the UI showed "not set" even when the env key was present.
+        data["tavily_configured"] = bool(os.getenv("TAVILY_API_KEY")) or bool(data.get("tavily_key"))
+        return data
 
     @app.post("/settings/credentials")
     async def api_creds(req: CredsReq):
@@ -637,7 +643,7 @@ function checkApiKey() {
 async function loadSettings() {
   try {
     const s = await fetch('/settings').then(r => r.json());
-    if (s.tavily_key) document.getElementById('tavily-key').value = '••••••••••••••••';
+    if (s.tavily_configured) document.getElementById('tavily-key').value = '••••••••••••••••';
     checkApiKey();
   } catch(e) {}
 }

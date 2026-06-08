@@ -1,10 +1,15 @@
 import { NavLink } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
+import { statsDashboardUrl } from '../data/deployment'
 
 const NAV = [
   { to: '/', label: 'Apps', end: true },
   { to: '/mcp-servers', label: 'MCP Servers', end: false },
 ]
+
+// External link to the bundled usage/stats dashboard (resolved per deployment
+// mode). Opens in a new tab since it's a separate app, not a UI route.
+const STATS_URL = statsDashboardUrl()
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme()
@@ -40,6 +45,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {item.label}
             </NavLink>
           ))}
+          {STATS_URL && (
+            <a
+              href={STATS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative h-full flex items-center px-4 text-sm font-medium text-t3 hover:text-t1 transition-colors"
+            >
+              Stats ↗
+            </a>
+          )}
         </nav>
 
         <div className="flex-1" />

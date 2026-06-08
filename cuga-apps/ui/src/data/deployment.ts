@@ -140,3 +140,28 @@ export function resolveAppUrl(uc: Pick<UseCase, 'id' | 'appUrl'>): string | null
  * showing CE-aware copy elsewhere in the UI.
  */
 export const isRemote = (): boolean => TARGET === 'remote'
+
+
+/**
+ * URL of the usage / stats dashboard (the bundled usage_collector app), resolved
+ * for the current deployment context:
+ *
+ *   single  → '/a/usage-collector/'  (path-routed behind the all-in-one nginx)
+ *   remote  → the Code Engine URL for cuga-apps-usage-collector
+ *   local   → http://<page-host>:28827/  (usage_collector's dev port)
+ *
+ * Checks VITE_DEPLOYMENT_TARGET directly so it works in the single-container
+ * build without the patch-deployment.cjs injection (which only rewrites
+ * resolveAppUrl). Returns null only when there is no usable URL.
+ */
+export function statsDashboardUrl(): string | null {
+  const buildTarget = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET
+  if (buildTarget === 'single') {
+    return '/a/usage-collector/'
+  }
+  if (TARGET === 'remote') {
+    return `https://cuga-apps-usage-collector.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud`
+  }
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+  return `http://${host}:28827/`
+}

@@ -78,6 +78,65 @@ The umbrella UI loads at `/`; click any ship-ready app — it opens at
 > Requires BuildKit (default in modern Docker) so `Dockerfile.dockerignore` is
 > honored. If your Docker is old: `DOCKER_BUILDKIT=1 docker compose build`.
 
+## Start / stop / restart the container
+
+The image runs everything (UI + 21 apps + 5 MCP servers + the stats dashboard)
+as one container on port **8080**.
+
+### With `docker compose` (from `build/`)
+
+```bash
+cd build
+docker compose up -d --build      # build (if needed) + start in the background
+docker compose ps                 # status
+docker compose logs -f            # follow logs (Ctrl-C to stop following)
+docker compose restart            # restart the running container
+docker compose down               # stop + remove the container
+docker compose up -d              # start again (no rebuild)
+```
+
+Rebuild after changing app/UI/MCP source or the Dockerfile:
+
+```bash
+docker compose up -d --build      # rebuilds the image, recreates the container
+```
+
+### With plain `docker run` (host networking)
+
+Use this if `docker compose up` fails creating its bridge network (an
+`iptables ... DOCKER-FORWARD` error means Docker's iptables chains were wiped —
+`sudo systemctl restart docker` repairs them), or when the container's default
+DNS can't resolve outbound hosts. `--network=host` sidesteps both by using the
+host's network stack and resolver:
+
+```bash
+cd build
+
+# start (detached)
+docker run -d --name cuga-allinone --network=host --env-file .env \
+    cuga-apps-allinone:latest
+
+docker logs -f cuga-allinone       # follow logs
+docker stats cuga-allinone         # live CPU / memory
+
+docker restart cuga-allinone       # restart
+docker stop  cuga-allinone         # stop
+docker start cuga-allinone         # start again
+docker rm -f cuga-allinone         # remove (then re-run the `docker run` above)
+```
+
+> **Restart vs rebuild.** `restart`/`stop`+`start` reuse the existing image —
+> good for picking up `.env` changes (env is read at process start). Changes to
+> **app / UI / MCP source or the Dockerfile** require a **rebuild**
+> (`docker compose up -d --build`, or `docker build -f build/Dockerfile -t
+> cuga-apps-allinone:latest .` from the repo root, then re-run the container).
+
+### Health check
+
+```bash
+curl http://localhost:8080/healthz          # -> ok
+```
+
 ## Verify it's working — `smoke.sh`
 
 After `docker compose up`, run the smoke test. It only hits the public port, so
@@ -142,8 +201,13 @@ checks hit the port (the UI at `/` returns 200; `/healthz` is also available).
   state.
 - **Rate limiting + usage tracking** ship with the apps ([../cuga-apps/apps/_ratelimit.py](../cuga-apps/apps/_ratelimit.py),
   [_usage.py](../cuga-apps/apps/_usage.py)) and are active here too; tune via the
-  `RL_*` / `USAGE_*` env (see `.env.example`). No usage collector runs in this
-  image — point `USAGE_COLLECTOR_URL` at one if you want the dashboard.
+  `RL_*` / `USAGE_*` env (see `.env.example`).
+- **Stats dashboard**: the `usage_collector` app is bundled and started by
+  `run_all.sh`, which also points every app's `USAGE_COLLECTOR_URL` at it on
+  loopback. It's reachable at `/a/usage-collector/` and linked from the umbrella
+  UI's top nav as **Stats ↗**. Aggregate counts only (no identities). Set
+  `USAGE_DASHBOARD_TOKEN` to require `?token=…` on the dashboard if you expose
+  the port publicly.
 - **Non-root CE policy**: the image runs nginx as root (default). If your CE
   project forces non-root containers, nginx needs writable pid/temp paths — ask
   and I'll add the non-root nginx tweaks.
