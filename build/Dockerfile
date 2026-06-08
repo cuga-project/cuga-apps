@@ -45,6 +45,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# CPU-only PyTorch FIRST. `cuga` pulls torch transitively (via docling /
+# transformers / accelerate), and torch's default PyPI wheel bundles the full
+# NVIDIA CUDA stack (nvidia-* + triton ≈ 4.4 GB) that is dead weight in this
+# CPU-only container. Installing the +cpu build up front satisfies the version
+# constraint, so the requirements.apps.txt resolve below never drags in the
+# CUDA wheels. Keeps all functionality; ~4.4 GB smaller image.
+RUN pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.12.0 torchvision
+
 # App deps (cuga + sqlite-vec + feedparser + playwright + the LangChain stack).
 # The ship-ready set does NOT include video_qa/deck_forge, so the heavy file
 # (chromadb + sentence-transformers) is intentionally skipped — leaner image.

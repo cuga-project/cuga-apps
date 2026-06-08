@@ -18,6 +18,12 @@ services:
     build:
       context: ..
       dockerfile: build/Dockerfile
+      # Build under the host's network namespace so apt/npm use the host's
+      # working DNS resolver. The default bridge inherits an IBM Cloud VPC
+      # resolv.conf whose first nameservers (9.0.0.x) are unreachable from
+      # inside a container, so name resolution to deb.debian.org / npm
+      # registry fails ("Temporary failure resolving 'deb.debian.org'").
+      network: host
     image: cuga-apps-allinone:latest
     container_name: cuga-allinone
     ports:
