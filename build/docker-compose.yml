@@ -14,7 +14,7 @@
 # CUGA_TARGET stays at the image default (local); do not override it to `ce`,
 # which would try to redirect the apps to a hosted MCP deployment.
 services:
-  cuga-allinone:
+  cuga-agent-apps:
     build:
       context: ..
       dockerfile: build/Dockerfile
@@ -25,7 +25,7 @@ services:
       # registry fails ("Temporary failure resolving 'deb.debian.org'").
       network: host
     image: cuga-apps-allinone:latest
-    container_name: cuga-allinone
+    container_name: cuga-agent-apps
     ports:
       - "8080:8080"
     env_file:

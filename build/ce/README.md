@@ -10,7 +10,7 @@ the 5 MCP servers + the stats dashboard, all in one instance behind port 8080.
 
 | Script | What it does |
 | --- | --- |
-| `build_and_push.sh` | Build `build/Dockerfile` (context = repo root) for `linux/amd64` and push `icr.io/<ns>/cuga-allinone:<tag>` |
+| `build_and_push.sh` | Build `build/Dockerfile` (context = repo root) for `linux/amd64` and push `icr.io/<ns>/cuga-agent-apps:<tag>` |
 | `deploy.sh` | Sync `build/.env` → a CE secret, then `ce app create/update` the single service |
 
 ## One-time prerequisites
@@ -18,13 +18,14 @@ the 5 MCP servers + the stats dashboard, all in one instance behind port 8080.
 ```bash
 # 1. Log in and target your region + resource group
 ibmcloud login --sso
-ibmcloud target -r us-south -g <your-resource-group>
+ibmcloud target -r us-east -g routing
 
 # 2. Select (or create) the Code Engine project — deploys land in the SELECTED project
-ibmcloud ce project select --name <your-project>
+ibmcloud ce project select --name ce-project-routing
 
-# 3. Log local docker into ICR (for build_and_push.sh)
-ibmcloud cr region-set us-south
+# 3. Log local docker into ICR — use the GLOBAL registry (icr.io) so it matches
+#    REGISTRY=icr.io in the scripts and --server icr.io in the pull secret below.
+ibmcloud cr region-set global
 ibmcloud cr login
 
 # 4. Create the registry pull secret CE uses (one-time; name must match REGISTRY_SECRET)
@@ -46,7 +47,7 @@ cd build/ce
 ./deploy.sh                # create/update the single CE service
 
 # the URL is printed at the end; or:
-ibmcloud ce app get --name cuga-allinone --output url
+ibmcloud ce app get --name cuga-agent-apps --output url
 ```
 
 Update later (new image): re-run both. `deploy.sh` re-syncs the env secret and
@@ -61,14 +62,16 @@ use the in-container MCP servers (never set it to `ce` for this image).
 
 ## Sizing
 
-Defaults: `--cpu 4 --memory 16G --min-scale 1 --max-scale 1`. The image runs ~26
-Python processes (21 apps + 5 MCP) plus nginx; measured idle footprint is ~8 GB,
-so **16 GB** leaves headroom for request load and Chromium (`meetup_finder`).
-Keep **one instance** — per-app session state and the rate limiter assume it.
-Override per deploy:
+Defaults: `--cpu 12 --memory 48G --ephemeral-storage 5G --min-scale 1
+--max-scale 1`. The image runs ~26 Python processes (21 apps + 5 MCP) plus
+nginx; measured idle footprint is ~8 GB, and **12 vCPU / 48 GB** (the platform
+maximum) leaves ample headroom for request load and Chromium (`meetup_finder`).
+Ephemeral storage must be ≤ memory; 5 GB covers build/scratch space. Keep **one
+instance** — per-app session state and the rate limiter assume it. Override per
+deploy:
 
 ```bash
-CPU=6 MEMORY=24G ./deploy.sh
+CPU=6 MEMORY=24G EPHEMERAL_STORAGE=2G ./deploy.sh
 ```
 
 ## Config knobs (env overrides)
@@ -77,11 +80,13 @@ CPU=6 MEMORY=24G ./deploy.sh
 | --- | --- | --- |
 | `NAMESPACE` | `routing_namespace` | both |
 | `IMAGE_TAG` | `latest` | both |
+| `IMAGE_NAME` | `cuga-agent-apps` | both |
 | `REGISTRY` | `icr.io` | both |
-| `APP_NAME` | `cuga-allinone` | deploy |
+| `APP_NAME` | `cuga-agent-apps` | deploy |
 | `REGISTRY_SECRET` | `icr-secret-1` | deploy |
 | `ENV_FILE` | `build/.env` | deploy |
-| `CPU` / `MEMORY` | `4` / `16G` | deploy |
+| `CPU` / `MEMORY` | `12` / `48G` | deploy |
+| `EPHEMERAL_STORAGE` | `5G` | deploy |
 | `MIN_SCALE` / `MAX_SCALE` | `1` / `1` | deploy |
 | `DOCKER_BUILD_NETWORK` | `host` | build |
 

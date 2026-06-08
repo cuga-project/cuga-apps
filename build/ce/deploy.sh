@@ -11,11 +11,13 @@
 # Env overrides:
 #   NAMESPACE        ICR namespace        (default: routing_namespace)
 #   IMAGE_TAG        image tag            (default: latest)
+#   IMAGE_NAME      image/repo name      (default: cuga-agent-apps)
 #   REGISTRY        registry host        (default: icr.io)
-#   APP_NAME         CE app name          (default: cuga-allinone)
+#   APP_NAME         CE app name          (default: cuga-agent-apps)
 #   REGISTRY_SECRET  CE registry secret   (default: icr-secret-1)
 #   ENV_FILE         env file to load     (default: ../.env  i.e. build/.env)
-#   CPU / MEMORY     CE sizing            (default: 4 / 16G)
+#   CPU / MEMORY     CE sizing            (default: 12 / 48G)
+#   EPHEMERAL_STORAGE  disk per instance  (default: 5G — must be ≤ MEMORY)
 #   MIN_SCALE / MAX_SCALE                 (default: 1 / 1 — single instance)
 #
 # Prereqs (one-time — see ./README.md):
@@ -30,15 +32,17 @@ BUILD_DIR="$(cd "$HERE/.." && pwd)"                      # build/
 
 NAMESPACE="${NAMESPACE:-routing_namespace}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
+IMAGE_NAME="${IMAGE_NAME:-cuga-agent-apps}"
 REGISTRY="${REGISTRY:-icr.io}"
-APP_NAME="${APP_NAME:-cuga-allinone}"
+APP_NAME="${APP_NAME:-cuga-agent-apps}"
 REGISTRY_SECRET="${REGISTRY_SECRET:-icr-secret-1}"
 ENV_FILE="${ENV_FILE:-$BUILD_DIR/.env}"
-CPU="${CPU:-4}"
-MEMORY="${MEMORY:-16G}"
+CPU="${CPU:-12}"
+MEMORY="${MEMORY:-48G}"
+EPHEMERAL_STORAGE="${EPHEMERAL_STORAGE:-5G}"
 MIN_SCALE="${MIN_SCALE:-1}"
 MAX_SCALE="${MAX_SCALE:-1}"
-IMAGE="${REGISTRY}/${NAMESPACE}/cuga-allinone:${IMAGE_TAG}"
+IMAGE="${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 ENV_SECRET="${APP_NAME}-env"
 
 MAX_RETRIES=3
@@ -58,7 +62,7 @@ echo "  Deploy all-in-one → Code Engine (single service)"
 echo "    project   : $(ibmcloud ce project current -o json 2>/dev/null | grep -o '\"name\":[^,]*' | head -1 | cut -d'\"' -f4 || echo '?')"
 echo "    app       : $APP_NAME"
 echo "    image     : $IMAGE"
-echo "    sizing    : ${CPU} vCPU / ${MEMORY} · scale ${MIN_SCALE}..${MAX_SCALE}"
+echo "    sizing    : ${CPU} vCPU / ${MEMORY} / ${EPHEMERAL_STORAGE} disk · scale ${MIN_SCALE}..${MAX_SCALE}"
 echo "    env from  : $ENV_FILE  → secret '$ENV_SECRET'"
 echo "════════════════════════════════════════════════════════════════"
 
@@ -98,7 +102,7 @@ deploy_once() {
             --image "$IMAGE" \
             --registry-secret "$REGISTRY_SECRET" \
             --port 8080 \
-            --cpu "$CPU" --memory "$MEMORY" \
+            --cpu "$CPU" --memory "$MEMORY" --ephemeral-storage "$EPHEMERAL_STORAGE" \
             --min-scale "$MIN_SCALE" --max-scale "$MAX_SCALE" \
             --env-from-secret "$ENV_SECRET"
     else
@@ -108,7 +112,7 @@ deploy_once() {
             --image "$IMAGE" \
             --registry-secret "$REGISTRY_SECRET" \
             --port 8080 \
-            --cpu "$CPU" --memory "$MEMORY" \
+            --cpu "$CPU" --memory "$MEMORY" --ephemeral-storage "$EPHEMERAL_STORAGE" \
             --min-scale "$MIN_SCALE" --max-scale "$MAX_SCALE" \
             --env-from-secret "$ENV_SECRET"
     fi

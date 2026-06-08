@@ -43,18 +43,41 @@ your own.)
 
 ## Publish to a Hugging Face Static Space
 
-1. Create a Space: huggingface.co → New Space → **SDK: Static**.
-2. Push the **contents** of `build/hf/dist/` to the Space's git repo:
+1. Create a Space once: huggingface.co → New Space → **SDK: Static**.
+2. Clone the Space, copy in the built `dist/`, drop binaries HF rejects, push.
+   Clone **before** copying (so `.git` exists) and use the **absolute** `dist`
+   path (so the current directory doesn't matter):
 
    ```bash
-   git clone https://huggingface.co/spaces/<user>/<space> /tmp/space
-   cp -r build/hf/dist/. /tmp/space/
-   cd /tmp/space && git add -A && git commit -m "umbrella UI" && git push
+   # clone the Space repo fresh
+   rm -rf /tmp/space
+   git clone git@hf.co:spaces/<user>/<space> /tmp/space     # or https://huggingface.co/spaces/<user>/<space>
+
+   # copy the built bundle in
+   cp -r /ABSOLUTE/PATH/TO/build/hf/dist/. /tmp/space/
+
+   # HF rejects raw binaries — drop the usecase images (see note below)
+   cd /tmp/space
+   rm -rf usecases
+   echo "usecases/" >> .gitignore
+
+   # commit + push
+   git add -A && git commit -m "umbrella UI" && git push
    ```
 
 The Space serves at `https://<user>-<space>.hf.space/`. Clicking any app opens
 the corresponding `<ce-host>/a/<app>/`; **Stats ↗** opens
 `<ce-host>/a/usage-collector/`.
+
+> **Binary files.** HF Static Spaces reject binaries committed as plain git
+> blobs (`pre-receive hook declined … contains binary files`). The bundle's
+> `usecases/*.png` thumbnails trip this. Two options:
+> - **Skip them** (above): `rm -rf usecases` + gitignore. The launcher works;
+>   usecase thumbnails just don't render. The committed `.gitignore` makes every
+>   future push skip them automatically.
+> - **Keep them** via Git LFS: `git lfs install && git lfs track "*.png" &&
+>   git add .gitattributes` before the first `git add -A`. HF serves LFS-stored
+>   images normally. Do this *before* committing so no raw blob enters history.
 
 ## Deploy order
 

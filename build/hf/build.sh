@@ -19,7 +19,7 @@ OUT_DIR="$HERE/dist"
 # The CE all-in-one base URL (baked into the build). Pass your real one; the
 # default matches the repo's CE project — see CE_PROJECT_HASH / CE_REGION in
 # cuga-apps/ui/src/data/deployment.ts and APP_NAME in build/ce/deploy.sh.
-DEFAULT_BASE="https://cuga-allinone.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud"
+DEFAULT_BASE="https://cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud"
 ALLINONE_BASE="${ALLINONE_BASE:-${1:-$DEFAULT_BASE}}"
 ALLINONE_BASE="${ALLINONE_BASE%/}"                            # strip trailing slash
 

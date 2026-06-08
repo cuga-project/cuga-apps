@@ -113,16 +113,16 @@ host's network stack and resolver:
 cd build
 
 # start (detached)
-docker run -d --name cuga-allinone --network=host --env-file .env \
+docker run -d --name cuga-agent-apps --network=host --env-file .env \
     cuga-apps-allinone:latest
 
-docker logs -f cuga-allinone       # follow logs
-docker stats cuga-allinone         # live CPU / memory
+docker logs -f cuga-agent-apps       # follow logs
+docker stats cuga-agent-apps         # live CPU / memory
 
-docker restart cuga-allinone       # restart
-docker stop  cuga-allinone         # stop
-docker start cuga-allinone         # start again
-docker rm -f cuga-allinone         # remove (then re-run the `docker run` above)
+docker restart cuga-agent-apps       # restart
+docker stop  cuga-agent-apps         # stop
+docker start cuga-agent-apps         # start again
+docker rm -f cuga-agent-apps         # remove (then re-run the `docker run` above)
 ```
 
 > **Restart vs rebuild.** `restart`/`stop`+`start` reuse the existing image —
@@ -160,16 +160,16 @@ failure.
 
 ```bash
 # 1. Build + push the image to your registry (ICR shown; any registry works)
-docker build -f build/Dockerfile -t icr.io/<namespace>/cuga-allinone:latest .   # run from repo root
-docker push icr.io/<namespace>/cuga-allinone:latest
+docker build -f build/Dockerfile -t icr.io/<namespace>/cuga-agent-apps:latest .   # run from repo root
+docker push icr.io/<namespace>/cuga-agent-apps:latest
 
 # 2. Create the CE app — ONE service, port 8080
 ibmcloud ce app create \
-  --name cuga-allinone \
-  --image icr.io/<namespace>/cuga-allinone:latest \
+  --name cuga-agent-apps \
+  --image icr.io/<namespace>/cuga-agent-apps:latest \
   --registry-secret <your-icr-secret> \
   --port 8080 \
-  --cpu 4 --memory 16G \
+  --cpu 12 --memory 48G --ephemeral-storage 5G \
   --min-scale 1 --max-scale 1 \
   --env LLM_PROVIDER=watsonx \
   --env LLM_MODEL=meta-llama/llama-3-3-70b-instruct \
@@ -178,7 +178,7 @@ ibmcloud ce app create \
   --env OPENTRIPMAP_API_KEY=<key> \
   --env ALPHA_VANTAGE_API_KEY=<key>
 
-ibmcloud ce app get --name cuga-allinone --output url   # open it
+ibmcloud ce app get --name cuga-agent-apps --output url   # open it
 ```
 
 Leave `CUGA_TARGET` unset (the image defaults to `local`) — the MCP servers run

@@ -6,13 +6,14 @@
 # umbrella UI + every ship-ready app + the 5 MCP servers + the stats dashboard
 # behind one nginx port (8080). One image → one CE service.
 #
-#   ./build_and_push.sh                 # build + push icr.io/<ns>/cuga-allinone:latest
+#   ./build_and_push.sh                 # build + push icr.io/<ns>/cuga-agent-apps:latest
 #   NAMESPACE=myns IMAGE_TAG=v3 ./build_and_push.sh
 #   ./build_and_push.sh --no-push       # build only (local image)
 #
 # Env overrides:
 #   NAMESPACE              ICR namespace        (default: routing_namespace)
 #   IMAGE_TAG              image tag            (default: latest)
+#   IMAGE_NAME            image/repo name      (default: cuga-agent-apps)
 #   REGISTRY              registry host        (default: icr.io)
 #   DOCKER_BUILD_NETWORK  docker build network (default: host — needed where the
 #                         container's default bridge can't resolve DNS; set to
@@ -26,9 +27,10 @@ DOCKERFILE="$REPO_ROOT/build/Dockerfile"
 
 NAMESPACE="${NAMESPACE:-routing_namespace}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
+IMAGE_NAME="${IMAGE_NAME:-cuga-agent-apps}"
 REGISTRY="${REGISTRY:-icr.io}"
 DOCKER_BUILD_NETWORK="${DOCKER_BUILD_NETWORK:-host}"
-IMAGE="${REGISTRY}/${NAMESPACE}/cuga-allinone:${IMAGE_TAG}"
+IMAGE="${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 PUSH=1
 [[ "${1:-}" == "--no-push" ]] && PUSH=0
