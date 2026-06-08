@@ -365,7 +365,7 @@ def _web(port: int) -> None:
         else:
             prompt = req.question
         try:
-            result = await _agent.invoke(prompt, thread_id="query")
+            result = await _agent.invoke(prompt, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))

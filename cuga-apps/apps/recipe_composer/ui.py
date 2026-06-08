@@ -237,22 +237,20 @@ _BODY = r"""
     <div class="panel-title">Chat with the agent</div>
 
     <div class="chips">
-      <div class="chip" onclick="sendChip(this)">I have chicken breast and rice</div>
-      <div class="chip" onclick="sendChip(this)">Add eggs, spinach, and tomato</div>
-      <div class="chip" onclick="sendChip(this)">I'm vegetarian</div>
-      <div class="chip" onclick="sendChip(this)">I'm allergic to peanut butter</div>
-      <div class="chip" onclick="sendChip(this)">What can I cook tonight?</div>
-      <div class="chip" onclick="sendChip(this)">Suggest something quick under 20 minutes</div>
+      <div class="chip" onclick="sendChip(this)">I have chicken, rice, and broccoli — what can I cook tonight?</div>
+      <div class="chip" onclick="sendChip(this)">Vegetarian dinner with pasta, tomatoes, and spinach</div>
+      <div class="chip" onclick="sendChip(this)">Dairy-free, I've got eggs, potatoes, and cheese — quick ideas?</div>
+      <div class="chip" onclick="sendChip(this)">High-protein with tofu and chickpeas, no peanuts</div>
+      <div class="chip" onclick="sendChip(this)">Something quick under 20 minutes with what's in a basic pantry</div>
       <div class="chip" onclick="sendChip(this)">What can I substitute for butter?</div>
       <div class="chip" onclick="sendChip(this)">Roughly how many calories in 200g of pasta?</div>
-      <div class="chip" onclick="sendChip(this)">Anything with high protein?</div>
     </div>
 
     <div class="messages" id="messages"></div>
 
     <div class="input-row">
       <input type="text" id="userInput"
-        placeholder="Tell me what's in your pantry…"
+        placeholder="Tell me what's in your pantry, plus any diet or allergies, in one message…"
         onkeydown="if(event.key==='Enter') sendMessage()" />
       <button class="cds-btn btn" id="sendBtn" onclick="sendMessage()">Send</button>
     </div>

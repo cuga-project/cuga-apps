@@ -290,7 +290,7 @@ def _web(port: int) -> None:
         if not question:
             return JSONResponse({"error": "Empty question"}, status_code=400)
         try:
-            result = await _agent.invoke(question, thread_id="research")
+            result = await _agent.invoke(question, thread_id=uuid.uuid4().hex)
             report = result.answer
             _save_report(question, report)
             return {"answer": report}

@@ -27,6 +27,7 @@ import json
 import logging
 import os
 import sys
+import uuid
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -218,7 +219,7 @@ def _web(port: int) -> None:
     async def api_ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
         try:
-            result = await agent.invoke(req.question, thread_id="main")
+            result = await agent.invoke(req.question, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             log.exception("Agent error")

@@ -55,8 +55,12 @@ from pydantic import BaseModel
 from ui import _HTML
 
 
-# ── Per-thread session store ────────────────────────────────────────────
-# thread_id → {pantry, diet, allergies, recipes}
+# ── Per-request panel store (stateless) ─────────────────────────────────
+# This app is STATELESS: every request is a single, self-contained free-form
+# message. The agent infers the user's pantry, diet, and allergies from THAT
+# message alone — nothing is remembered across turns. The store below only
+# holds the *current* turn's extracted kitchen state + recipes so the side
+# panel (polled via GET /session/<id>) can render them. It is reset each turn.
 _sessions: dict[str, dict] = {}
 
 
@@ -69,11 +73,6 @@ def _get_session(thread_id: str) -> dict:
             "recipes":   [],
         }
     return _sessions[thread_id]
-
-
-def _append_unique(lst: list[str], value: str) -> None:
-    if value and value.lower() not in [v.lower() for v in lst]:
-        lst.append(value)
 
 
 # ── Static lookup tables (the inline "knowledge base") ──────────────────
@@ -159,102 +158,6 @@ def _make_tools():
     from langchain_core.tools import tool
 
     @tool
-    def add_to_pantry(thread_id: str, ingredient: str) -> str:
-        """Add an ingredient to the user's pantry for this session.
-        Call this whenever the user mentions something they have on hand.
-
-        Args:
-            thread_id:  The current session/thread ID (always pass through).
-            ingredient: Plain English ingredient name, e.g. "chicken breast",
-                        "rice", "olive oil". Normalize to singular, lowercase.
-        """
-        if not ingredient:
-            return json.dumps({"ok": False, "error": "ingredient is empty",
-                               "code": "bad_input"})
-        session = _get_session(thread_id)
-        normalized = ingredient.strip().lower()
-        _append_unique(session["pantry"], normalized)
-        log.info("[%s] added to pantry: %s", thread_id[:8], normalized)
-        return json.dumps({"ok": True, "data": {
-            "added": normalized,
-            "pantry_size": len(session["pantry"]),
-        }})
-
-    @tool
-    def remove_from_pantry(thread_id: str, ingredient: str) -> str:
-        """Remove an ingredient from the user's pantry — e.g. they ran out.
-
-        Args:
-            thread_id:  The current session/thread ID.
-            ingredient: Ingredient name to remove (case-insensitive match).
-        """
-        session = _get_session(thread_id)
-        target = (ingredient or "").strip().lower()
-        before = len(session["pantry"])
-        session["pantry"] = [i for i in session["pantry"] if i.lower() != target]
-        return json.dumps({"ok": True, "data": {
-            "removed": before != len(session["pantry"]),
-            "pantry_size": len(session["pantry"]),
-        }})
-
-    @tool
-    def list_pantry(thread_id: str) -> str:
-        """List the ingredients currently in the user's pantry. Call this at the
-        start of a recipe request to see what you have to work with.
-
-        Args:
-            thread_id: The current session/thread ID.
-        """
-        session = _get_session(thread_id)
-        return json.dumps({"ok": True, "data": {
-            "pantry":     session["pantry"],
-            "count":      len(session["pantry"]),
-            "diet":       session["diet"] or "no preference",
-            "allergies":  session["allergies"],
-        }})
-
-    @tool
-    def set_diet(thread_id: str, diet: str) -> str:
-        """Save the user's dietary preference for this session.
-
-        Args:
-            thread_id: The current session/thread ID.
-            diet: One of: vegetarian, vegan, pescatarian, gluten-free,
-                  dairy-free, keto, omnivore. Use "omnivore" or empty
-                  string to clear any prior preference.
-        """
-        session = _get_session(thread_id)
-        d = (diet or "").strip().lower()
-        if d in ("", "omnivore", "none"):
-            session["diet"] = ""
-            return json.dumps({"ok": True, "data": {"diet": "no preference"}})
-        if d not in _DIET_BLOCKLIST:
-            return json.dumps({"ok": False, "code": "bad_input",
-                               "error": f"unknown diet '{d}'. Valid: " +
-                                        ", ".join(_DIET_BLOCKLIST) + ", omnivore"})
-        session["diet"] = d
-        return json.dumps({"ok": True, "data": {"diet": d}})
-
-    @tool
-    def add_allergy(thread_id: str, ingredient: str) -> str:
-        """Mark an ingredient as something the user can't eat. Recipes that include
-        any allergen are blocked at suggestion time.
-
-        Args:
-            thread_id:  The current session/thread ID.
-            ingredient: Ingredient (e.g. "peanut butter", "almonds").
-        """
-        session = _get_session(thread_id)
-        normalized = (ingredient or "").strip().lower()
-        if not normalized:
-            return json.dumps({"ok": False, "code": "bad_input",
-                               "error": "ingredient is empty"})
-        _append_unique(session["allergies"], normalized)
-        return json.dumps({"ok": True, "data": {
-            "allergies": session["allergies"],
-        }})
-
-    @tool
     def estimate_macros(ingredient: str, grams: int = 100) -> str:
         """Look up rough macros for a portion of one ingredient. Static lookup
         table — no network call. Useful for rough nutrition guidance per
@@ -304,39 +207,53 @@ def _make_tools():
         }})
 
     @tool
-    def check_diet_compatibility(thread_id: str, ingredients_csv: str) -> str:
-        """Check whether a list of ingredients is compatible with the user's
-        active diet + allergies. Call this BEFORE proposing a recipe so you
-        can flag and substitute problem ingredients up front.
+    def check_diet_compatibility(ingredients_csv: str, diet: str = "",
+                                 allergies_csv: str = "") -> str:
+        """Check whether a list of ingredients is compatible with a diet and a
+        set of allergies. Stateless — pass the diet and allergies you inferred
+        from the user's message. Call this BEFORE finalizing a recipe so you can
+        flag and substitute problem ingredients up front.
 
         Args:
-            thread_id:       The current session/thread ID.
-            ingredients_csv: Comma-separated ingredient names.
+            ingredients_csv: Comma-separated ingredient names to check.
+            diet: The user's diet, e.g. vegetarian, vegan, pescatarian,
+                  gluten-free, dairy-free, keto. Empty = no restriction.
+            allergies_csv: Comma-separated ingredients the user can't eat.
         """
-        session = _get_session(thread_id)
         items = [i.strip().lower() for i in (ingredients_csv or "").split(",") if i.strip()]
         if not items:
             return json.dumps({"ok": False, "code": "bad_input",
                                "error": "ingredients_csv is empty"})
+        d = (diet or "").strip().lower()
+        allergies = [a.strip().lower() for a in (allergies_csv or "").split(",") if a.strip()]
         blocked_diet = []
-        if session["diet"] in _DIET_BLOCKLIST:
-            blocked_diet = [i for i in items if i in _DIET_BLOCKLIST[session["diet"]]]
-        blocked_allergy = [i for i in items if i in session["allergies"]]
+        if d in _DIET_BLOCKLIST:
+            blocked_diet = [i for i in items if i in _DIET_BLOCKLIST[d]]
+        blocked_allergy = [i for i in items if i in allergies]
         return json.dumps({"ok": True, "data": {
-            "diet":             session["diet"] or "no preference",
+            "diet":             d or "no preference",
             "blocked_by_diet":  blocked_diet,
             "blocked_by_allergy": blocked_allergy,
             "compatible":       not (blocked_diet or blocked_allergy),
         }})
 
     @tool
-    def save_recipes(thread_id: str, recipes_json: str) -> str:
-        """Persist the structured recipe suggestions so the UI can render them
-        as cards. Call this EVERY time you produce a set of recipe ideas.
+    def save_kitchen_result(thread_id: str, pantry_csv: str, diet: str,
+                            allergies_csv: str, recipes_json: str) -> str:
+        """Record the kitchen state you inferred from the user's message AND your
+        recipe suggestions, in a single call, so the UI can render them.
+
+        Call this exactly once, after you've read the message and chosen the
+        recipes. Everything must be derived from the current message alone.
 
         Args:
-            thread_id:    The current session/thread ID.
-            recipes_json: A JSON array. Each element must include:
+            thread_id:     The current session/thread ID (pass the one you received).
+            pantry_csv:    Comma-separated ingredients the user said they have.
+            diet:          The user's diet (e.g. "vegan", "gluten-free"); empty if
+                           none mentioned.
+            allergies_csv: Comma-separated ingredients the user can't eat; empty if
+                           none mentioned.
+            recipes_json:  A JSON array. Each element must include:
                             title           (str)
                             time_minutes    (int)
                             difficulty      (str: "easy" | "medium" | "hard")
@@ -352,18 +269,22 @@ def _make_tools():
             if not isinstance(recipes, list):
                 return json.dumps({"ok": False, "code": "bad_input",
                                    "error": "recipes_json must be a JSON array"})
-            session["recipes"] = recipes
-            log.info("[%s] saved %d recipes", thread_id[:8], len(recipes))
-            return json.dumps({"ok": True, "data": {"saved": len(recipes)}})
         except json.JSONDecodeError as exc:
             return json.dumps({"ok": False, "code": "bad_input",
-                               "error": f"invalid JSON: {exc}"})
+                               "error": f"invalid recipes_json: {exc}"})
+
+        session["pantry"]    = [p.strip().lower() for p in (pantry_csv or "").split(",") if p.strip()]
+        session["allergies"] = [a.strip().lower() for a in (allergies_csv or "").split(",") if a.strip()]
+        d = (diet or "").strip().lower()
+        session["diet"]      = "" if d in ("", "omnivore", "none") else d
+        session["recipes"]   = recipes
+        log.info("[%s] extracted kitchen state + %d recipes",
+                 thread_id[:8], len(recipes))
+        return json.dumps({"ok": True, "data": {"saved": len(recipes)}})
 
     return [
-        add_to_pantry, remove_from_pantry, list_pantry,
-        set_diet, add_allergy,
         estimate_macros, suggest_substitution, check_diet_compatibility,
-        save_recipes,
+        save_kitchen_result,
     ]
 
 
@@ -371,34 +292,33 @@ def _make_tools():
 _SYSTEM = """\
 # Recipe Composer
 
-You are a friendly home-cooking assistant. Your job is to learn what's in the
-user's pantry, respect their dietary needs, and propose 3–5 cookable recipes
-they'd actually enjoy tonight.
+You are a friendly home-cooking assistant. You are STATELESS: the user sends ONE
+free-form message, and you must figure everything out from that single message.
+You have NO memory of previous messages — never assume any pantry item, diet, or
+allergy the user did not state in the current message.
 
-## Listening for pantry updates
-Whenever the user mentions an ingredient they have, call `add_to_pantry`. Do
-this *eagerly* — even if they're just chatting. Same for diet (`set_diet`)
-and allergies (`add_allergy`). One call per item.
-
-## When the user asks for ideas
-Follow this exact sequence:
-
-1. Call `list_pantry(thread_id=...)` to see what's available.
+## How to respond to each message
+1. Read the message and infer, from it alone: the ingredients the user has (their
+   pantry), any diet (vegetarian, vegan, pescatarian, gluten-free, dairy-free,
+   keto…), and any allergies. It's fine if some are absent — work with whatever
+   the message provides. If the message is sparse (e.g. "something quick with
+   chicken"), infer a reasonable pantry from it.
 2. Brainstorm 3–5 candidate dishes that use what they have.
-3. For each candidate, list its ingredients and call
-   `check_diet_compatibility(ingredients_csv=...)`. If anything is blocked,
-   either swap it (`suggest_substitution`) or drop the dish.
-4. Optional: call `estimate_macros` for the heaviest 2–3 ingredients of each
-   dish so you can fill `calories_est` reasonably (sum across portions).
-5. Call `save_recipes(recipes_json=...)` with a JSON array. Each recipe must
-   set `uses`, `missing`, `time_minutes`, `difficulty`, `why`, `steps`.
-   `missing` is empty for "you have everything" dishes.
-6. Reply to the user in plain prose: list each recipe with one-line
-   description and the cook time. Mention which pantry items it uses and
-   what (if anything) they'd need to buy.
+3. For each candidate, call `check_diet_compatibility(ingredients_csv=...,
+   diet=..., allergies_csv=...)`, passing the diet and allergies you inferred.
+   If anything is blocked, swap it (`suggest_substitution`) or drop the dish.
+4. Optional: call `estimate_macros` for the heaviest 2–3 ingredients of each dish
+   so you can fill `calories_est` reasonably (sum across portions).
+5. Call `save_kitchen_result(thread_id=..., pantry_csv=..., diet=...,
+   allergies_csv=..., recipes_json=...)` exactly ONCE. pantry_csv / diet /
+   allergies_csv are what you inferred from THIS message; recipes_json is a JSON
+   array where each recipe sets `uses`, `missing`, `time_minutes`, `difficulty`,
+   `why`, `steps`. `missing` is empty for "you have everything" dishes.
+6. Reply in plain prose: list each recipe with a one-line description and the cook
+   time. Mention which pantry items it uses and what (if anything) they'd need to buy.
 
 ## Rules
-- Don't invent ingredient data. If `estimate_macros` returns `not_found`,
+- Don't invent ingredient macro data. If `estimate_macros` returns `not_found`,
   carry on with a vague qualifier ("hearty", "light") rather than guessing.
 - Substitutions come from `suggest_substitution`. Don't make them up.
 - Stay under 6 recipes. Quality over quantity.
@@ -472,11 +392,15 @@ def _web(port: int) -> None:
     @app.post("/ask")
     async def api_ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
-        thread_id = req.thread_id or str(uuid.uuid4())
+        # Stateless: the panel id keys the data the UI polls, but we reset it
+        # each turn and run the agent on a fresh memory thread, so nothing
+        # carries over from the previous message.
+        thread_id = req.thread_id or uuid.uuid4().hex
+        _sessions.pop(thread_id, None)
         augmented = f"[thread:{thread_id}] {req.question}"
         try:
             agent = _get_agent()
-            result = await agent.invoke(augmented, thread_id=thread_id)
+            result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
             return {"answer": str(result), "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")

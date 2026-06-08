@@ -59,8 +59,14 @@ from pydantic import BaseModel
 from ui import _HTML
 
 # ---------------------------------------------------------------------------
-# In-memory session store
-# thread_id → {genres, liked_movies, disliked_movies, actors, directors, moods, recommendations}
+# Per-request panel store (stateless)
+# ---------------------------------------------------------------------------
+# This app is STATELESS: every request is a single, self-contained free-form
+# message. The agent infers the user's whole taste profile from THAT message
+# alone — nothing is remembered across turns. The store below only holds the
+# *current* turn's extracted profile + recommendations so the side panel (which
+# the browser polls via GET /session/<id>) can render them. It is reset at the
+# start of every turn.
 # ---------------------------------------------------------------------------
 _sessions: dict = {}
 
@@ -79,103 +85,68 @@ def _get_session(thread_id: str) -> dict:
     return _sessions[thread_id]
 
 
-def _append_unique(lst: list, value: str) -> None:
-    """Append value to list only if not already present (case-insensitive)."""
-    if value and value.lower() not in [v.lower() for v in lst]:
-        lst.append(value)
-
-
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
 
 def _make_tools():
-    # Wikipedia lookup delegated to mcp-knowledge. The 3 session-state tools
-    # below (save_preference, get_preferences, save_recommendations) stay inline
-    # because they mutate this process's in-memory session store.
+    # Wikipedia lookup delegated to mcp-knowledge. The single inline tool below
+    # records the agent's one-shot result (extracted profile + recommendations)
+    # into this process's per-turn panel store.
     from _mcp_bridge import load_tools
     knowledge_tools = load_tools(["knowledge"])
 
-    @tool
-    def save_preference(thread_id: str, category: str, value: str) -> str:
-        """
-        Save a user preference to their session profile.
-        Call this whenever the user mentions something they like, dislike, or prefer.
-
-        Args:
-            thread_id: The current session/thread ID (always pass the thread_id you received)
-            category: One of: genre, liked_movie, disliked_movie, favorite_actor,
-                      favorite_director, mood
-            value: The preference value (e.g. "thriller", "The Dark Knight", "Christopher Nolan")
-        """
-        session = _get_session(thread_id)
-        category_map = {
-            "genre": "genres",
-            "liked_movie": "liked_movies",
-            "disliked_movie": "disliked_movies",
-            "favorite_actor": "favorite_actors",
-            "favorite_director": "favorite_directors",
-            "mood": "moods",
-        }
-        key = category_map.get(category.lower().replace(" ", "_"))
-        if not key:
-            return f"Unknown category '{category}'. Valid: genre, liked_movie, disliked_movie, favorite_actor, favorite_director, mood"
-
-        _append_unique(session[key], value)
-        log.info("Saved preference [%s] %s → %s", thread_id[:8], category, value)
-        return f"Saved: {category} = {value}"
+    _PROFILE_KEYS = {
+        "genres", "liked_movies", "disliked_movies",
+        "favorite_actors", "favorite_directors", "moods",
+    }
 
     @tool
-    def get_preferences(thread_id: str) -> str:
+    def save_movie_result(thread_id: str, profile_json: str,
+                          recommendations_json: str) -> str:
         """
-        Retrieve all saved preferences for the current session.
-        Call this at the start of a recommendation request to recall what the user has told you.
+        Record the taste profile you extracted from the user's message AND your
+        recommendations, in a single call, so the UI can display them.
+
+        Call this exactly once, after you have read the user's message and chosen
+        the films. Everything must be derived from the current message alone.
 
         Args:
-            thread_id: The current session/thread ID
+            thread_id: The current session/thread ID (pass the one you received).
+            profile_json: A JSON object capturing what the user told you, with any
+                of these keys (each a list of strings; omit or leave empty if not
+                mentioned): genres, liked_movies, disliked_movies, favorite_actors,
+                favorite_directors, moods.
+            recommendations_json: A JSON array where each element is an object with
+                keys: title (str), year (str or int), genre (str), reason (str —
+                one sentence why this matches the user's taste), rating (optional
+                str, e.g. "8.5/10").
         """
         session = _get_session(thread_id)
-        parts = []
-        if session["genres"]:
-            parts.append("Genres: " + ", ".join(session["genres"]))
-        if session["liked_movies"]:
-            parts.append("Liked movies: " + ", ".join(session["liked_movies"]))
-        if session["disliked_movies"]:
-            parts.append("Disliked movies: " + ", ".join(session["disliked_movies"]))
-        if session["favorite_actors"]:
-            parts.append("Favourite actors: " + ", ".join(session["favorite_actors"]))
-        if session["favorite_directors"]:
-            parts.append("Favourite directors: " + ", ".join(session["favorite_directors"]))
-        if session["moods"]:
-            parts.append("Mood / vibe: " + ", ".join(session["moods"]))
-        if not parts:
-            return "No preferences saved yet for this session."
-        return "\n".join(parts)
-
-    @tool
-    def save_recommendations(thread_id: str, recommendations_json: str) -> str:
-        """
-        Persist the structured list of recommendations so the UI can display them as cards.
-        Call this EVERY time you produce a set of recommendations.
-
-        Args:
-            thread_id: The current session/thread ID
-            recommendations_json: A JSON array where each element is an object with keys:
-              title (str), year (str or int), genre (str), reason (str — one sentence why
-              this matches the user's taste), rating (optional str, e.g. "8.5/10")
-        """
-        session = _get_session(thread_id)
+        try:
+            profile = json.loads(profile_json) if profile_json.strip() else {}
+            if not isinstance(profile, dict):
+                return "profile_json must be a JSON object."
+        except json.JSONDecodeError as e:
+            return f"Invalid profile_json: {e}"
         try:
             recs = json.loads(recommendations_json)
             if not isinstance(recs, list):
                 return "recommendations_json must be a JSON array."
-            session["recommendations"] = recs
-            log.info("Saved %d recommendations for session %s", len(recs), thread_id[:8])
-            return f"Saved {len(recs)} recommendations."
         except json.JSONDecodeError as e:
-            return f"Invalid JSON: {e}"
+            return f"Invalid recommendations_json: {e}"
 
-    return [*knowledge_tools, save_preference, get_preferences, save_recommendations]
+        for key in _PROFILE_KEYS:
+            value = profile.get(key) or []
+            if isinstance(value, str):
+                value = [value]
+            session[key] = [str(v) for v in value if str(v).strip()]
+        session["recommendations"] = recs
+        log.info("[%s] extracted profile + %d recommendations",
+                 thread_id[:8], len(recs))
+        return f"Saved profile and {len(recs)} recommendations."
+
+    return [*knowledge_tools, save_movie_result]
 
 
 # ---------------------------------------------------------------------------
@@ -183,30 +154,31 @@ def _make_tools():
 # ---------------------------------------------------------------------------
 
 _SYSTEM = """\
-You are a personalized movie recommendation assistant. Your goal is to learn what
-the user enjoys and suggest films they will love.
+You are a personalized movie recommendation assistant. You are STATELESS: the user
+sends ONE free-form message describing their taste, and you must figure everything
+out from that single message. You have NO memory of previous messages — never assume
+anything the user did not say in the current message.
 
-## Collecting preferences
-Whenever the user mentions:
-- a movie they like or have enjoyed → call save_preference(category="liked_movie", ...)
-- a genre they enjoy → call save_preference(category="genre", ...)
-- a movie they disliked → call save_preference(category="disliked_movie", ...)
-- a favourite actor → call save_preference(category="favorite_actor", ...)
-- a favourite director → call save_preference(category="favorite_director", ...)
-- a mood or vibe (e.g. "something uplifting", "edge-of-seat thriller") → save_preference(category="mood", ...)
-
-Save preferences immediately as the user mentions them — do not wait until they ask
-for recommendations.
-
-## Making recommendations
-When the user asks for recommendations (or when you judge it's time):
-1. Call get_preferences(thread_id=...) to recall everything you know.
-2. Optionally call get_wikipedia_article(title=...) to verify details about movies you plan to suggest.
-3. Select 5–8 films that best match the profile.
-4. Call save_recommendations(thread_id=..., recommendations_json=...) with a JSON array:
-   [{"title": "...", "year": "...", "genre": "...", "reason": "...", "rating": "..."}, ...]
+## How to respond to each message
+1. Read the user's message and infer their taste profile from it. Pick out, where
+   present: genres they enjoy, specific movies they liked, movies they disliked,
+   favourite actors, favourite directors, and any mood / vibe they want tonight
+   (e.g. "something uplifting", "edge-of-seat thriller"). It is fine if some of
+   these are absent — work with whatever the message provides. If the message is
+   sparse (e.g. just "recommend a thriller"), infer a reasonable profile from it.
+2. Optionally call get_wikipedia_article(title=...) to verify details about films
+   you plan to suggest.
+3. Choose 5–8 films that best match the inferred profile, avoiding anything the
+   user said they dislike.
+4. Call save_movie_result(thread_id=..., profile_json=..., recommendations_json=...)
+   exactly ONCE, where:
+     - profile_json is what you extracted from THIS message, e.g.
+       {"genres": ["sci-fi", "thriller"], "liked_movies": ["Inception"],
+        "moods": ["uplifting"]}
+     - recommendations_json is a JSON array:
+       [{"title": "...", "year": "...", "genre": "...", "reason": "...", "rating": "..."}, ...]
 5. Then write a friendly, conversational reply listing those same films with short
-   descriptions of why each fits the user's taste.
+   descriptions of why each fits what the user just told you.
 
 ## Tone
 Warm, knowledgeable, enthusiastic about film — like a friend who has seen everything.
@@ -267,12 +239,16 @@ def _web(port: int):
     @app.post("/ask")
     async def ask(req: AskRequest):
         from _usage import track_utterance; track_utterance(req.question)
-        thread_id = req.thread_id or str(uuid.uuid4())
-        # Embed thread_id in the message so the agent can pass it to tools
+        # Stateless: the panel id keys the data the UI polls, but we reset it
+        # each turn and run the agent on a fresh memory thread, so nothing
+        # carries over from the previous message.
+        thread_id = req.thread_id or uuid.uuid4().hex
+        _sessions.pop(thread_id, None)
+        # Embed the panel id in the message so the agent passes it to its tool.
         augmented = f"[thread:{thread_id}] {req.question}"
         try:
             agent = _get_agent()
-            result = await agent.invoke(augmented, thread_id=thread_id)
+            result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
             return {"answer": str(result), "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")

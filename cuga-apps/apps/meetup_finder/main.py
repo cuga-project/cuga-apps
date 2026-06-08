@@ -577,11 +577,15 @@ def _web(port: int) -> None:
     @app.post("/ask")
     async def api_ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
-        thread_id = req.thread_id or str(uuid.uuid4())
+        # Stateless: the panel id keys the per-turn data the UI polls, but we
+        # reset it each turn and run the agent on a fresh memory thread, so
+        # nothing carries over from the previous question.
+        thread_id = req.thread_id or uuid.uuid4().hex
+        _sessions.pop(thread_id, None)
         augmented = f"[thread:{thread_id}] {req.question}"
         try:
             agent = await _get_agent()
-            result = await agent.invoke(augmented, thread_id=thread_id)
+            result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
             return {"answer": str(result), "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")

@@ -1225,6 +1225,12 @@ def _web(port: int) -> None:
         callback (source='loop'). Stamps `source` + `loop_id` into the
         saved run JSON so the UI can distinguish them.
         """
+        # Stateless per turn: a brand-new user utterance starts from a clean
+        # context (no carry-over of location/categories/leads from the prior
+        # turn). We still group the run under `thread_id` so the past-runs
+        # drawer and live session panel stay populated.
+        if source == "user":
+            _sessions.pop(thread_id, None)
         session = _get_session(thread_id)
         _maybe_update_session(session, question)
 
@@ -1240,7 +1246,10 @@ def _web(port: int) -> None:
         t0 = _time.monotonic()
         try:
             supervisor = await _get_supervisor()
-            result = await supervisor.invoke(augmented, thread_id=thread_id)
+            # Fresh memory thread every turn — the supervisor never sees the
+            # previous turn's messages (truly stateless reasoning). The run is
+            # still saved/grouped under `thread_id` below.
+            result = await supervisor.invoke(augmented, thread_id=uuid.uuid4().hex)
             elapsed_ms = int((_time.monotonic() - t0) * 1000)
             log.info("[%s] supervisor.invoke (%s) completed in %s",
                      thread_id[:8], source, _format_elapsed(elapsed_ms))

@@ -514,7 +514,7 @@ def _web(port: int) -> None:
     async def api_ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
         try:
-            result = await agent.invoke(req.question, thread_id="chat")
+            result = await agent.invoke(req.question, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=500)

@@ -355,15 +355,12 @@ _BODY = r"""
     <div class="panel-title">Chat with the agent</div>
 
     <div class="chips">
-      <div class="chip" onclick="sendChip(this)">I love thriller movies</div>
-      <div class="chip" onclick="sendChip(this)">My favourite film is Inception</div>
-      <div class="chip" onclick="sendChip(this)">I enjoy Christopher Nolan's work</div>
-      <div class="chip" onclick="sendChip(this)">Recommend me something like Interstellar</div>
-      <div class="chip" onclick="sendChip(this)">I'm in the mood for something uplifting</div>
-      <div class="chip" onclick="sendChip(this)">I love sci-fi and action films</div>
-      <div class="chip" onclick="sendChip(this)">Suggest 5 movies for tonight</div>
-      <div class="chip" onclick="sendChip(this)">I dislike horror movies</div>
-      <div class="chip" onclick="sendChip(this)">My favourite actor is Tom Hanks</div>
+      <div class="chip" onclick="sendChip(this)">I love Inception and sci-fi thrillers — recommend 5 for tonight</div>
+      <div class="chip" onclick="sendChip(this)">Something like Interstellar but more uplifting</div>
+      <div class="chip" onclick="sendChip(this)">I enjoy Christopher Nolan and Denis Villeneuve — what should I watch?</div>
+      <div class="chip" onclick="sendChip(this)">Cozy feel-good movies for a rainy night, nothing scary</div>
+      <div class="chip" onclick="sendChip(this)">Fast, intense action films like Mad Max</div>
+      <div class="chip" onclick="sendChip(this)">I dislike horror but love Tom Hanks dramas</div>
     </div>
 
     <div class="messages" id="messages"></div>
@@ -372,7 +369,7 @@ _BODY = r"""
       <input
         type="text"
         id="userInput"
-        placeholder="Tell me what you enjoy watching…"
+        placeholder="Describe what you like — genres, films, mood — in one message…"
         onkeydown="if(event.key==='Enter') sendMessage()"
       />
       <button class="btn" id="sendBtn" onclick="sendMessage()">Send</button>

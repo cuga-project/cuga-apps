@@ -26,6 +26,7 @@ import argparse
 import logging
 import os
 import sys
+import uuid
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -203,7 +204,7 @@ def _web(port: int) -> None:
         if not question:
             return JSONResponse({"error": "Empty question"}, status_code=400)
         try:
-            result = await _agent.invoke(question, thread_id=req.thread_id)
+            result = await _agent.invoke(question, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             log.error("Agent error: %s", exc)

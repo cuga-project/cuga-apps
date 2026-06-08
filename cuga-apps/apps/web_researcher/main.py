@@ -307,7 +307,7 @@ def _web(port: int) -> None:
         try:
             result = await agent.invoke(
                 f"Research this and produce a structured report:\n\n{req.question}",
-                thread_id="chat",
+                thread_id=uuid.uuid4().hex,
             )
             report = result.answer
             _save_report(req.question, report, source="chat", emailed=False)
