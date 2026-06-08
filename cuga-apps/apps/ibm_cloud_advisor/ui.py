@@ -9,15 +9,43 @@ recommendation panel. Behavior, ids, fetch routes and copy are unchanged.
 from _carbon import carbon_head, carbon_css
 
 _APP_CSS = """<style>
-  body { background: var(--cds-background); }
+  body { background: var(--cds-background); display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
+  }
 
   .layout {
     display: grid; grid-template-columns: 380px 1fr; gap: var(--cds-sp-06);
-    max-width: 1400px; margin: 0 auto;
+    max-width: 1400px; margin: 0 auto; width: 100%;
     padding: var(--cds-sp-06) var(--cds-sp-06);
-    height: calc(100vh - 3rem); overflow: hidden;
+    flex: 1; min-height: 0; overflow: hidden;
   }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; overflow: visible; } }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; flex: none; overflow: visible; } }
 
   .panel { display: flex; flex-direction: column; gap: var(--cds-sp-05); overflow: hidden; }
 
@@ -108,6 +136,20 @@ _BODY = r"""
     <span class="cds-helper-01">Real IBM services · ibmcloud CLI</span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>IBM Cloud Architecture Advisor.</strong> Describe what you want to build
+    and get a recommended IBM Cloud architecture — real services, how they connect,
+    and ready-to-run ibmcloud CLI commands.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📦 IBM Global Catalog API</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+    <span class="tool-pill">⌨ ibmcloud CLI commands</span>
+  </div>
+</div>
 
 <div class="layout">
 

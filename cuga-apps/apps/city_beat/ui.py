@@ -20,17 +20,17 @@ _HTML = r"""<!DOCTYPE html>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Carbon Gray 100 (dark) tokens mapped onto City Beat's variable names */
-    --bg:       #161616;   /* $background */
-    --card:     #262626;   /* $layer-01  */
-    --border:   #393939;   /* $border-subtle */
-    --accent:   #4589ff;   /* IBM blue (blue-50, dark) */
-    --accent2:  #be95ff;   /* purple-40 */
+    /* Carbon White (g10) tokens mapped onto City Beat's variable names */
+    --bg:       #f4f4f4;
+    --card:     #ffffff;
+    --border:   #e0e0e0;
+    --accent:   #0f62fe;   /* IBM blue */
+    --accent2:  #8a3ffc;   /* purple-60 */
     --accent3:  #f1c21b;   /* support-warning */
-    --text:     #f4f4f4;   /* $text-primary */
-    --muted:    #8d8d8d;   /* $text-helper */
-    --danger:   #fa4d56;   /* red-50 (dark) */
-    --success:  #42be65;   /* green-40 (dark) */
+    --text:     #161616;
+    --muted:    #6f6f6f;
+    --danger:   #da1e28;
+    --success:  #24a148;
   }
 
   body {
@@ -69,8 +69,7 @@ _HTML = r"""<!DOCTYPE html>
   main {
     display: grid;
     grid-template-columns: 420px 1fr;
-    gap: 0; flex: 1; overflow: hidden;
-    height: calc(100vh - 57px);
+    gap: 0; flex: 1; min-height: 0; overflow: hidden;
   }
 
   /* Chat panel */
@@ -138,7 +137,7 @@ _HTML = r"""<!DOCTYPE html>
   .input-row input:focus { border-color: var(--accent); }
   .input-row input::placeholder { color: var(--muted); }
   .btn {
-    background: var(--accent); color: #06202b; border: none;
+    background: var(--accent); color: #fff; border: none;
     border-radius: 8px; padding: 9px 18px;
     font-size: 14px; font-weight: 700;
     cursor: pointer; transition: opacity 0.15s;
@@ -199,7 +198,7 @@ _HTML = r"""<!DOCTYPE html>
     font-size: 12px; color: var(--muted); margin-bottom: 10px;
   }
   .city-card .tagline {
-    font-size: 14px; color: #c0c8d8; line-height: 1.55;
+    font-size: 14px; color: var(--text); line-height: 1.55;
     border-left: 3px solid var(--accent); padding-left: 10px;
     margin-top: 10px; font-style: italic;
   }
@@ -223,7 +222,7 @@ _HTML = r"""<!DOCTYPE html>
     text-transform: uppercase; letter-spacing: 0.8px;
     color: var(--muted); margin-bottom: 8px;
   }
-  .block .body { font-size: 13px; line-height: 1.6; color: #d6deea; }
+  .block .body { font-size: 13px; line-height: 1.6; color: var(--text); }
   .block .body p { margin-bottom: 6px; }
   .block .body p:last-child { margin-bottom: 0; }
   .block .body a { color: var(--accent); text-decoration: none; }
@@ -285,6 +284,22 @@ _HTML = r"""<!DOCTYPE html>
   }
   .input-row input:focus { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: -2px; }
   .city-card .tagline { font-style: normal; }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 24px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .app-intro__blurb { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 48rem; }
+  .app-intro__blurb strong { color: var(--text); font-weight: 600; }
+  .app-intro__tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .app-intro__tools .tools-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-right: 4px; }
+  .tool-pill {
+    font-size: 11px; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -297,6 +312,20 @@ _HTML = r"""<!DOCTYPE html>
     <span id="statusText">Ready</span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>City Beat.</strong> Name a city and get a one-screen briefing — weather, today's news, background, nearby attractions, and an optional crypto spotlight, pulled live and pinned to the panel on the right.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📍 Geocoding · OSM</span>
+    <span class="tool-pill">☀ Weather</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+    <span class="tool-pill">📚 Wikipedia</span>
+    <span class="tool-pill">🪙 Crypto · CoinGecko</span>
+  </div>
+</div>
 
 <main>
   <div class="chat-panel">

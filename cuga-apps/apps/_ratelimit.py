@@ -27,8 +27,8 @@ tunable via env vars, so you change limits by editing the CE `app-env` secret
 and restarting — no code change, no rebuild:
 
   RL_ENABLED          "1"       master switch ("0" disables all limiting)
-  RL_PER_MIN          "12"      sustained POSTs per minute per IP
-  RL_BURST            "5"       token-bucket capacity (short burst) per IP
+  RL_PER_MIN          "30"      sustained POSTs per minute per IP
+  RL_BURST            "12"      token-bucket capacity (short burst) per IP
   RL_PER_DAY          "300"     hard POSTs per day per IP        (0 = off)
   RL_GLOBAL_PER_MIN   "150"     POSTs per minute across all IPs  (0 = off)
   RL_CONCURRENCY      "6"       max concurrent POSTs             (0 = off)
@@ -87,8 +87,8 @@ class _TokenBucket:
 class _Config:
     def __init__(self, **kw) -> None:
         self.enabled = os.getenv("RL_ENABLED", "1") != "0"
-        self.per_min = _env_int("RL_PER_MIN", 12)
-        self.burst = _env_int("RL_BURST", 5)
+        self.per_min = _env_int("RL_PER_MIN", 30)
+        self.burst = _env_int("RL_BURST", 12)
         self.per_day = _env_int("RL_PER_DAY", 300)
         self.global_per_min = _env_int("RL_GLOBAL_PER_MIN", 150)
         self.concurrency = _env_int("RL_CONCURRENCY", 6)

@@ -248,7 +248,7 @@ def _render_email_html(thread_id: str, question: str, answer: str,
     """Return (subject, html_body). HTML stays simple & client-safe."""
     is_loop = source == "loop"
     src_label = ("🔁 LOOP FIRE" if is_loop else "👤 USER REQUEST")
-    src_color = ("#a78bfa" if is_loop else "#94a3b8")
+    src_color = ("#8a3ffc" if is_loop else "#525252")
     leads_count = (len(leads.get("leads", []) or []) if leads else 0)
     location = (leads.get("location") if leads else None) or "—"
 
@@ -262,46 +262,46 @@ def _render_email_html(thread_id: str, question: str, answer: str,
         for l in top:
             rows += (
                 f"<tr>"
-                f"<td style='padding:6px 10px;border-bottom:1px solid #2a2a2a;color:#e6edf3'>"
+                f"<td style='padding:6px 10px;border-bottom:1px solid #e0e0e0;color:#161616'>"
                 f"<strong>{html.escape(str(l.get('name', '?')))}</strong>"
-                f"<div style='color:#888;font-size:11px'>{html.escape(str(l.get('category', '')))}</div></td>"
-                f"<td style='padding:6px 10px;border-bottom:1px solid #2a2a2a;color:#facc15;font-weight:bold'>"
+                f"<div style='color:#6f6f6f;font-size:11px'>{html.escape(str(l.get('category', '')))}</div></td>"
+                f"<td style='padding:6px 10px;border-bottom:1px solid #e0e0e0;color:#8a6d00;font-weight:bold'>"
                 f"{l.get('fit_score', '—')}/10</td>"
-                f"<td style='padding:6px 10px;border-bottom:1px solid #2a2a2a;color:#cbd5e1;font-size:12px'>"
+                f"<td style='padding:6px 10px;border-bottom:1px solid #e0e0e0;color:#525252;font-size:12px'>"
                 f"{html.escape((l.get('pitch', '') or '')[:240])}…</td>"
                 f"</tr>"
             )
-    empty_row = '<tr><td colspan=3 style="padding:14px;color:#888;text-align:center">No leads on this run.</td></tr>'
+    empty_row = '<tr><td colspan=3 style="padding:14px;color:#6f6f6f;text-align:center">No leads on this run.</td></tr>'
     tbody = rows or empty_row
     leads_table = (
-        f"<table style='width:100%;border-collapse:collapse;background:#0d1117;"
-        f"border:1px solid #2a2a2a;border-radius:6px;margin-top:14px'>"
-        f"<thead><tr><th style='text-align:left;padding:8px 10px;color:#8b949e;"
-        f"font-size:11px;text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Lead</th>"
-        f"<th style='text-align:left;padding:8px 10px;color:#8b949e;font-size:11px;"
-        f"text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Fit</th>"
-        f"<th style='text-align:left;padding:8px 10px;color:#8b949e;font-size:11px;"
-        f"text-transform:uppercase;border-bottom:1px solid #2a2a2a'>Pitch</th></tr></thead>"
+        f"<table style='width:100%;border-collapse:collapse;background:#f4f4f4;"
+        f"border:1px solid #e0e0e0;border-radius:6px;margin-top:14px'>"
+        f"<thead><tr><th style='text-align:left;padding:8px 10px;color:#6f6f6f;"
+        f"font-size:11px;text-transform:uppercase;border-bottom:1px solid #e0e0e0'>Lead</th>"
+        f"<th style='text-align:left;padding:8px 10px;color:#6f6f6f;font-size:11px;"
+        f"text-transform:uppercase;border-bottom:1px solid #e0e0e0'>Fit</th>"
+        f"<th style='text-align:left;padding:8px 10px;color:#6f6f6f;font-size:11px;"
+        f"text-transform:uppercase;border-bottom:1px solid #e0e0e0'>Pitch</th></tr></thead>"
         f"<tbody>{tbody}</tbody></table>"
     )
 
     loop_line = (
         f"<div style='font-size:12px;color:#888;margin-top:6px'>"
-        f"Loop id: <code style='color:#c4b5fd'>{html.escape(loop_id or '')}</code></div>"
+        f"Loop id: <code style='color:#8a3ffc'>{html.escape(loop_id or '')}</code></div>"
         if is_loop and loop_id else ""
     )
 
     body = f"""<!DOCTYPE html>
-<html><body style='font-family:-apple-system,system-ui,sans-serif;background:#161b22;
-color:#e6edf3;padding:24px;margin:0'>
+<html><body style='font-family:-apple-system,system-ui,sans-serif;background:#f4f4f4;
+color:#161616;padding:24px;margin:0'>
   <div style='max-width:700px;margin:0 auto'>
     <div style='display:inline-block;padding:4px 12px;border-radius:12px;
-                background:rgba(167,139,250,0.18);border:1px solid {src_color};
+                background:rgba(15,98,254,0.12);border:1px solid {src_color};
                 color:{src_color};font-weight:bold;font-size:12px;letter-spacing:0.5px'>
       {src_label}
     </div>
-    <h2 style='color:#e6edf3;margin:14px 0 4px'>{html.escape(question)}</h2>
-    <div style='color:#8b949e;font-size:13px'>
+    <h2 style='color:#161616;margin:14px 0 4px'>{html.escape(question)}</h2>
+    <div style='color:#6f6f6f;font-size:13px'>
       Location: <strong>{html.escape(str(location))}</strong>
       &nbsp;·&nbsp; {leads_count} leads
       &nbsp;·&nbsp; {html.escape(elapsed_human)}
@@ -992,14 +992,24 @@ the candidate plus its audit / voc / revenue / person / stack.
         "6. If a particular bundle field is empty, OMIT only that signal — do not fabricate. The pitch must still cite at least one real signal from another field.\\n"
         "7. Lower-ranked candidates (4..N): deep_dive=false, 1-2 sentence preliminary pitch from OSM data alone, skip the deep-dive fields per SKILL.md.\\n"
         "8. Use the location object verbatim for the top-level location/display_name/lat/lon.\\n\\n"
-        "Output the JSON-fenced lead board first, then 2 short paragraphs of summary."
+        "OUTPUT CONTRACT: the JSON-fenced lead board is the PRIMARY output and is "
+        "REQUIRED — the leads panel on the right is what the user actually reads, and "
+        "the server parses this JSON to render it. Emit the JSON-fenced lead board "
+        "FIRST, always, even if you only have partial results. After it, add ONLY a "
+        "SHORT framing of 1-2 sentences pointing the user to the leads panel (e.g. how "
+        "many leads found and the top pick by name). Do NOT restate the per-lead "
+        "detail in prose — the panel already shows every field."
     )
     final = await delegate_to_pitch_email_writer(task=writer_task)
     print(final)
 
 RETURN. After phase 3 returns, reply with the writer's output verbatim
 as plain text (TYPE 2, no code fence). Do not paraphrase, do not wrap,
-do not summarise.
+do not summarise. The writer's JSON-fenced lead board MUST be preserved
+exactly as-is — the server parses it to render the leads panel, which is
+the PRIMARY output the user reads. Keep any accompanying prose to the
+writer's 1-2 sentence framing that points to the panel; never expand it
+into a long summary or restate per-lead detail the panel already shows.
 
 HARD RULES:
   - Initialize `enrichments` dict in phase 1 BEFORE any sweep. Every

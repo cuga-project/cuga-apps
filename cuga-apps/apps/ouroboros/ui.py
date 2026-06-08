@@ -19,27 +19,26 @@ _HTML = r"""<!DOCTYPE html>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Carbon Gray 100 (dark) — mapped onto the app's existing variable names
-       so the bespoke CSS below keeps working, but renders as IBM Carbon. */
-    --bg:        #161616;   /* --cds-background */
-    --bg-soft:   #161616;
-    --card:      #262626;   /* --cds-layer-01 */
-    --card2:     #393939;   /* --cds-layer-02 */
-    --card3:     #525252;   /* --cds-layer-03 */
-    --border:    #393939;   /* --cds-border-subtle */
-    --border-strong: #6f6f6f;
-    --accent:    #78a9ff;   /* IBM blue — links (dark) */
-    --accent-glow: rgba(15,98,254,0.30);
-    --accent2:   #4589ff;   /* IBM blue — accent */
-    --accent2-glow: rgba(69,137,255,0.30);
+    /* Carbon White (g10) — mapped onto the app's variable names */
+    --bg:        #f4f4f4;
+    --bg-soft:   #ffffff;
+    --card:      #ffffff;
+    --card2:     #f4f4f4;
+    --card3:     #e8e8e8;
+    --border:    #e0e0e0;
+    --border-strong: #8d8d8d;
+    --accent:    #0f62fe;   /* IBM blue — links */
+    --accent-glow: rgba(15,98,254,0.12);
+    --accent2:   #0f62fe;   /* IBM blue — accent */
+    --accent2-glow: rgba(15,98,254,0.12);
     --accent3:   #f1c21b;   /* Carbon support-warning (top picks) */
-    --accent3-glow: rgba(241,194,27,0.30);
-    --text:      #f4f4f4;   /* --cds-text-primary */
-    --text-soft: #c6c6c6;   /* --cds-text-secondary */
-    --muted:     #8d8d8d;   /* --cds-text-helper */
-    --muted-2:   #6f6f6f;   /* --cds-text-placeholder */
-    --danger:    #fa4d56;   /* Carbon support-error (dark) */
-    --success:   #42be65;   /* Carbon support-success (dark) */
+    --accent3-glow: rgba(241,194,27,0.18);
+    --text:      #161616;
+    --text-soft: #525252;
+    --muted:     #6f6f6f;
+    --muted-2:   #a8a8a8;
+    --danger:    #da1e28;
+    --success:   #24a148;
 
     /* IBM blue interaction ramp (Carbon) */
     --cds-interactive:    #0f62fe;
@@ -47,10 +46,10 @@ _HTML = r"""<!DOCTYPE html>
     --cds-button-primary-hover: #0353e9;
     --cds-focus:          #0f62fe;
 
-    /* Carbon tiles use 1px subtle borders, not heavy material shadows */
+    /* Light theme: subtle borders, soft shadows */
     --shadow-sm: none;
     --shadow-md: none;
-    --shadow-lg: 0 2px 6px rgba(0,0,0,0.5);
+    --shadow-lg: 0 2px 6px rgba(0,0,0,0.12);
     --shadow-glow-emerald: 0 0 0 1px rgba(15,98,254,0.25);
     --shadow-glow-gold:    0 0 0 1px rgba(241,194,27,0.35);
   }
@@ -162,8 +161,23 @@ _HTML = r"""<!DOCTYPE html>
   main {
     display: grid;
     grid-template-columns: 460px 1fr;
-    gap: 0; flex: 1; overflow: hidden;
-    height: calc(100vh - 65px);
+    gap: 0; flex: 1; min-height: 0; overflow: hidden;
+  }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 24px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .app-intro__blurb { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 48rem; }
+  .app-intro__blurb strong { color: var(--text); font-weight: 600; }
+  .app-intro__tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .app-intro__tools .tools-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-right: 4px; }
+  .tool-pill {
+    font-size: 11px; color: var(--text-soft);
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px; white-space: nowrap;
   }
 
   /* Chat panel */
@@ -1011,19 +1025,19 @@ _HTML = r"""<!DOCTYPE html>
     border-radius: 0 !important;
   }
 
-  /* Carbon header — always dark, square, subtle 1px border (no blur/glow). */
+  /* Carbon header — light, square, subtle 1px border (no blur/glow). */
   header {
-    background: #161616 !important;
+    background: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid #393939 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
     box-shadow: none !important;
   }
   /* Wordmark in flat IBM Plex (no gradient text). */
   header h1, header h1 span {
     background: none !important;
-    -webkit-text-fill-color: #f4f4f4 !important;
-    color: #f4f4f4 !important;
+    -webkit-text-fill-color: #161616 !important;
+    color: #161616 !important;
     font-weight: 600 !important;
     letter-spacing: 0.1px !important;
   }
@@ -1057,14 +1071,14 @@ _HTML = r"""<!DOCTYPE html>
     outline-offset: -2px !important;
     box-shadow: inset 0 0 0 1px #fff !important;
   }
-  .btn:disabled { background: #525252 !important; color: #8d8d8d !important; box-shadow: none !important; }
+  .btn:disabled { background: #c6c6c6 !important; color: #8d8d8d !important; box-shadow: none !important; }
 
   /* Secondary / ghost buttons — square, Carbon gray, blue focus. */
   .btn-secondary {
-    background: #393939 !important; color: #fff !important;
+    background: #e0e0e0 !important; color: #161616 !important;
     border: 1px solid transparent !important; box-shadow: none !important;
   }
-  .btn-secondary:hover { background: #4c4c4c !important; box-shadow: none !important; }
+  .btn-secondary:hover { background: #d1d1d1 !important; box-shadow: none !important; }
   .btn-ghost, .btn-ghost:hover { transform: none !important; }
   .btn:focus, .btn-secondary:focus, .btn-ghost:focus,
   .header-pill:focus, .refresh-badge:focus,
@@ -1076,9 +1090,9 @@ _HTML = r"""<!DOCTYPE html>
   /* Inputs / textareas — Carbon field: square, bottom rule, blue focus ring. */
   .input-row input,
   .modal-body input[type="text"], .modal-body textarea {
-    background: #262626 !important;
+    background: #f4f4f4 !important;
     border: none !important;
-    border-bottom: 1px solid #6f6f6f !important;
+    border-bottom: 1px solid #8d8d8d !important;
     box-shadow: none !important;
     transition: outline 110ms cubic-bezier(0.2,0,0.38,0.9) !important;
   }
@@ -1086,7 +1100,7 @@ _HTML = r"""<!DOCTYPE html>
   .modal-body input[type="text"]:focus, .modal-body textarea:focus {
     outline: 2px solid var(--cds-focus) !important;
     outline-offset: -2px !important;
-    background: #262626 !important;
+    background: #f4f4f4 !important;
     box-shadow: none !important;
   }
 
@@ -1098,8 +1112,8 @@ _HTML = r"""<!DOCTYPE html>
   .hero::before, .hero::after { display: none !important; }
   .hero .place, .hero .place .accent {
     background: none !important;
-    -webkit-text-fill-color: #f4f4f4 !important;
-    color: #f4f4f4 !important;
+    -webkit-text-fill-color: #161616 !important;
+    color: #161616 !important;
   }
   .lead:hover, .lead.top:hover {
     transform: none !important;
@@ -1143,84 +1157,100 @@ _HTML = r"""<!DOCTYPE html>
   </button>
 </header>
 
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Ouroboros.</strong> A multi-agent lead-hunter — scouts local independent
+    businesses, deep-dives the top picks (reviews, site audit, tech stack, decision-maker),
+    and writes a ranked leads board with tailored pitches and outreach emails.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📍 Geocoding · OSM</span>
+    <span class="tool-pill">🏪 Local businesses · Overpass</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+    <span class="tool-pill">🌐 Site audit · httpx</span>
+    <span class="tool-pill">🧩 Tech fingerprint</span>
+  </div>
+</div>
+
 <!-- Email-config modal (NB: distinct from the per-lead "draft email" modal
      elsewhere in this UI; that one is #emailBackdrop / closeEmail()) -->
 <div id="emailCfgBackdrop" onclick="if(event.target===this)closeEmailCfgModal()"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
             z-index:1000;align-items:center;justify-content:center">
-  <div style="background:#262626;border:1px solid #393939;border-radius:0;
+  <div style="background:#ffffff;border:1px solid #e0e0e0;border-radius:0;
               padding:24px;max-width:560px;width:92%;max-height:90vh;overflow-y:auto;
-              color:#f4f4f4;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px">
+              color:#161616;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <h2 style="margin:0;font-size:16px">✉️ Email notifications</h2>
       <button onclick="closeEmailCfgModal()" style="background:none;border:none;
-              color:#8d8d8d;font-size:20px;cursor:pointer">×</button>
+              color:#6f6f6f;font-size:20px;cursor:pointer">×</button>
     </div>
-    <p style="margin:0 0 14px;color:#8d8d8d;font-size:12px">
+    <p style="margin:0 0 14px;color:#6f6f6f;font-size:12px">
       Set a recipient + SMTP creds and emails will be sent automatically after
       every run. Leave SMTP fields blank to use the env vars instead.
     </p>
     <div id="emailCfgStatus" style="font-size:11px;
-         padding:8px 10px;background:#161616;border-radius:0;margin-bottom:14px"></div>
+         padding:8px 10px;background:#f4f4f4;border-radius:0;margin-bottom:14px"></div>
 
     <label style="display:block;margin-top:8px">
-      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8d8d8d">
-        Recipient email <span style="color:#fa4d56">*</span>
-        <span style="color:#6f6f6f"> — emails are off when this is empty</span>
+      <span style="display:block;margin-bottom:4px;font-size:12px;color:#6f6f6f">
+        Recipient email <span style="color:#da1e28">*</span>
+        <span style="color:#a8a8a8"> — emails are off when this is empty</span>
       </span>
       <input type="email" id="ecRecipient" placeholder="you@example.com"
-        style="width:100%;padding:7px 10px;background:#161616;border:1px solid #393939;
-               border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
+        style="width:100%;padding:7px 10px;background:#f4f4f4;border:1px solid #e0e0e0;
+               border-radius:0;color:#161616;font:inherit;box-sizing:border-box" />
     </label>
 
     <label style="display:block;margin-top:12px">
-      <span style="display:block;margin-bottom:4px;font-size:12px;color:#8d8d8d">
+      <span style="display:block;margin-bottom:4px;font-size:12px;color:#6f6f6f">
         Minimum leads to send (skip noisy runs)
       </span>
       <input type="number" id="ecMinLeads" min="0" max="10" value="0"
-        style="width:80px;padding:7px 10px;background:#161616;border:1px solid #393939;
-               border-radius:0;color:#f4f4f4;font:inherit" />
+        style="width:80px;padding:7px 10px;background:#f4f4f4;border:1px solid #e0e0e0;
+               border-radius:0;color:#161616;font:inherit" />
     </label>
 
-    <fieldset style="margin-top:14px;border:1px solid #393939;border-radius:0;
+    <fieldset style="margin-top:14px;border:1px solid #e0e0e0;border-radius:0;
                      padding:8px 12px">
       <legend style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
-                     padding:0 6px;color:#8d8d8d">SMTP credentials</legend>
+                     padding:0 6px;color:#6f6f6f">SMTP credentials</legend>
       <div style="display:grid;grid-template-columns:1fr 80px;gap:8px 10px">
         <label>Host
           <input type="text" id="ecSmtpHost" placeholder="smtp.gmail.com"
-            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
-                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#f4f4f4;border:1px solid #e0e0e0;
+                   border-radius:0;color:#161616;font:inherit;box-sizing:border-box" />
         </label>
         <label>Port
           <input type="number" id="ecSmtpPort" placeholder="587"
-            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
-                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#f4f4f4;border:1px solid #e0e0e0;
+                   border-radius:0;color:#161616;font:inherit;box-sizing:border-box" />
         </label>
         <label style="grid-column:1/3">Username
           <input type="text" id="ecSmtpUsername" placeholder="you@gmail.com"
-            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
-                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#f4f4f4;border:1px solid #e0e0e0;
+                   border-radius:0;color:#161616;font:inherit;box-sizing:border-box" />
         </label>
         <label style="grid-column:1/3">
           Password
           <span id="ecPwState" style="font-size:11px;font-weight:normal;margin-left:6px"></span>
           <input type="password" id="ecSmtpPassword" autocomplete="new-password"
-            style="width:100%;padding:6px 8px;background:#161616;border:2px solid #393939;
-                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#f4f4f4;border:2px solid #e0e0e0;
+                   border-radius:0;color:#161616;font:inherit;box-sizing:border-box" />
         </label>
         <label style="grid-column:1/3">From address
           <input type="email" id="ecSmtpFrom" placeholder="(defaults to username)"
-            style="width:100%;padding:6px 8px;background:#161616;border:1px solid #393939;
-                   border-radius:0;color:#f4f4f4;font:inherit;box-sizing:border-box" />
+            style="width:100%;padding:6px 8px;background:#f4f4f4;border:1px solid #e0e0e0;
+                   border-radius:0;color:#161616;font:inherit;box-sizing:border-box" />
         </label>
       </div>
     </fieldset>
 
     <div style="margin-top:18px;display:flex;gap:8px;justify-content:flex-end">
       <button onclick="emailCfgTest()" id="ecTestBtn"
-              style="padding:8px 14px;background:transparent;border:1px solid #393939;
-                     border-radius:0;color:#c6c6c6;cursor:pointer">
+              style="padding:8px 14px;background:transparent;border:1px solid #e0e0e0;
+                     border-radius:0;color:#525252;cursor:pointer">
         Send test email
       </button>
       <button onclick="emailCfgSave()" id="ecSaveBtn"
@@ -1973,12 +2003,12 @@ _HTML = r"""<!DOCTYPE html>
       pwInput.value = '';
       if (hasSavedPw) {
         pwInput.placeholder = '••• saved — leave blank to keep, or type to replace';
-        pwInput.style.borderColor = '#3fb950';
-        pwState.innerHTML = '<span style="color:#3fb950">✓ saved</span>';
+        pwInput.style.borderColor = '#24a148';
+        pwState.innerHTML = '<span style="color:#24a148">✓ saved</span>';
       } else {
         pwInput.placeholder = 'paste your gmail app-password here';
-        pwInput.style.borderColor = '#f85149';
-        pwState.innerHTML = '<span style="color:#f85149">⚠ required — no password saved yet</span>';
+        pwInput.style.borderColor = '#da1e28';
+        pwState.innerHTML = '<span style="color:#da1e28">⚠ required — no password saved yet</span>';
       }
       document.getElementById('ecSmtpFrom').value       = c.smtp_from || '';
 
@@ -1986,8 +2016,8 @@ _HTML = r"""<!DOCTYPE html>
       status.innerHTML =
         '<strong>Effective SMTP:</strong> ' +
         (e.ready
-          ? `<span style="color:#3fb950">✓ ${esc(e.host)}:${e.port} as ${esc(e.username)}, from ${esc(e.from)}</span>`
-          : `<span style="color:#f85149">✗ incomplete — fill SMTP fields below or set env vars (SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL)</span>`);
+          ? `<span style="color:#24a148">✓ ${esc(e.host)}:${e.port} as ${esc(e.username)}, from ${esc(e.from)}</span>`
+          : `<span style="color:#da1e28">✗ incomplete — fill SMTP fields below or set env vars (SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL)</span>`);
       emailCfgBackdrop.style.display = 'flex';
     } catch (err) {
       alert('Could not load email config: ' + err.message);
@@ -2016,7 +2046,7 @@ _HTML = r"""<!DOCTYPE html>
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(await r.text());
-      emailCfgMsg.style.color = '#3fb950';
+      emailCfgMsg.style.color = '#24a148';
       emailCfgMsg.textContent = body.recipient
         ? 'Saved. Emails will be sent automatically after each run.'
         : 'Saved. (No recipient set — emails are off.)';
@@ -2026,10 +2056,10 @@ _HTML = r"""<!DOCTYPE html>
       document.getElementById('emailCfgStatus').innerHTML =
         '<strong>Effective SMTP:</strong> ' +
         (e.ready
-          ? `<span style="color:#3fb950">✓ ${esc(e.host)}:${e.port} as ${esc(e.username)}, from ${esc(e.from)}</span>`
-          : `<span style="color:#f85149">✗ incomplete</span>`);
+          ? `<span style="color:#24a148">✓ ${esc(e.host)}:${e.port} as ${esc(e.username)}, from ${esc(e.from)}</span>`
+          : `<span style="color:#da1e28">✗ incomplete</span>`);
     } catch (err) {
-      emailCfgMsg.style.color = '#f85149';
+      emailCfgMsg.style.color = '#da1e28';
       emailCfgMsg.textContent = 'Save failed: ' + err.message;
     }
   }
@@ -2050,7 +2080,7 @@ _HTML = r"""<!DOCTYPE html>
       smtp_from: body.smtp_from,
     });
     if (!body.recipient) {
-      emailCfgMsg.style.color = '#f85149';
+      emailCfgMsg.style.color = '#da1e28';
       emailCfgMsg.textContent = 'Recipient is empty — fill it in above first.';
       return;
     }
@@ -2072,12 +2102,12 @@ _HTML = r"""<!DOCTYPE html>
           ).join('; ');
         }
         if (!humanError) humanError = 'HTTP ' + r.status;
-        let msg = '<strong style="color:#f85149">Test failed:</strong> ' + esc(humanError);
+        let msg = '<strong style="color:#da1e28">Test failed:</strong> ' + esc(humanError);
         const debugObj = j.diag || j.detail;
         if (debugObj) {
           msg += '<details style="margin-top:6px;color:#888;font-size:11px">'
                + '<summary style="cursor:pointer">diagnostics</summary>'
-               + '<pre style="margin:4px 0;background:#0d1117;padding:6px;'
+               + '<pre style="margin:4px 0;background:#f4f4f4;padding:6px;color:#161616;'
                + 'border-radius:4px;overflow-x:auto">'
                + esc(JSON.stringify(debugObj, null, 2))
                + '</pre></details>';
@@ -2085,10 +2115,10 @@ _HTML = r"""<!DOCTYPE html>
         emailCfgMsg.innerHTML = msg;
         return;
       }
-      emailCfgMsg.style.color = '#3fb950';
+      emailCfgMsg.style.color = '#24a148';
       emailCfgMsg.textContent = '✓ Test sent — ' + j.info;
     } catch (err) {
-      emailCfgMsg.style.color = '#f85149';
+      emailCfgMsg.style.color = '#da1e28';
       emailCfgMsg.textContent = 'Test failed: ' + err.message;
     }
   }

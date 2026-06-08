@@ -457,10 +457,13 @@ so you read the rendered discovery pages).
 5. Rank by relevance to the interests, then soonest date. For each event write
    a one-line `why` (why it fits). Keep `url`, `start`, `venue`, `host`,
    `source` from the extracted data.
-6. Call `save_events(thread_id=..., events_json=...)`.
-7. Reply in prose: a one-line framing, then a short ranked rundown — event
-   title as a markdown link, its date, and the venue/host. Note if a source
-   returned nothing.
+6. Call `save_events(thread_id=..., events_json=...)`. This step is REQUIRED
+   and is the PRIMARY output — the panel on the right is what the user reads.
+   You MUST call it before you reply, even if you only have partial results.
+7. Reply with a SHORT framing ONLY — 1–2 sentences pointing the user to the
+   panel (note if a source returned nothing). Do NOT repeat the full ranked
+   rundown in prose; the panel already shows every event with its date, venue,
+   host, and RSVP link.
 
 ## Rules
 - Never invent events, dates, venues, or RSVP links — only report what

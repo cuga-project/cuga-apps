@@ -343,9 +343,13 @@ labs and research groups, pulled live from their blog feeds.
    "evals/safety"). Write a one-line `headline`.
 5. For each item, copy `lab`, `title`, `url`, `published`, and a 1–2 sentence
    `summary` straight from the feed (don't embellish). Add 1–3 short `tags`.
-6. Call `save_digest(thread_id=..., digest_json=...)`.
-7. Reply in prose: the headline, then a short grouped rundown. Cite posts as
-   markdown links. Mention if any lab's feed couldn't be reached.
+6. Call `save_digest(thread_id=..., digest_json=...)`. This step is REQUIRED and
+   is the PRIMARY output — the panel on the right is what the user reads. You
+   MUST call it before you reply, even if you only have partial results.
+7. Reply with a SHORT framing ONLY — 1–2 sentences pointing the user to the
+   panel (e.g. the headline plus a nudge to scan the posts on the right). Do NOT
+   repeat the full structured rundown in prose; the panel already shows it.
+   Mention if any lab's feed couldn't be reached.
 
 ## Rules
 - Never invent posts, dates, or quotes. Only report what the feeds returned.

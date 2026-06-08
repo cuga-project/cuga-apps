@@ -262,6 +262,34 @@ _APP_CSS = """<style>
 
   .hdr-hint{font-size:0.75rem;color:#c6c6c6}
 
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
+  }
+
   .layout{display:grid;grid-template-columns:380px 1fr;gap:var(--cds-sp-06);
     max-width:1400px;margin:0 auto;padding:var(--cds-sp-06) var(--cds-sp-06)}
   @media (max-width:820px){.layout{grid-template-columns:1fr}}
@@ -330,6 +358,18 @@ _BODY = """
     <span class="hdr-hint">OpenStreetMap trails · Tavily reviews</span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Hiking Research.</strong> Discover and compare trails near any place, filter by difficulty and kid-friendliness, and get AI summaries of hiker reviews from the web.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📍 Geocoding · OSM</span>
+    <span class="tool-pill">🥾 Trails · Overpass/OSM</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+  </div>
+</div>
 
 <div class="layout">
 

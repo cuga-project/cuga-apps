@@ -26,6 +26,8 @@ export interface McpServer {
   tools: string[]
   /** accent color key (Tailwind palette) */
   accent: 'blue' | 'emerald' | 'amber' | 'pink' | 'cyan' | 'violet' | 'rose'
+  /** example questions an app could ask that exercise this server's tools */
+  examples: string[]
 }
 
 /** Public Code Engine `/mcp` endpoint for a deployed server. */
@@ -46,6 +48,10 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['Tavily', 'BeautifulSoup', 'RSS / feedparser', 'YouTube'],
     tools: ['web_search', 'fetch_webpage', 'fetch_webpage_links', 'fetch_feed', 'search_feeds', 'get_youtube_video_info', 'get_youtube_transcript'],
     accent: 'blue',
+    examples: [
+      'What are the latest developments in fusion energy?',
+      'Summarize https://openai.com/blog and list the key takeaways',
+    ],
   },
   {
     id: 'knowledge',
@@ -55,6 +61,10 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['Wikipedia', 'arXiv', 'Semantic Scholar'],
     tools: ['search_wikipedia', 'get_wikipedia_article', 'get_article_summary', 'get_article_sections', 'get_related_articles', 'search_arxiv', 'get_arxiv_paper', 'search_semantic_scholar', 'get_paper_references'],
     accent: 'violet',
+    examples: [
+      'Explain how transformer attention works',
+      'Find recent arXiv papers on retrieval-augmented generation',
+    ],
   },
   {
     id: 'geo',
@@ -64,6 +74,10 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['Nominatim', 'Overpass', 'OpenTripMap', 'wttr.in'],
     tools: ['geocode', 'find_hikes', 'search_attractions', 'get_weather'],
     accent: 'emerald',
+    examples: [
+      'Find hiking trails near Boulder, Colorado',
+      "What's the weather and top attractions in Kyoto?",
+    ],
   },
   {
     id: 'finance',
@@ -73,6 +87,10 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['CoinGecko', 'Alpha Vantage'],
     tools: ['get_crypto_price', 'get_stock_quote'],
     accent: 'amber',
+    examples: [
+      "What's the price of NVDA and Bitcoin?",
+      'Compare BTC and ETH — which is up more today?',
+    ],
   },
   {
     id: 'code',
@@ -82,6 +100,10 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['Python stdlib (ast)'],
     tools: ['check_python_syntax', 'extract_code_metrics', 'detect_language'],
     accent: 'cyan',
+    examples: [
+      'Check this Python snippet for syntax errors',
+      'What language is this source file and how complex is it?',
+    ],
   },
   {
     id: 'local',
@@ -91,6 +113,10 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['psutil', 'faster-whisper'],
     tools: ['get_system_metrics', 'get_system_metrics_with_alerts', 'list_top_processes', 'check_disk_usage', 'find_large_files', 'get_service_status', 'transcribe_audio'],
     accent: 'rose',
+    examples: [
+      "What's using the most CPU right now?",
+      'How much disk space is left and what are the largest files?',
+    ],
   },
   {
     id: 'text',
@@ -100,5 +126,9 @@ export const MCP_SERVERS: McpServer[] = [
     sources: ['docling', 'tiktoken'],
     tools: ['extract_text', 'extract_text_from_bytes', 'chunk_text', 'count_tokens'],
     accent: 'pink',
+    examples: [
+      'Extract the text from this PDF and chunk it for RAG',
+      'How many tokens is this document?',
+    ],
   },
 ]

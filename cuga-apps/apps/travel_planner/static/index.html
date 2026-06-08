@@ -144,6 +144,22 @@
 
     /* Loading step colors */
     .text-blue-600 { color: var(--cds-link-primary) !important; }
+
+    /* App intro band: one-line blurb + the tools this app uses */
+    .app-intro {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 10px 24px; background: var(--cds-layer-01);
+      border-bottom: 1px solid var(--cds-border-subtle);
+    }
+    .app-intro__blurb { font-size: 13px; color: var(--cds-text-secondary); line-height: 1.5; max-width: 48rem; }
+    .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+    .app-intro__tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .app-intro__tools .tools-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--cds-text-helper); margin-right: 4px; }
+    .tool-pill {
+      font-size: 11px; color: var(--cds-text-secondary);
+      background: var(--cds-background); border: 1px solid var(--cds-border-subtle);
+      border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+    }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -238,6 +254,21 @@
       </button>
     </div>
   </header>
+
+  <!-- App intro band -->
+  <div class="app-intro">
+    <div class="app-intro__blurb">
+      <strong>Travel Planner.</strong> Researches a destination, then writes a day-by-day itinerary with weather, attractions, and practical travel tips.
+    </div>
+    <div class="app-intro__tools">
+      <span class="tools-label">Tools</span>
+      <span class="tool-pill">🔎 Web search · Tavily</span>
+      <span class="tool-pill">📚 Wikipedia</span>
+      <span class="tool-pill">📍 Geocoding · OSM</span>
+      <span class="tool-pill">🎡 Attractions · OpenTripMap</span>
+      <span class="tool-pill">☀ Weather · wttr.in</span>
+    </div>
+  </div>
 
   <div class="max-w-7xl mx-auto p-6 flex gap-6">
 

@@ -18,11 +18,38 @@ _APP_CSS = """<style>
   main {
     display: grid;
     grid-template-columns: 26rem 1fr;
-    gap: 0; flex: 1; overflow: hidden;
-    height: calc(100vh - 3rem);
+    gap: 0; flex: 1; min-height: 0; overflow: hidden;
   }
   @media (max-width: 820px) {
     main { grid-template-columns: 1fr; height: auto; }
+  }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
   }
 
   /* ── Chat panel ──────────────────────────────────────────────────────── */
@@ -231,6 +258,20 @@ _BODY = r"""
     </span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Recipe Composer.</strong> Tell it what's in your pantry plus any diet or
+    allergies, and it proposes a few recipes you can cook tonight — checking each
+    against your diet and roughing out the nutrition.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">🧮 Macros table</span>
+    <span class="tool-pill">🔁 Substitutions</span>
+    <span class="tool-pill">🥗 Diet check</span>
+  </div>
+</div>
 
 <main>
   <div class="chat-panel">

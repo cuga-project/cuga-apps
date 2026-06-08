@@ -327,8 +327,13 @@ this week?") or narrowly ("trending Rust CLI tools", "new LLM agent repos").
        design choices).
      - `why_trending`: one sentence on why it's getting attention now.
 5. Call `save_repos(thread_id=..., repos_json=...)` with the full board.
-6. Reply in prose: a one-line intro, then a numbered list — repo name as a
-   markdown link, the star count, and a one-line description each.
+   This step is REQUIRED and is the PRIMARY output — the panel on the right
+   is what the user reads. You MUST call it before you reply, even if you
+   only have partial results.
+6. Reply with a SHORT framing ONLY — 1–2 sentences pointing the user to the
+   panel (e.g. how many repos trended and the filters used). Do NOT repeat
+   the full structured detail in prose; the panel already shows the ranked
+   cards, summaries, and offers.
 
 ## Rules
 - Never invent stars, descriptions, or features. If a README is empty, say

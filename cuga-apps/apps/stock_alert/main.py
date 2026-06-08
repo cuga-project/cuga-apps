@@ -287,20 +287,20 @@ _WEB_HTML = """<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* Carbon Gray 100 (dark) tokens */
-  --bg:#161616; --layer:#262626; --layer-02:#393939; --field:#262626;
-  --border:#393939; --border-strong:#6f6f6f;
-  --text:#f4f4f4; --text-sec:#c6c6c6; --muted:#8d8d8d; --placeholder:#6f6f6f;
+  /* Carbon White (g10) tokens — IBM Blue on white */
+  --bg:#f4f4f4; --layer:#ffffff; --layer-02:#f4f4f4; --field:#f4f4f4;
+  --border:#e0e0e0; --border-strong:#8d8d8d;
+  --text:#161616; --text-sec:#525252; --muted:#6f6f6f; --placeholder:#a8a8a8;
   --blue:#0f62fe; --blue-hover:#0353e9; --blue-active:#002d9c;
-  --link:#78a9ff; --accent:#4589ff;
-  --danger:#fa4d56; --success:#42be65; --warn:#f1c21b;
+  --link:#0f62fe; --accent:#0f62fe;
+  --danger:#da1e28; --success:#24a148; --warn:#f1c21b;
   --font-sans:'IBM Plex Sans',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,"SFMono-Regular",Menlo,monospace;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-sans);background:var(--bg);color:var(--text);min-height:100vh;padding:40px 24px 80px;-webkit-font-smoothing:antialiased;letter-spacing:.16px}
 header{text-align:center;margin-bottom:32px}
-h1{font-size:28px;font-weight:600;color:#fff;margin-bottom:4px;letter-spacing:0}
+h1{font-size:28px;font-weight:600;color:var(--text);margin-bottom:4px;letter-spacing:0}
 .sub{font-size:13px;color:var(--muted)}.sub span{color:var(--accent);font-weight:500}
 .layout{display:grid;grid-template-columns:280px 1fr;gap:20px;max-width:1020px;margin:0 auto;align-items:start}
 @media(max-width:720px){.layout{grid-template-columns:1fr}}
@@ -341,14 +341,21 @@ button.ghost:hover{background:var(--layer-02);color:var(--text)}
 .thinking{color:var(--muted);font-style:normal;font-size:13px}
 .spinner{display:inline-block;animation:spin .7s linear infinite;color:var(--accent)}
 .alert-row{display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--danger);border-radius:0;margin-bottom:6px;font-size:12px}
-.alert-row.fired{border-color:var(--border);border-left-color:var(--danger);background:rgba(250,77,86,.08)}
+.alert-row.fired{border-color:var(--border);border-left-color:var(--danger);background:rgba(218,30,40,.08)}
 .alert-row .ts{font-size:10px;color:var(--muted);font-family:var(--font-mono)}
 .alert-row .body{color:var(--text);line-height:1.5;white-space:pre-wrap}
 .muted{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
-.muted a{color:var(--link);text-decoration:none}.muted a:hover{text-decoration:underline;color:#a6c8ff}
+.muted a{color:var(--link);text-decoration:none}.muted a:hover{text-decoration:underline;color:var(--blue-hover)}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .fadein{animation:fadein .2s ease}
+/* App intro band: one-line blurb + the tools this app uses */
+.app-intro{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;background:var(--layer);border-bottom:1px solid var(--border);max-width:1020px;margin:0 auto 24px}
+.app-intro__blurb{font-size:13px;color:var(--muted);line-height:1.5;max-width:48rem}
+.app-intro__blurb strong{color:var(--text);font-weight:600}
+.app-intro__tools{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.app-intro__tools .tools-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-right:4px}
+.tool-pill{font-size:11px;color:var(--text-sec);background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:3px 10px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -356,6 +363,17 @@ button.ghost:hover{background:var(--layer-02);color:var(--text)}
   <h1>Stock Alert</h1>
   <p class="sub">Powered by <span>CugaAgent</span> · live market data · browser-only alerts</p>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Stock Alert.</strong> Ask live price questions and set threshold watches on crypto and stocks; alerts fire as browser notifications and live only in your browser.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">🪙 Crypto · CoinGecko</span>
+    <span class="tool-pill">📈 Stocks · Alpha Vantage</span>
+  </div>
+</div>
 
 <div class="layout">
 
@@ -545,7 +563,7 @@ async function ask() {
     const data = await res.json()
     result.innerHTML = renderAnswer(data.answer)
   } catch (err) {
-    result.style.color = '#fa4d56'
+    result.style.color = '#da1e28'
     result.textContent = 'Error: ' + err.message
   } finally {
     btn.disabled = false
@@ -556,8 +574,8 @@ function renderAnswer(text) {
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>')
-    .replace(/\\b(\\+?-?\\d+\\.?\\d*%)\\b/g, s => `<span style="color:${s.startsWith('-')?'#fa4d56':'#42be65'};font-weight:600">${s}</span>`)
-    .replace(/\\$[\\d,]+(?:\\.\\d+)?/g, s => `<span style="color:#4589ff;font-weight:600">${s}</span>`)
+    .replace(/\\b(\\+?-?\\d+\\.?\\d*%)\\b/g, s => `<span style="color:${s.startsWith('-')?'#da1e28':'#24a148'};font-weight:600">${s}</span>`)
+    .replace(/\\$[\\d,]+(?:\\.\\d+)?/g, s => `<span style="color:#0f62fe;font-weight:600">${s}</span>`)
     .replace(/\\n/g,'<br>')
 }
 
@@ -613,7 +631,7 @@ function renderWatches() {
       ? `last checked ${fmtAgo(w.lastCheckedAt)}`
       : 'not yet checked'
     const fired = w.lastTriggeredAt
-      ? ` · <span style="color:#fa4d56">fired ${fmtAgo(w.lastTriggeredAt)}</span>`
+      ? ` · <span style="color:#da1e28">fired ${fmtAgo(w.lastTriggeredAt)}</span>`
       : ''
     const dotCls = w.lastTriggeredAt ? 'alert' : (w.lastCheckedAt ? 'on' : 'warn')
     const key   = watchKey(w)

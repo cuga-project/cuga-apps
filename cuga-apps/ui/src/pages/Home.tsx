@@ -229,9 +229,9 @@ const BUCKET_ACCENT: Record<BucketAccent, { bar: string; badge: string; pill: st
   pink:    { bar: 'bg-pink-500',    badge: 'text-pink-500',
              pill: 'border-pink-500/30 hover:border-pink-500 hover:bg-pink-500/5',
              ring: 'ring-pink-500/40' },
-  cyan:    { bar: 'bg-cyan-500',    badge: 'text-cyan-500',
-             pill: 'border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/5',
-             ring: 'ring-cyan-500/40' },
+  cyan:    { bar: 'bg-sky-600',     badge: 'text-sky-700',
+             pill: 'border-sky-500/30 hover:border-sky-600 hover:bg-sky-500/5',
+             ring: 'ring-sky-500/40' },
   violet:  { bar: 'bg-violet-500',  badge: 'text-violet-500',
              pill: 'border-violet-500/30 hover:border-violet-500 hover:bg-violet-500/5',
              ring: 'ring-violet-500/40' },
@@ -392,6 +392,7 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
           <tr className="border-b-2 border-tborder bg-tsurf2">
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-6 py-4 w-10">#</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4">Use Case</th>
+            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Examples</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Category</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">Tools</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">ENV Vars</th>
@@ -430,6 +431,23 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                   </div>
                   <div className="text-sm text-t3 mt-1 leading-relaxed">{uc.tagline}</div>
                 </td>
+                <td className="px-4 py-5 hidden lg:table-cell align-top">
+                  {(uc.examples?.length ?? 0) === 0 ? (
+                    <span className="text-sm text-t4">—</span>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 max-w-[18rem]">
+                      {uc.examples!.slice(0, 2).map((ex) => (
+                        <span
+                          key={ex}
+                          title={ex}
+                          className="bg-tsurf2 text-t2 border border-tborder rounded px-2 py-1 text-xs italic truncate"
+                        >
+                          “{ex}”
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-5 hidden lg:table-cell">
                   <span className="text-sm px-2.5 py-1 rounded-full font-medium bg-tsurf2 text-t3 border border-tborder">
                     {catInfo.label}
@@ -445,7 +463,7 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                           <button
                             onClick={(e) => { e.stopPropagation(); navigate(`/mcp-servers#mcp-${u.server}`) }}
                             title={`View the mcp-${u.server} server`}
-                            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-emerald-900/30 text-emerald-300 border border-emerald-800/40 whitespace-nowrap cursor-pointer hover:bg-emerald-800/50 hover:text-emerald-200 hover:underline"
+                            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-indigo-500/10 text-indigo-700 border border-indigo-500/30 whitespace-nowrap cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-800 hover:underline"
                           >
                             mcp-{u.server} ↗
                           </button>
@@ -461,7 +479,7 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                       ))}
                       {(uc.inlineTools?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-amber-900/30 text-amber-300 border border-amber-800/40 whitespace-nowrap">
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-amber-500/10 text-amber-700 border border-amber-500/30 whitespace-nowrap">
                             inline
                           </span>
                           {uc.inlineTools!.slice(0, 3).map((t) => (

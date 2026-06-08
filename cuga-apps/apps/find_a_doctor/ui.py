@@ -18,11 +18,38 @@ _APP_CSS = """<style>
   main {
     display: grid;
     grid-template-columns: 26rem 1fr;
-    gap: 0; flex: 1; overflow: hidden;
-    height: calc(100vh - 3rem);
+    gap: 0; flex: 1; min-height: 0; overflow: hidden;
   }
   @media (max-width: 820px) {
-    main { grid-template-columns: 1fr; height: auto; }
+    main { grid-template-columns: 1fr; }
+  }
+
+  /* ── App intro band: one-line blurb + the tools this app uses ─────────── */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
   }
 
   /* ── Chat panel ──────────────────────────────────────────────────────── */
@@ -248,6 +275,21 @@ _BODY = r"""
     </span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Find a Doctor.</strong> Describe who you need and where — the agent
+    pulls real listings and trusted-site review snippets, then ranks the matches
+    with pros &amp; cons in the panel on the right. Informational only, not medical advice.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📍 Geocoding · OSM</span>
+    <span class="tool-pill">🏥 Listings · OpenStreetMap</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+    <span class="tool-pill">⭐ Reviews · Healthgrades/Zocdoc…</span>
+  </div>
+</div>
 
 <main>
   <div class="chat-panel">

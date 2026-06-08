@@ -565,6 +565,34 @@ input[type=text]:focus,input[type=password]:focus{outline:2px solid var(--cds-fo
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;animation:spin .7s linear infinite}
+
+/* App intro band: one-line blurb + the tools this app uses */
+.app-intro {
+  display: flex; align-items: center; gap: var(--cds-sp-05);
+  flex-wrap: wrap;
+  padding: var(--cds-sp-04) var(--cds-sp-06);
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle);
+}
+.app-intro__blurb {
+  font-size: 0.8125rem; color: var(--cds-text-secondary);
+  line-height: 1.5; max-width: 48rem;
+}
+.app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+.app-intro__tools {
+  margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+  align-items: center;
+}
+.app-intro__tools .tools-label {
+  font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+  color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+}
+.tool-pill {
+  font-size: 0.6875rem; color: var(--cds-text-secondary);
+  background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+  border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+  white-space: nowrap;
+}
 </style>"""
 
 _WEB_HTML = (
@@ -582,6 +610,18 @@ _WEB_HTML = (
     <span class="cds-helper-01">Powered by CugaAgent + Mermaid.js</span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Architecture Diagram Generator.</strong> Describe a system in plain English and get a rendered Mermaid.js diagram — flowcharts, sequence, ER, or state — that you can refine conversationally.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">&#129518; Mermaid.js render</span>
+    <span class="tool-pill">&#128270; Web search &middot; Tavily</span>
+    <span class="tool-pill">&#128196; Fetch pages</span>
+  </div>
+</div>
 
 <div class="layout">
 

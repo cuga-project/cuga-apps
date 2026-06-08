@@ -16,7 +16,7 @@ const COLOR_MAP: Record<Color, string> = {
   purple: 'bg-purple-500/10 text-purple-600 border border-purple-500/30',
   orange: 'bg-orange-500/10 text-orange-600 border border-orange-500/30',
   pink:   'bg-pink-500/10 text-pink-600 border border-pink-500/30',
-  cyan:   'bg-cyan-500/10 text-cyan-600 border border-cyan-500/30',
+  cyan:   'bg-sky-500/10 text-sky-700 border border-sky-500/30',
   indigo: 'bg-indigo-500/10 text-indigo-600 border border-indigo-500/30',
   gray:   'bg-tsurf2 text-t3 border border-tborder',
 }

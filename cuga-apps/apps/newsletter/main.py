@@ -493,6 +493,13 @@ _WEB_HTML = """<!DOCTYPE html>
 body{font-family:var(--cds-font-sans);background:var(--cds-background);color:var(--cds-text-primary);min-height:100vh;padding:40px 24px 80px;-webkit-font-smoothing:antialiased;letter-spacing:.16px}
 ::selection{background:var(--cds-interactive);color:#fff}
 header{text-align:center;margin-bottom:32px}
+/* App intro band: one-line blurb + the tools this app uses */
+.app-intro{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;background:var(--cds-layer-01);border-bottom:1px solid var(--cds-border-subtle);max-width:1060px;margin:0 auto 24px}
+.app-intro__blurb{font-size:13px;color:var(--cds-text-secondary);line-height:1.5;max-width:48rem}
+.app-intro__blurb strong{color:var(--cds-text-primary);font-weight:600}
+.app-intro__tools{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.app-intro__tools .tools-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--cds-text-helper);margin-right:4px}
+.tool-pill{font-size:11px;color:var(--cds-text-secondary);background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:999px;padding:3px 10px;white-space:nowrap}
 h1{font-size:22px;font-weight:600;color:var(--cds-text-primary);margin-bottom:4px;letter-spacing:0}
 .sub{font-size:13px;color:var(--cds-text-secondary)}.sub span{color:var(--cds-link-primary);font-weight:500}
 .layout{display:grid;grid-template-columns:290px 1fr;gap:20px;max-width:1060px;margin:0 auto;align-items:start}
@@ -558,6 +565,20 @@ button.btn-sm:hover{background:var(--cds-layer-hover)}
   <h1>Newsletter Intelligence</h1>
   <p class="sub">Powered by <span>CugaAgent</span> · live RSS feeds</p>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Newsletter Intelligence.</strong> Pulls live articles from your RSS feeds to summarize the latest news, answer free-form questions, and run scheduled keyword alerts that email you on a match.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📰 RSS feeds</span>
+    <span class="tool-pill">🔎 Feed search</span>
+    <span class="tool-pill">📄 Page fetch</span>
+    <span class="tool-pill">🔔 Scheduled alerts</span>
+    <span class="tool-pill">📧 Email · SMTP</span>
+  </div>
+</div>
 
 <div class="layout">
 

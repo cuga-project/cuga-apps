@@ -457,9 +457,14 @@ in Boston who's good with anxious kids").
      - `pros` / `cons`: short bullets, each grounded in what reviews actually say.
      - `sources`: the trusted links you used ({title, url, domain}).
 6. Rank by how well they match the user's request (specialty fit, experience,
-   review sentiment, proximity). Call `save_doctors(thread_id=..., doctors_json=...)`.
-7. Reply in prose: a one-line framing, then a short ranked rundown with each
-   doctor's standout pro and any caveat. Cite sources as markdown links.
+   review sentiment, proximity), then call
+   `save_doctors(thread_id=..., doctors_json=...)`. This step is REQUIRED and is
+   the PRIMARY output — the ranked panel on the right is what the user reads. You
+   MUST call save_doctors before you reply, even if you only found one or two
+   matches.
+7. Reply with a SHORT framing ONLY — 1–2 sentences, e.g. "Found 4 well-reviewed
+   cardiologists in Boston — the ranked list with pros & cons is on the right."
+   Do NOT repeat the per-doctor detail in prose; the panel already shows it.
 
 ## Rules — important
 - This is informational help, NOT medical advice or a referral. If reviews are
