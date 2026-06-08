@@ -1,27 +1,40 @@
-# build/ — all-in-one image (every ship-ready app + the umbrella UI)
+# build/ — all-in-one image (every ship-ready app + MCP servers + the umbrella UI)
 
-This directory packages **all 21 ship-ready cuga-apps + the umbrella UI** into a
-**single Docker image behind one port (8080)**. The same image runs locally via
-`docker compose` and deploys to **Code Engine as one microservice**.
+This directory packages the **complete environment** — the **umbrella UI + all 21
+ship-ready cuga-apps + the MCP servers they need** — into a **single Docker image
+behind one port (8080)**. One `docker compose up` brings the whole thing up
+locally, and the same image deploys to **Code Engine as one microservice**.
 
-Everything here is self-contained — **no existing repo files are modified.**
+Everything here is self-contained — **no existing repo files are modified** and
+**no external MCP deployment is required.**
 
 ## What's inside the image
 
 ```
-        ┌──────────────────────── one container, port 8080 ───────────────────────┐
-        │  nginx                                                                   │
-        │   ├─ /            → umbrella UI (static SPA, built in "single" mode)     │
-        │   ├─ /a/<app>/    → reverse-proxy → 127.0.0.1:<port>  (one per app)      │
-        │   └─ /healthz     → 200                                                  │
-        │                                                                          │
-        │  21 uvicorn apps on 127.0.0.1:288xx  (started by run_all.sh)             │
-        └──────────────────────────────────────────────────────────────────────────┘
-                         │ MCP tool calls (CUGA_TARGET=ce)
-                         ▼
-            hosted Code Engine MCP servers (web, geo, finance, …)
+   ┌──────────────────────────── one container, port 8080 ───────────────────────────┐
+   │  nginx (the only exposed port)                                                   │
+   │   ├─ /            → umbrella UI (static SPA, built in "single" mode)             │
+   │   ├─ /a/<app>/    → reverse-proxy → 127.0.0.1:288xx   (one per app)              │
+   │   └─ /healthz     → 200                                                          │
+   │                                                                                  │
+   │  21 uvicorn apps on 127.0.0.1:288xx  ──MCP tool calls──┐  (started by run_all.sh)│
+   │                                                        ▼                         │
+   │  5 MCP servers on 127.0.0.1:291xx  (web, knowledge, geo, finance, local)         │
+   └──────────────────────────────────────────────────────────────────────────────────┘
+            │ outbound only: LLM API + the MCP servers' upstreams
+            ▼   (watsonx/RITS/OpenAI · Tavily · OpenTripMap · Alpha Vantage · Wikipedia)
 ```
 
+- **MCP servers are bundled and run in-container** on loopback (291xx). `run_all.sh`
+  boots them first, waits for them to accept connections, then starts the apps.
+  Every app is pointed at them via explicit `MCP_<NAME>_URL=http://127.0.0.1:<port>/mcp`
+  (set in `run_all.sh`), so they use the in-container servers even on Code Engine.
+  Only the 5 servers the ship-ready apps actually call are included — `web`,
+  `knowledge`, `geo`, `finance`, `local`. (`text`/`code`/`invocable_apis` serve
+  only non-ship-ready apps and aren't bundled; `invocable_apis` also needs
+  external BIRD data.)
+- The MCP servers are **never exposed through nginx** — they're reachable only
+  from inside the container. The only public surface is port 8080.
 - The apps' UIs use absolute paths (`fetch('/ask')`, `/static/…`). Under a path
   prefix those would 404, so nginx injects — into each app's `<head>` — a
   `<base href>` + a tiny `window.fetch` shim that re-prefixes same-origin
@@ -30,31 +43,34 @@ Everything here is self-contained — **no existing repo files are modified.**
   at `/a/<app>/`. That mode is injected into a *copy* of `deployment.ts` at build
   time ([patch-deployment.cjs](patch-deployment.cjs)) — the repo source is never
   touched.
-- **MCP-backed apps** (city_beat, web_researcher, ibm_*, …) call the **hosted**
-  CE MCP servers (`CUGA_TARGET=ce`), so no MCP servers are bundled. Their service
-  keys (Tavily, OpenTripMap, …) live on the hosted MCP deployment, not here.
 - nginx + the startup script are generated from `apps/_ports.py` at build time
-  ([generate.py](generate.py)), so they always match the rest of the repo.
+  ([generate.py](generate.py)), so app **and** MCP ports always match the repo.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| `Dockerfile` | multi-stage: build UI (node) → runtime (apps + nginx) |
+| `Dockerfile` | multi-stage: build UI (node) → runtime (apps + MCP servers + nginx) |
 | `Dockerfile.dockerignore` | keeps the build context small (BuildKit honors it) |
+| `requirements.mcp.txt` | lean dep set for the 5 bundled MCP servers |
 | `docker-compose.yml` | local one-command bring-up |
-| `generate.py` | emits `nginx` conf + `run_all.sh` from `_ports.py` |
+| `generate.py` | emits `nginx` conf + `run_all.sh` (apps **+ MCP**) from `_ports.py` |
 | `patch-deployment.cjs` | injects the `single` URL mode into the UI build |
-| `.env.example` | LLM provider + optional keys |
+| `.env.example` | LLM provider + MCP service keys |
 
 ## Run locally
 
 ```bash
 cd build
-cp .env.example .env          # set your LLM provider + key
-docker compose up --build     # first build is large (cuga + Chromium)
+cp .env.example .env          # set your LLM provider + key, and the MCP keys
+                              # (TAVILY_API_KEY / OPENTRIPMAP_API_KEY /
+                              #  ALPHA_VANTAGE_API_KEY) for the apps you'll use
+docker compose up --build     # first build is large (cuga + Chromium + MCP deps)
 # open http://localhost:8080
 ```
+
+Missing an MCP key just degrades the apps that need it (that server's tools
+return a clear "missing key" error) — the environment still comes up.
 
 The umbrella UI loads at `/`; click any ship-ready app — it opens at
 `/a/<app>/` and works end-to-end (chat → agent → live panel), all on port 8080.
@@ -96,23 +112,31 @@ ibmcloud ce app create \
   --port 8080 \
   --cpu 4 --memory 16G \
   --min-scale 1 --max-scale 1 \
-  --env CUGA_TARGET=ce \
   --env LLM_PROVIDER=watsonx \
   --env LLM_MODEL=meta-llama/llama-3-3-70b-instruct \
-  --env WATSONX_APIKEY=<key> --env WATSONX_PROJECT_ID=<id>
+  --env WATSONX_APIKEY=<key> --env WATSONX_PROJECT_ID=<id> \
+  --env TAVILY_API_KEY=<key> \
+  --env OPENTRIPMAP_API_KEY=<key> \
+  --env ALPHA_VANTAGE_API_KEY=<key>
 
 ibmcloud ce app get --name cuga-allinone --output url   # open it
 ```
+
+Leave `CUGA_TARGET` unset (the image defaults to `local`) — the MCP servers run
+inside this same container, so the apps must not be redirected to a hosted MCP
+deployment. The explicit `MCP_<NAME>_URL` exports in `run_all.sh` keep that true
+even though Code Engine injects `CE_APP`.
 
 Use `--mount-secret` / a CE secret instead of `--env` for real keys. CE health
 checks hit the port (the UI at `/` returns 200; `/healthz` is also available).
 
 ## Sizing & caveats
 
-- **Memory**: all 21 apps share one container. They import `cuga` lazily (on the
-  first `/ask`), so idle is light, but each *used* app loads the full cuga stack.
-  Start at **4 vCPU / 16 GB** and adjust. `meetup_finder` (Chromium) and
-  `ouroboros` (7-agent supervisor) are the heaviest.
+- **Memory**: all 21 apps **and the 5 MCP servers** share one container. The MCP
+  servers are lightweight (httpx-based) and start at boot; the apps import `cuga`
+  lazily (on the first `/ask`), so idle is moderate, but each *used* app loads the
+  full cuga stack. Start at **4 vCPU / 16 GB** and adjust. `meetup_finder`
+  (Chromium) and `ouroboros` (7-agent supervisor) are the heaviest.
 - **One instance** (`--max-scale 1`): the per-app in-memory session state and the
   rate limiter assume a single instance. Don't scale out without externalizing
   state.
@@ -124,7 +148,10 @@ checks hit the port (the UI at `/` returns 200; `/healthz` is also available).
   project forces non-root containers, nginx needs writable pid/temp paths — ask
   and I'll add the non-root nginx tweaks.
 - This image deliberately excludes the heavy apps (`video_qa`, `deck_forge`) and
-  the MCP servers — both are non-ship-ready / hosted separately.
+  the MCP servers they'd need (`text` → docling/torch, `code`, `invocable_apis`
+  → external BIRD data). The 5 MCP servers the ship-ready apps use **are**
+  bundled. To add another MCP server, append it to `MCP_SERVERS` in
+  [generate.py](generate.py) and add its deps to [requirements.mcp.txt](requirements.mcp.txt).
 
 ## How it stays in sync
 

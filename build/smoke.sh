@@ -22,8 +22,11 @@ BASE="${BASE%/}"
 shift || true
 
 DO_ASK=0
-ASK_APP="github-trending"
-ASK_PROMPT="What is trending in python this week?"
+# Default --ask hits wiki-dive, which routes through the bundled `knowledge`
+# MCP server (Wikipedia — needs NO API key), so it proves the full
+# app → cuga → in-container MCP → upstream chain end-to-end.
+ASK_APP="wiki-dive"
+ASK_PROMPT="Give me a two-sentence summary of the Apollo 11 mission."
 if [[ "${1:-}" == "--ask" ]]; then
   DO_ASK=1; shift || true
   [[ $# -ge 1 ]] && ASK_APP="$1" && shift

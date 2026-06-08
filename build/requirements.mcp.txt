@@ -1,0 +1,24 @@
+# build/requirements.mcp.txt — deps for the MCP servers bundled into the
+# all-in-one image. This is a LEAN subset of cuga-apps/requirements.mcp.txt:
+# only the 5 servers the ship-ready apps call (web, knowledge, geo, finance,
+# local) are bundled, and their heavy/optional deps are intentionally omitted:
+#   - docling + torch (mcp-text extract_text)        → text server not bundled
+#   - faster-whisper  (mcp-local transcribe_audio)   → no ship-ready app uses it
+#   - tiktoken        (mcp-text count_tokens)        → text server not bundled
+# Keeping those out drops several GB from the image.
+
+# ── MCP framework (server + client helpers) ──────────────────────────────
+mcp>=1.0
+httpx
+pydantic
+
+# ── mcp-web (Tavily search + readable-text/RSS extraction) ───────────────
+tavily-python
+beautifulsoup4
+feedparser
+youtube-transcript-api
+
+# ── mcp-local (system metrics) ───────────────────────────────────────────
+psutil
+
+# knowledge / geo / finance need only stdlib + httpx (already above).
