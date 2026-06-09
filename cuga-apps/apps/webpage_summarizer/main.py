@@ -111,6 +111,11 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent — disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing carries across questions via
+        # the shared .cuga folder.
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -148,7 +153,11 @@ def _web(port: int):
         try:
             agent = _get_agent()
             result = await agent.invoke(req.question, thread_id=thread_id)
-            return {"answer": str(result)}
+            # Return the agent's synthesised answer, NOT str(result): the
+            # result object's repr dumps the CUGA plan + generated Python code,
+            # which is what was leaking into the UI as an unformatted code blob.
+            answer = result.answer if hasattr(result, "answer") else str(result)
+            return {"answer": answer}
         except Exception as exc:
             log.exception("Agent invocation failed")
             return JSONResponse(status_code=500, content={"answer": f"Error: {exc}"})

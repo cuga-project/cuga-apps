@@ -26,10 +26,13 @@ from mcp_servers._core.serve import make_server, run
 from apps._ports import MCP_WEB_PORT  # noqa: E402
 
 try:
-    from apps._usage import track_call
+    from apps._usage import track_call, classify_error
 except Exception:  # noqa: BLE001 — tracking is optional, never block the server
     def track_call(*_a, **_k):  # type: ignore
         pass
+
+    def classify_error(_exc):  # type: ignore
+        return "error"
 
 mcp = make_server("mcp-web")
 
@@ -61,7 +64,7 @@ def web_search(query: str, max_results: int = 6) -> str:
         track_call("tavily", app="mcp-web")
         return tool_result(raw)
     except Exception as exc:
-        track_call("tavily", app="mcp-web", ok=False)
+        track_call("tavily", app="mcp-web", ok=False, code=classify_error(exc))
         return tool_error(f"Tavily search failed: {exc}", code="upstream")
 
 

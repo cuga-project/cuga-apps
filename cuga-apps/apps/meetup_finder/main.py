@@ -262,6 +262,42 @@ def _events_from_nextdata(html: str, source: str) -> list[dict]:
     return out
 
 
+def _coerce_board_event(e: dict) -> dict | None:
+    """Normalise one event the agent passes to save_events into the exact
+    shape the right panel renders. The model often uses schema.org-ish keys
+    (name/date/link/organizer) instead of our title/start/url/host — before
+    this, those rendered as blank 'Event' cards and, once we started filtering
+    empties, vanished entirely. A real entry needs at least a title/name."""
+    if not isinstance(e, dict):
+        return None
+
+    def pick(*keys):
+        for k in keys:
+            v = e.get(k)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        return ""
+
+    title = pick("title", "name", "headline", "event", "event_name", "summary")
+    if not title:
+        return None
+    att = e.get("attendees")
+    if not isinstance(att, (int, str)) or att == "":
+        att = pick("going", "going_count", "rsvps", "guest_count") or None
+    return {
+        "title":     title,
+        "url":       pick("url", "link", "permalink", "event_url", "rsvp_url"),
+        "start":     pick("start", "start_at", "startDate", "start_time",
+                          "starts_at", "datetime", "date", "when"),
+        "venue":     pick("venue", "location", "place", "address"),
+        "city":      pick("city"),
+        "host":      pick("host", "organizer", "organiser", "group"),
+        "source":    pick("source"),
+        "attendees": att,
+        "why":       pick("why", "reason", "fit", "note"),
+    }
+
+
 def _extract_events(html: str, url: str) -> list[dict]:
     domain = urllib.parse.urlparse(url).netloc.lower().replace("www.", "")
     source = domain.split(".")[0] if domain else "web"
@@ -425,9 +461,18 @@ def _make_tools():
             if not isinstance(events, list):
                 return json.dumps({"ok": False, "code": "bad_input",
                                    "error": "events_json must be a JSON array"})
-            session["events"] = events
-            log.info("[%s] saved %d events", thread_id[:8], len(events))
-            return json.dumps({"ok": True, "data": {"saved": len(events)}})
+            # Normalise each entry into the panel's shape (handles alternate
+            # key names) and drop anything without a title. This kills the
+            # empty-card flood AND ensures real events still render even when
+            # the model used name/date/link instead of title/start/url.
+            clean = [n for n in (_coerce_board_event(e) for e in events) if n]
+            clean = clean[:30]
+            # Don't wipe a good board with an empty/garbage submission.
+            if clean or not session.get("events"):
+                session["events"] = clean
+            log.info("[%s] saved %d events (%d submitted)",
+                     thread_id[:8], len(clean), len(events))
+            return json.dumps({"ok": True, "data": {"saved": len(clean)}})
         except json.JSONDecodeError as exc:
             return json.dumps({"ok": False, "code": "bad_input",
                                "error": f"invalid JSON: {exc}"})
@@ -538,6 +583,12 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent. Disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing learned/saved in one question
+        # leaks into the next via the shared .cuga folder. The output formatter
+        # we need is attached explicitly in _attach_policies().
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -580,16 +631,20 @@ def _web(port: int) -> None:
     @app.post("/ask")
     async def api_ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
-        # Stateless: the panel id keys the per-turn data the UI polls, but we
-        # reset it each turn and run the agent on a fresh memory thread, so
-        # nothing carries over from the previous question.
+        # Stateless per question: reset the panel session and run on a fresh
+        # memory thread. The singleton agent has its persistent knowledge store
+        # and on-disk policy auto-load disabled (see make_agent), so nothing
+        # carries over from the previous question.
         thread_id = req.thread_id or uuid.uuid4().hex
         _sessions.pop(thread_id, None)
         augmented = f"[thread:{thread_id}] {req.question}"
         try:
             agent = await _get_agent()
             result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
-            return {"answer": str(result), "thread_id": thread_id}
+            # Use the agent's synthesised answer, NOT str(result): the result
+            # object's repr dumps the CUGA plan + generated code into the chat.
+            answer = result.answer if hasattr(result, "answer") else str(result)
+            return {"answer": answer, "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")
             return JSONResponse(

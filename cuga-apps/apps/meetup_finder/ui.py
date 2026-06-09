@@ -269,7 +269,6 @@ _BODY = r"""
     <div class="panel-title">Chat with the agent</div>
 
     <div class="chips">
-      <div class="chip" onclick="sendChip(this)">AI meetups in San Francisco this week</div>
       <div class="chip" onclick="sendChip(this)">LLM and agent events near New York</div>
       <div class="chip" onclick="sendChip(this)">Data engineering meetups in Austin this month</div>
       <div class="chip" onclick="sendChip(this)">Startup / founder events in London</div>
@@ -296,7 +295,7 @@ _BODY = r"""
       <div class="empty-state" id="emptyState">
         <div class="icon">📅</div>
         <p>Tell the agent your interests and a city. It drives a real browser over Meetup, Luma, and Eventbrite and ranks the upcoming events here.</p>
-        <div class="hint">Try: "AI agent meetups in San Francisco this week"</div>
+        <div class="hint">Try: "AI agent meetups near New York this week"</div>
       </div>
     </div>
   </div>
@@ -396,11 +395,15 @@ _BODY = r"""
   }
 
   function refreshPanel(data) {
-    const hash = JSON.stringify({ e: data.events, i: data.interests, l: data.location, w: data.when });
+    // Only render events that actually have a title — drop the empty /
+    // placeholder rows that were filling the panel with blank cards.
+    const events = (data.events || []).filter(
+      ev => ev && String(ev.title || '').trim());
+    const hash = JSON.stringify({ e: events, i: data.interests, l: data.location, w: data.when });
     if (hash === _lastHash) return;
     _lastHash = hash;
 
-    const hasEvents = data.events && data.events.length > 0;
+    const hasEvents = events.length > 0;
     const ctx = renderContext(data);
     if (!hasEvents && !ctx) return;
 
@@ -409,7 +412,7 @@ _BODY = r"""
     if (ctx) { html += '<div class="section-title">Search</div>' + ctx; }
     if (hasEvents) {
       html += '<div class="section-title" style="margin-top:8px">Ranked events</div>';
-      html += renderEvents(data.events) || '';
+      html += renderEvents(events) || '';
     }
 
     dataScroll.innerHTML = '';
@@ -428,12 +431,22 @@ _BODY = r"""
   }
   setInterval(fetchSession, 10000);
 
+  function resetPanel() {
+    // Each question is answered fresh — clear the previous question's events
+    // so stale results don't linger on the right while the new search runs.
+    _lastHash = '';
+    dataScroll.innerHTML = '';
+    dataScroll.appendChild(emptyState);
+    emptyState.style.display = '';
+  }
+
   async function sendMessage() {
     const question = inputEl.value.trim();
     if (!question) return;
     inputEl.value = '';
     sendBtn.disabled = true;
     setStatus(true, 'Browsing…');
+    resetPanel();
     addMessage(question, 'user');
     const thinking = addMessage('Opening Meetup, Luma & Eventbrite…', 'thinking');
 

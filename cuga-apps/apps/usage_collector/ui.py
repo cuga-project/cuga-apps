@@ -73,6 +73,27 @@ _APP_CSS = """<style>
   /* Headers/cells carrying a tooltip get a dotted underline + help cursor. */
   th[title], .stat[title] { cursor: help; }
   th[title] { text-decoration: underline dotted var(--cds-border-strong); text-underline-offset: 3px; }
+
+  /* Trend charts */
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-sp-06); margin-bottom: var(--cds-sp-07); }
+  @media (max-width: 820px) { .charts { grid-template-columns: 1fr; } }
+  .card { background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle); padding: var(--cds-sp-05); }
+  .card h3 { margin: 0 0 var(--cds-sp-04); font-size: 0.75rem; font-weight: 600;
+             text-transform: uppercase; letter-spacing: 0.32px; color: var(--cds-text-secondary); }
+  .chart { width: 100%; height: 132px; display: block; }
+  .chart .axlbl { font-size: 8px; fill: var(--cds-text-helper); font-family: var(--cds-font-mono); }
+  rect.bar-ok  { fill: var(--cds-support-success); }
+  rect.bar-err { fill: var(--cds-support-error); }
+  rect.bar-req { fill: var(--cds-interactive); }
+  .chart-legend { display: flex; gap: var(--cds-sp-05); margin-top: var(--cds-sp-03); font-size: 0.6875rem; color: var(--cds-text-secondary); }
+  .chart-legend .key { display: inline-flex; align-items: center; gap: 4px; }
+  .sw { width: 10px; height: 10px; display: inline-block; }
+  .sw.ok { background: var(--cds-support-success); } .sw.err { background: var(--cds-support-error); } .sw.req { background: var(--cds-interactive); }
+
+  /* Provider failure-reason chips */
+  .codes { display: flex; flex-wrap: wrap; gap: 2px; justify-content: flex-end; margin-top: 2px; }
+  .codechip { font-family: var(--cds-font-mono); font-size: 0.625rem; padding: 0 4px; white-space: nowrap;
+              background: var(--cds-layer-accent-01); border: 1px solid var(--cds-border-subtle); color: var(--cds-text-secondary); }
 </style>"""
 
 _BODY = r"""
@@ -98,8 +119,27 @@ _BODY = r"""
       <dt>Last&nbsp;14&nbsp;days</dt><dd>Sparkline of daily request volume; the green bar is today. Hover a bar for that day's request + visitor counts.</dd>
       <dt>Last&nbsp;seen</dt><dd>Time since the app's most recent tracked request.</dd>
       <dt>×N&nbsp;chips</dt><dd>API calls a specific utterance triggered. Currently the in-process <b>LLM</b> calls (e.g. watsonx). Out-of-process MCP tools (tavily, geo, …) run in a separate server and appear only in the aggregate "Provider API calls" table above.</dd>
+      <dt>Failure&nbsp;codes</dt><dd>Under each provider's error count: how those calls failed — an HTTP status like <b>429</b> (rate limit reached), <b>404</b>, <b>503</b>, or a label like <b>timeout</b>. Use these to see how often an API limit was hit.</dd>
     </dl>
   </details>
+
+  <div class="charts">
+    <div class="card">
+      <h3>API calls — last 14 days</h3>
+      <div id="chartCalls"></div>
+      <div class="chart-legend">
+        <span class="key"><span class="sw ok"></span>successful</span>
+        <span class="key"><span class="sw err"></span>failed (429/404/…)</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>App visits — last 14 days</h3>
+      <div id="chartVisits"></div>
+      <div class="chart-legend">
+        <span class="key"><span class="sw req"></span>requests · hover a column for unique visitors</span>
+      </div>
+    </div>
+  </div>
 
   <div class="toolbar">
     <h2>Per-app usage</h2>
@@ -143,22 +183,72 @@ _BODY = r"""
 
   function searching() { return !!(document.getElementById('search').value || '').trim(); }
 
+  // Dependency-free stacked SVG bar chart. segs: [{key, cls, label}];
+  // titleExtra(d) optionally appends to a day's hover tooltip (e.g. visitors).
+  function chart(series, segs, titleExtra) {
+    if (!series || !series.length) return '<div class="empty">No data yet.</div>';
+    const slot = 22, bw = 14, H = 112, pad = 4;
+    const W = series.length * slot;
+    const max = Math.max(1, ...series.map(d => segs.reduce((s, sg) => s + (d[sg.key] || 0), 0)));
+    let bars = '', hits = '';
+    series.forEach((d, i) => {
+      const x = i * slot + pad;
+      let y = H;
+      segs.forEach(sg => {
+        const v = d[sg.key] || 0;
+        if (v <= 0) return;
+        const h = Math.max(1, Math.round((v / max) * (H - 4)));
+        y -= h;
+        bars += '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" class="' + sg.cls + '"></rect>';
+      });
+      // Full-height transparent hover target per day, carrying the COMPLETE
+      // tooltip — so hovering anywhere in the column shows it (incl. visitors),
+      // not just the thin/short visible bar.
+      const parts = segs.map(sg => sg.label + ': ' + (d[sg.key] || 0));
+      const title = esc(d.day) + ' — ' + parts.join(', ') + (titleExtra ? titleExtra(d) : '');
+      hits += '<rect x="' + (i * slot) + '" y="0" width="' + slot + '" height="' + H +
+              '" fill="transparent" pointer-events="all"><title>' + title + '</title></rect>';
+    });
+    const f = series[0].day.slice(5), l = series[series.length - 1].day.slice(5);
+    return '<svg class="chart" viewBox="0 0 ' + (W + pad) + ' ' + (H + 16) + '" preserveAspectRatio="xMinYMid meet" role="img" aria-label="bar chart">' +
+      bars + hits +
+      '<text x="' + pad + '" y="' + (H + 13) + '" class="axlbl">' + esc(f) + '</text>' +
+      '<text x="' + (W - slot + pad) + '" y="' + (H + 13) + '" class="axlbl">' + esc(l) + '</text>' +
+      '</svg>';
+  }
+
+  function renderCharts(series) {
+    const s = series || {};
+    document.getElementById('chartCalls').innerHTML = chart(s.api_calls || [],
+      [{key: 'calls', cls: 'bar-ok', label: 'OK'}, {key: 'errors', cls: 'bar-err', label: 'failed'}]);
+    document.getElementById('chartVisits').innerHTML = chart(s.visits || [],
+      [{key: 'requests', cls: 'bar-req', label: 'requests'}], d => ' (visitors: ' + (d.uniques || 0) + ')');
+  }
+
   function renderProviders(provs) {
     const wrap = document.getElementById('provWrap');
     if (!provs.length) {
       wrap.innerHTML = '<div class="empty">' + (searching() ? 'No matching providers.' : 'No provider calls recorded yet.') + '</div>';
       return;
     }
-    const rows = provs.map(p =>
-      '<tr><td class="app-name">' + esc(p.provider) + '</td>' +
-      '<td class="num ' + (p.calls_today ? 'today-pos' : 'muted') + '">' + (p.calls_today||0) + '</td>' +
-      '<td class="num">' + (p.calls_total||0) + '</td>' +
-      '<td class="num ' + (p.errors_total ? 'err' : 'muted') + '">' + (p.errors_total||0) + '</td></tr>').join('');
+    const rows = provs.map(p => {
+      const codes = p.errors_by_code || {};
+      const ckeys = Object.keys(codes).sort();
+      const chips = ckeys.length
+        ? '<div class="codes">' + ckeys.map(c =>
+            '<span class="codechip" title="' + esc(c) + ': ' + codes[c] + ' failed call(s)">' +
+            esc(c) + '×' + codes[c] + '</span>').join('') + '</div>'
+        : '';
+      return '<tr><td class="app-name">' + esc(p.provider) + '</td>' +
+        '<td class="num ' + (p.calls_today ? 'today-pos' : 'muted') + '">' + (p.calls_today||0) + '</td>' +
+        '<td class="num">' + (p.calls_total||0) + '</td>' +
+        '<td class="num ' + (p.errors_total ? 'err' : 'muted') + '">' + (p.errors_total||0) + chips + '</td></tr>';
+    }).join('');
     wrap.innerHTML = '<table><thead><tr>' +
       '<th title="External API the apps call — LLM (watsonx), web search (tavily), finance (alpha_vantage), …">Provider</th>' +
-      '<th class="num" title="Calls made so far today (UTC)">Today</th>' +
-      '<th class="num" title="Calls since the collector started">Total</th>' +
-      '<th class="num" title="Calls that returned an error">Errors</th>' +
+      '<th class="num" title="Successful calls so far today (UTC)">Today</th>' +
+      '<th class="num" title="Successful calls since the collector started">Total</th>' +
+      '<th class="num" title="Failed calls, with the reason breakdown below (429 = rate limit reached, 404, timeout, …)">Errors</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
 
@@ -239,6 +329,7 @@ _BODY = r"""
   function draw() {
     const data = LAST || {};
     renderSummary(data.totals || {});
+    renderCharts(data.series || {});
     const q = (document.getElementById('search').value || '').trim().toLowerCase();
     let apps  = data.apps || [];
     let provs = data.providers || [];

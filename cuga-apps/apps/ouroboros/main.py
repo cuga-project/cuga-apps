@@ -554,6 +554,24 @@ def _writer_output_from_state(supervisor) -> str | None:
     return None
 
 
+def _looks_like_code(text: str) -> bool:
+    """True if the supervisor surfaced a raw code step (or other non-answer
+    artifact) instead of a finished, human-readable reply. When the cascade
+    bails early, `result.answer` can be the generated Python from a phase —
+    we never want to show that to the user."""
+    if not text:
+        return False
+    t = text.strip()
+    if "```python" in t or t.startswith("```"):
+        return True
+    # Strong code signals (no leading prose) — require a couple to avoid
+    # nuking a legitimate answer that merely mentions code in passing.
+    markers = ("import json", "json.loads(", "def ", "for i in range(",
+               "print(f\"", "except (", "candidates = ", "scout_result",
+               "enrichments[", "= []")
+    return sum(1 for m in markers if m in t) >= 2
+
+
 def _format_elapsed(ms: int) -> str:
     s = ms / 1000.0
     if s < 1:
@@ -1139,21 +1157,28 @@ def make_supervisor():
     )
 
     agents = make_all(model=model)
-    supervisor = CugaSupervisor(
-        agents=agents,
-        model=model,
-        # description= is dead in this SDK branch (never rendered into
-        # the supervisor's prompt). We inject the cascade rules via
-        # _TASK_PRELUDE on the user message in /ask instead.
-        # Step accounting (each block = 2 steps: model + execute):
-        #   phase 1 (scout+parse+init):  2
-        #   phase 2 (5 specialists × up to 3 candidates, often <15
-        #             due to website conditionals): 20–30
-        #   phase 3 (writer):            2
-        #   misc planner indecision/retries: 5–15
-        # 100 caps comfortably over the median 35–50.
-        cuga_lite_max_steps=100,
-    )
+    # description= is dead in this SDK branch (never rendered into the
+    # supervisor's prompt). We inject the cascade rules via _TASK_PRELUDE on
+    # the user message in /ask instead.
+    # Step accounting (each block = 2 steps: model + execute):
+    #   phase 1 (scout+parse+init):  2
+    #   phase 2 (5 specialists × up to 3 candidates, often <15
+    #             due to website conditionals): 20–30
+    #   phase 3 (writer):            2
+    #   misc planner indecision/retries: 5–15
+    # 100 caps comfortably over the median 35–50.
+    kwargs = dict(agents=agents, model=model, cuga_lite_max_steps=100)
+    # Match the specialists: keep the supervisor stateless across turns by
+    # disabling its persistent knowledge store + on-disk policy auto-load, so
+    # nothing learned in one lead-hunt leaks into the next. These kwargs may
+    # not exist on every SDK build — fall back cleanly if they're rejected.
+    try:
+        supervisor = CugaSupervisor(
+            **kwargs, enable_knowledge=False, auto_load_policies=False)
+    except TypeError:
+        log.info("CugaSupervisor doesn't accept enable_knowledge/"
+                 "auto_load_policies on this SDK build; using defaults")
+        supervisor = CugaSupervisor(**kwargs)
     return supervisor
 
 
@@ -1326,18 +1351,35 @@ def _web(port: int) -> None:
                 log.warning("[%s] no leads extracted (answer length: %d chars)",
                             thread_id[:8], len(answer or ""))
 
+            # Never surface a raw code step / unfinished artifact to the user.
+            # When the cascade bailed early (no leads AND the answer looks like
+            # generated Python), show a clear retry message instead — but keep
+            # the raw answer in the saved run for debugging.
+            display_answer = answer
+            if not leads and _looks_like_code(answer):
+                log.warning("[%s] supervisor returned a raw code step as its "
+                            "answer; showing a friendly message instead",
+                            thread_id[:8])
+                display_answer = (
+                    "I couldn't finish the lead board for this request — the "
+                    "research cascade stopped early before writing results "
+                    f"(after {_format_elapsed(elapsed_ms)}). Please try again, "
+                    "or rephrase with an explicit location, e.g. "
+                    "\"clinics in Austin, TX\" or \"salons in Brooklyn, NY\"."
+                )
+
             _save_run(thread_id, question, answer, leads, supervisor,
                       started_at=started_at, elapsed_ms=elapsed_ms,
                       source=source, loop_id=loop_id)
 
             # Fire-and-forget email notification. Never blocks the response.
             asyncio.create_task(_maybe_send_email_for_run(
-                thread_id, question, answer, leads,
+                thread_id, question, display_answer, leads,
                 source, loop_id, _format_elapsed(elapsed_ms),
             ))
 
             return {
-                "answer":        answer,
+                "answer":        display_answer,
                 "thread_id":     thread_id,
                 "elapsed_ms":    elapsed_ms,
                 "elapsed_human": _format_elapsed(elapsed_ms),
