@@ -2,9 +2,9 @@
 """
 launch.py — start / stop all cuga-apps processes in one shot.
 
-In stage 1 this includes the 6 MCP servers + 4 reference apps. Other apps
-from the old stack will come online as they're ported in stage 2; their
-entries are commented out below.
+This brings up the full local stack: all 8 MCP servers plus every app
+(~34 apps + the usage_collector dashboard). Every entry below is live and
+uncommented; MCP servers start first so the MCP-backed apps can connect.
 
 Usage:
     python launch.py           # start everything (MCP servers + ready apps)
@@ -106,7 +106,7 @@ def _mcp_cmd(name: str) -> Callable[[int, dict], list]:
 # path resolves. kind=app processes are launched from their own directory.
 
 PROCS: list[dict] = [
-    # MCP servers — stage 1 ships all six.
+    # MCP servers — all 8 ship (invocable_apis is local-dev-only).
     dict(name="mcp-web",       kind="mcp", port=MCP_PORTS["web"],       cwd=REPO_ROOT,         cmd=_mcp_cmd("web")),
     dict(name="mcp-knowledge", kind="mcp", port=MCP_PORTS["knowledge"], cwd=REPO_ROOT,         cmd=_mcp_cmd("knowledge")),
     dict(name="mcp-geo",       kind="mcp", port=MCP_PORTS["geo"],       cwd=REPO_ROOT,         cmd=_mcp_cmd("geo")),
@@ -116,7 +116,7 @@ PROCS: list[dict] = [
     dict(name="mcp-text",      kind="mcp", port=MCP_PORTS["text"],      cwd=REPO_ROOT,         cmd=_mcp_cmd("text")),
     dict(name="mcp-invocable_apis", kind="mcp", port=MCP_PORTS["invocable_apis"], cwd=REPO_ROOT, cmd=_mcp_cmd("invocable_apis")),
 
-    # Apps — all 23 are present after stage 2. Apps that delegate to MCP
+    # Apps — every app entry is live. Apps that delegate to MCP
     # servers share the mcp-* ports above; apps that kept inline tools are
     # genuinely self-contained (app-state or heavy/auth-specific).
     dict(name="web_researcher",     kind="app", port=APP_PORTS["web_researcher"],     cwd=HERE / "web_researcher",     cmd=_app_cmd()),

@@ -1,6 +1,7 @@
 # cuga-apps (MCP edition)
 
-23 demo agent-apps, each a CugaAgent wrapped in a FastAPI UI. Every shared tool
+35 demo agent-apps in the tree (27 deployable · 21 ship-ready), each a CugaAgent
+wrapped in a FastAPI UI. Every shared tool
 primitive (web search, Wikipedia, arXiv, geocoding, document parsing,
 transcription, etc.) lives in a separate **MCP server**; apps connect via a
 LangChain↔MCP bridge. One umbrella UI tiles every app; one tool explorer lets
@@ -13,11 +14,11 @@ you browse and invoke every MCP tool.
                                     └────────────┬─────────────┘
                                                  ▼
    ┌─────────────────┐    streamable HTTP   ┌──────────────────────┐
-   │ 7 MCP servers   │ ◄──────────────────► │  23 FastAPI apps     │
+   │ 8 MCP servers   │ ◄──────────────────► │  35 FastAPI apps     │
    │ web/knowledge/  │   apps/_mcp_bridge   │  (CugaAgent inside)  │
    │ geo/finance/    │                      │  ports 28xxx         │
    │ code/local/text │                      │                      │
-   │ ports 29100-29106                      └──────────────────────┘
+   │ ports 29100-29107                      └──────────────────────┘
    └────────┬────────┘
             │
             ▼
@@ -111,7 +112,7 @@ uv venv --python 3.13                            # this repo targets 3.13
 > corrupted wheel or a stale resolver result.
 
 Once installed, the simplest path is **`apps/launch.py`** — it brings up the
-**7 MCP servers + every app + the usage dashboard** together, and spawns each
+**8 MCP servers + every app + the usage dashboard** together, and spawns each
 process with an interpreter that has `cuga` (auto-detecting a `.venv` if you
 launched from a cuga-less Python; override with `CUGA_PYTHON`):
 
@@ -162,7 +163,7 @@ Read these in order if you're new:
 
 ```
 cuga-apps/
-├── mcp_servers/             7 MCP servers + shared _core
+├── mcp_servers/             8 MCP servers (7 hosted + invocable_apis) + shared _core
 │   ├── _core/               http, errors, html, FastMCP bootstrap
 │   ├── web/                 Tavily, fetch, RSS, YouTube
 │   ├── knowledge/           Wikipedia, arXiv, Semantic Scholar
@@ -171,7 +172,7 @@ cuga-apps/
 │   ├── code/                stdlib code analysis
 │   ├── local/               psutil, faster-whisper
 │   └── text/                docling, tiktoken, recursive chunking
-├── apps/                    27 FastAPI demo apps
+├── apps/                    35 FastAPI demo apps (27 deployable)
 │   ├── _mcp_bridge.py       LangChain↔MCP adapter
 │   ├── _llm.py              multi-provider LLM factory
 │   ├── _ports.py            single source of truth for ALL ports
@@ -202,8 +203,8 @@ port is shifted into a non-overlapping range.
 | Component | Port range |
 |---|---|
 | Umbrella UI | **3001** |
-| Apps (23) | **28xxx** (28071, 28090, 28766–28814) |
-| MCP servers (7) | **29100–29106** |
+| Apps (35) | **28xxx** (28071, 28090, 28766–28814) |
+| MCP servers (8) | **29100–29107** (29107 = invocable_apis, local-only) |
 | Tool explorer | **28900** |
 
 See [apps/_ports.py](apps/_ports.py) for the authoritative registry.

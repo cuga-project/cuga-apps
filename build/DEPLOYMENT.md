@@ -100,7 +100,7 @@ ibmcloud ce registry create \
 ### Option A — docker compose (default)
 
 ```bash
-cd /home/amurthi/cuga-apps/build
+cd <repo-root>/build
 
 # Stop & remove any running container
 docker compose down
@@ -126,7 +126,7 @@ the bridge's DNS-resolver issues on this host.)
 
 ```bash
 # Build the image (the build itself uses host networking, so it's unaffected)
-cd /home/amurthi/cuga-apps
+cd <repo-root>
 docker build -f build/Dockerfile --network=host -t cuga-apps-allinone:latest .
 
 # Run on the host network — no bridge created, no iptables chain needed
@@ -151,7 +151,7 @@ changes, read at process start). Source / Dockerfile changes need a rebuild
 ## 2. Code Engine — build, push, deploy
 
 ```bash
-cd /home/amurthi/cuga-apps/build/ce
+cd <repo-root>/build/ce
 ./build_and_push.sh        # rebuild + push icr.io/routing_namespace/cuga-agent-apps:latest
 ./deploy.sh                # create/update the CE app (12 vCPU / 48G / 5G disk)
 ibmcloud ce app get --name cuga-agent-apps --output url     # note this URL for step 3
@@ -333,12 +333,12 @@ Optional tuning env (sensible defaults; set in `build/.env` if needed):
 ## 3. Hugging Face — build static UI, republish
 
 ```bash
-cd /home/amurthi/cuga-apps/build/hf
+cd <repo-root>/build/hf
 ALLINONE_BASE=https://cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud ./build.sh     # bakes the CE URL into the bundle → dist/
 
 rm -rf /tmp/space
 git clone git@hf.co:spaces/anupamamurthi/cuga-agent-apps /tmp/space
-cp -r /home/amurthi/cuga-apps/build/hf/dist/. /tmp/space/
+cp -r <repo-root>/build/hf/dist/. /tmp/space/
 cd /tmp/space && git add -A && git commit -m "umbrella UI" && git push
 ```
 

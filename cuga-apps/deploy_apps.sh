@@ -28,7 +28,7 @@
 #   APP_MEM=4G ./deploy_apps.sh meetup_finder    # headless Chromium needs headroom
 #
 # Override defaults via env:
-#   REGION    (default: us-south)
+#   REGION    (default: us-east)
 #   NAMESPACE (default: routing_namespace)
 #   IMAGE_TAG (default: latest)
 #   APP_CPU   (default: 1)
@@ -37,7 +37,7 @@
 
 set -euo pipefail
 
-REGION="${REGION:-us-south}"
+REGION="${REGION:-us-east}"
 NAMESPACE="${NAMESPACE:-routing_namespace}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 REG="icr.io/${NAMESPACE}"

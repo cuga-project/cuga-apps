@@ -121,7 +121,7 @@ project. Pick the login flow that matches how your account is set up.
 ```bash
 ibmcloud login --sso
 # → opens a browser, copy the one-time code, paste it back into the terminal
-ibmcloud target -r us-south -g <your-resource-group>
+ibmcloud target -r us-east -g <your-resource-group>
 ```
 
 If your account belongs to multiple IBM Cloud accounts (most IBMers do), the
@@ -137,7 +137,7 @@ ibmcloud target -c <account-id>                    # switch to it
 ```bash
 # One-time: create an API key in the IBM Cloud console
 #   https://cloud.ibm.com/iam/apikeys → "Create" → save the JSON
-ibmcloud login --apikey "$(cat ~/ibmcloud-apikey.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["apikey"])')" -r us-south
+ibmcloud login --apikey "$(cat ~/ibmcloud-apikey.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["apikey"])')" -r us-east
 ibmcloud target -g <your-resource-group>
 ```
 
@@ -145,7 +145,7 @@ Or pass the key directly via env:
 
 ```bash
 export IBMCLOUD_API_KEY=<your-key>
-ibmcloud login -r us-south -g <your-resource-group>
+ibmcloud login -r us-east -g <your-resource-group>
 ```
 
 #### Verify and select your CE project
@@ -156,7 +156,7 @@ specific Code Engine project these scripts will deploy into:
 ```bash
 ibmcloud target                                    # shows account + region + RG
 # Account: ... 
-# Region:  us-south
+# Region:  us-east
 # Resource group: <your-RG>
 
 ibmcloud ce project list                           # show CE projects in this RG
@@ -179,10 +179,10 @@ idempotent — re-run from where you left off.
 ### Decide on three values you'll reuse
 
 ```bash
-export REGION=us-south
+export REGION=us-east
 export PROJECT=<your-CE-project-name>
 export NAMESPACE=cuga-apps                 # ICR namespace
-export REPO_ROOT=/home/amurthi/work/agent-apps/cuga-apps
+export REPO_ROOT=$(pwd)
 export REG=$REGION.icr.io/$NAMESPACE
 ```
 
@@ -732,7 +732,7 @@ Re-authenticate and re-target:
 
 ```bash
 ibmcloud login --sso                              # or --apikey ...
-ibmcloud target -r us-south -g <your-resource-group>
+ibmcloud target -r us-east -g <your-resource-group>
 ibmcloud ce project select --name <your-project>
 ```
 

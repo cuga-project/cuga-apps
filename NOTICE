@@ -1,0 +1,12 @@
+cuga-apps
+Copyright 2026 IBM Corp.
+
+This product includes software developed at IBM Research.
+
+The agents in this repository are built on CUGA, an open-source agent runtime
+from IBM Research (https://github.com/cuga-project/cuga-agent).
+
+Each app integrates third-party data sources and APIs (e.g. Wikipedia, arXiv,
+OpenStreetMap/Nominatim, CoinGecko, Alpha Vantage, Tavily). Those services are
+owned by their respective providers and governed by their own terms of use and
+licenses; this project does not redistribute their data.

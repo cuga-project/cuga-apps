@@ -14,9 +14,9 @@ Tool groups:
 
 Configuration (env vars):
   BIRD_DEV_JSON              path to Bird dev.json
-                             (default: /home/amurthi/work/dev_20240627/dev.json)
+                             (default: mcp_servers/invocable_apis/data/dev.json)
   BIRD_DBS_DIR               directory of <db>/<db>.sqlite
-                             (default: /home/amurthi/work/enterprise-benchmark/data/db)
+                             (default: mcp_servers/invocable_apis/data/db)
   INVOCABLE_APIS_STATE_DIR   per-DB sqlite registries
                              (default: mcp_servers/invocable_apis/state)
 
@@ -54,11 +54,11 @@ _DEFAULT_PORT = 29107
 
 _BIRD_DEV_JSON = Path(os.getenv(
     "BIRD_DEV_JSON",
-    "/home/amurthi/work/dev_20240627/dev.json",
+    str(_HERE / "data" / "dev.json"),
 ))
 _BIRD_DBS_DIR = Path(os.getenv(
     "BIRD_DBS_DIR",
-    "/home/amurthi/work/enterprise-benchmark/data/db",
+    str(_HERE / "data" / "db"),
 ))
 _STATE_DIR = Path(os.getenv(
     "INVOCABLE_APIS_STATE_DIR",

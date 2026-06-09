@@ -3,7 +3,7 @@
 The two skills (`hiking_research`, `lead_hunter`) live here:
 
 ```
-/Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/
+<repo-root>/cuga-skills/
 ├── hiking_research/
 │   ├── SKILL.md
 │   └── scripts/hike_tools.py
@@ -38,10 +38,10 @@ Without symlinks you end up with 3+ copies and edits drift. Been there.
 Run this once:
 
 ```bash
-SRC=/Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills
+SRC=<repo-root>/cuga-skills
 
 # ---------- 1. cuga-skills-ui marketplace ----------
-UI=/Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills-ui/.cuga/skills
+UI=<repo-root>/cuga-skills-ui/.cuga/skills
 mkdir -p "$UI"
 rm -rf "$UI/hiking_research" "$UI/lead_hunter" "$UI/-lead_hunter"
 ln -s "$SRC/hiking_research" "$UI/hiking_research"
@@ -54,7 +54,7 @@ ln -s "$SRC/hiking_research" /tmp/skills/hiking_research
 ln -s "$SRC/lead_hunter"     /tmp/skills/lead_hunter
 
 # ---------- 3. cuga-agent-skills-branch dev repo ----------
-BRANCH=/Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills
+BRANCH=<cuga-host-checkout>/.cuga/skills
 mkdir -p "$BRANCH"
 rm -rf "$BRANCH/hiking_research" "$BRANCH/lead_hunter" \
        "$BRANCH/-lead_hunter" "$BRANCH/_hiking_research"
@@ -69,9 +69,9 @@ After running this, every consumer reads the same files on disk.
 ## Verify
 
 ```bash
-ls -la /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills-ui/.cuga/skills
+ls -la <repo-root>/cuga-skills-ui/.cuga/skills
 ls -la /tmp/skills
-ls -la /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills
+ls -la <cuga-host-checkout>/.cuga/skills
 ```
 
 Each should show two `lrwxr-xr-x` symlinks pointing at the canonical
@@ -146,11 +146,11 @@ rm -rf ~/.config/agents/skills/--hiking_researc
    ```
 2. Symlink it into all three consumer locations:
    ```bash
-   SRC=/Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills
+   SRC=<repo-root>/cuga-skills
    for DEST in \
-     /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills-ui/.cuga/skills \
+     <repo-root>/cuga-skills-ui/.cuga/skills \
      /tmp/skills \
-     /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills
+     <cuga-host-checkout>/.cuga/skills
    do
      ln -s "$SRC/<new_skill>" "$DEST/<new_skill>"
    done

@@ -132,7 +132,7 @@ _BODY = r"""
         <div class="row">
           <input type="text" class="cds-input" id="compose-path"
             placeholder="/path/to/docker-compose.yml"
-            value="/home/amurthi/work/agent-apps/cuga-apps/docker-compose.yml"
+            value="./docker-compose.yml"
             onkeydown="if(event.key==='Enter')classify()">
           <button class="cds-btn" id="classify-btn" onclick="classify()" style="min-width:7rem">Classify</button>
         </div>

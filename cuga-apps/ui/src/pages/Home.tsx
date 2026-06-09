@@ -45,9 +45,11 @@ const stageOf = (id: string): Stage =>
   : FOR_LATER_IDS.has(id) ? 'for-later'
   : 'ship-ready'
 
+// Only the Showcase stage carries a badge now; everything else is grouped under
+// "Additional apps" with no glyph, to keep the table calm.
 const STAGE_BADGE: Record<Stage, { glyph: string; cls: string } | null> = {
   'ship-ready':  { glyph: '✦', cls: 'text-amber-500' },
-  'exploratory': { glyph: '⚗', cls: 'text-purple-500' },
+  'exploratory': null,
   'for-later':   null,
 }
 
@@ -57,14 +59,21 @@ function StageGlyph({ id, ml }: { id: string; ml: string }) {
   return <span className={`${badge.cls} ${ml} font-bold`}>{badge.glyph}</span>
 }
 
-type ShipFilter = 'all' | Stage
+// Two meaningful buckets for the reader: the polished demos ("Showcase") and
+// everything else ("Additional apps" = for-later + exploratory). 'all' shows both.
+type ShipFilter = 'all' | 'showcase' | 'additional'
 
 const SHIP_FILTER_LABEL: Record<ShipFilter, string> = {
-  'all':         'All',
-  'ship-ready':  '✦ Ship-ready',
-  'for-later':   'For later',
-  'exploratory': '⚗ Exploratory',
+  'all':        'All',
+  'showcase':   '✦ Showcase',
+  'additional': 'Additional apps',
 }
+
+// Does an app match the active stage filter? 'additional' is the complement of
+// the showcase stage (for-later OR exploratory).
+const matchesShipFilter = (id: string, f: ShipFilter): boolean =>
+  f === 'all' ||
+  (f === 'showcase' ? stageOf(id) === 'ship-ready' : stageOf(id) !== 'ship-ready')
 
 function ShipFilterChips({
   value,
@@ -73,19 +82,17 @@ function ShipFilterChips({
   value: ShipFilter
   onChange: (v: ShipFilter) => void
 }) {
-  const options: ShipFilter[] = ['all', 'ship-ready', 'for-later', 'exploratory']
+  const options: ShipFilter[] = ['all', 'showcase', 'additional']
   return (
     <div className="flex items-center gap-2.5 flex-wrap">
       <span className="text-sm text-t4 font-semibold uppercase tracking-wider w-20 shrink-0">Stage</span>
       {options.map((opt) => {
         const active = value === opt
         const activeCls =
-          opt === 'ship-ready'
+          opt === 'showcase'
             ? 'bg-amber-500 text-white border-amber-500'
-            : opt === 'for-later'
+            : opt === 'additional'
             ? 'bg-slate-500 text-white border-slate-500'
-            : opt === 'exploratory'
-            ? 'bg-purple-600 text-white border-purple-600'
             : 'bg-indigo-600 text-white border-indigo-600'
         return (
           <button
@@ -367,7 +374,7 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
         uc.name.toLowerCase().includes(search.toLowerCase()) ||
         uc.tagline.toLowerCase().includes(search.toLowerCase())
       const matchesCategory = filterCategory === 'all' || uc.category === filterCategory
-      const matchesShip = filterShip === 'all' || stageOf(uc.id) === filterShip
+      const matchesShip = matchesShipFilter(uc.id, filterShip)
       return matchesSearch && matchesCategory && matchesShip
     })
     // Stable sort: ship-ready first (in the curated SHIP_READY_ORDER), then
@@ -435,12 +442,12 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                   {(uc.examples?.length ?? 0) === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-col gap-1.5 max-w-[18rem]">
+                    <div className="flex flex-col gap-1.5 max-w-[20rem]">
                       {uc.examples!.slice(0, 2).map((ex) => (
                         <span
                           key={ex}
                           title={ex}
-                          className="bg-tsurf2 text-t2 border border-tborder rounded px-2 py-1 text-xs italic truncate"
+                          className="bg-tsurf2 text-t2 border border-tborder rounded px-2 py-1 text-xs italic whitespace-normal break-words leading-snug"
                         >
                           “{ex}”
                         </span>
@@ -578,7 +585,7 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all')
   const [filterBucket, setFilterBucket] = useState<string | null>(null)
-  const [filterShip, setFilterShip] = useState<ShipFilter>('ship-ready')
+  const [filterShip, setFilterShip] = useState<ShipFilter>('showcase')
 
   const visible = USE_CASES.filter((u) => !u.hidden)
 
@@ -657,9 +664,9 @@ export default function Home() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-4 py-2 bg-tsurf border border-tborder rounded-xl text-base text-t1 placeholder-t4 focus:outline-none focus:border-indigo-500 w-72"
           />
-          {(search || filterCategory !== 'all' || filterBucket || filterShip !== 'ship-ready') && (
+          {(search || filterCategory !== 'all' || filterBucket || filterShip !== 'showcase') && (
             <button
-              onClick={() => { setSearch(''); setFilterCategory('all'); setFilterBucket(null); setFilterShip('ship-ready') }}
+              onClick={() => { setSearch(''); setFilterCategory('all'); setFilterBucket(null); setFilterShip('showcase') }}
               className="px-4 py-2 text-sm font-medium text-t3 hover:text-t1 bg-tsurf2 border border-tborder rounded-xl transition-colors"
             >
               Clear all
@@ -674,9 +681,8 @@ export default function Home() {
       <UseCaseTable useCases={visible} {...tableProps} />
 
       <p className="mt-5 text-sm text-t4">
-        <span className="text-amber-500">✦</span> ship-ready rows open architecture, run instructions, and how
-        CUGA powers them · <span className="text-purple-500">⚗</span> exploratory and for-later rows open the
-        source on GitHub.
+        <span className="text-amber-500">✦</span> Showcase rows open architecture, run instructions, and how
+        CUGA powers them · Additional apps open their source on GitHub.
       </p>
     </div>
   )

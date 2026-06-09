@@ -24,8 +24,8 @@ Install Docker Desktop and start it (whale icon steady in the menu bar). OpenSan
 
 ```bash
 git clone https://github.com/cuga-project/cuga-agent.git \
-  /Users/anu/Documents/GitHub/cuga-agent-skills-branch
-cd /Users/anu/Documents/GitHub/cuga-agent-skills-branch
+  <cuga-host-checkout>
+cd <cuga-host-checkout>
 git checkout feat/skills-support   # the branch with skills support
 
 uv venv --python=3.12
@@ -70,10 +70,10 @@ docker pull opensandbox/code-interpreter:v1.0.2
 For each skill you want available, **copy** (not symlink — `Path.rglob` doesn't follow symlinks) into the cuga checkout's project-local skills dir:
 
 ```bash
-mkdir -p /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills
+mkdir -p <cuga-host-checkout>/.cuga/skills
 
-cp -R /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/hiking_research \
-      /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills/
+cp -R <repo-root>/cuga-skills/hiking_research \
+      <cuga-host-checkout>/.cuga/skills/
 ```
 
 When you update a skill, `rm -rf` the destination and `cp -R` again.
@@ -96,8 +96,8 @@ Leave it running.
 `cuga start demo_skills` injects a digital_sales scenario that distracts the agent from your skills. Bypass it:
 
 ```bash
-source /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.venv/bin/activate
-cd /Users/anu/Documents/GitHub/cuga-agent-skills-branch
+source <cuga-host-checkout>/.venv/bin/activate
+cd <cuga-host-checkout>
 
 export DYNACONF_SKILLS__ENABLED=true
 export DYNACONF_ADVANCED_FEATURES__OPENSANDBOX_SANDBOX=true
@@ -147,8 +147,8 @@ If it doesn't, check the events panel in the UI — it shows every tool call. Th
 ```bash
 # Author the skill in cuga-skills/<your_skill>/SKILL.md (+ tools.py if needed)
 # Copy into cuga's project-local skills dir
-cp -R /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/<your_skill> \
-      /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills/
+cp -R <repo-root>/cuga-skills/<your_skill> \
+      <cuga-host-checkout>/.cuga/skills/
 
 # Restart Terminal 2 (Ctrl-C, re-run uvicorn). cuga rescans on every chat turn,
 # so the restart is only needed when you change the OpenSandbox upload.

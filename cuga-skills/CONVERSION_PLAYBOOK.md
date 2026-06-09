@@ -297,7 +297,7 @@ exit codes.
 
 ```bash
 # in the venv where `cuga` is installed (e.g. cuga-agent-skills-branch/.venv)
-cd /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills-ui
+cd <repo-root>/cuga-skills-ui
 pip install -r requirements.txt          # idempotent
 export ANTHROPIC_API_KEY=...              # or your provider of choice
 python main.py --provider anthropic
@@ -327,8 +327,8 @@ into the cuga checkout's project-local skills dir (or globally) — see
 [QUICKSTART.md](QUICKSTART.md):
 
 ```bash
-cp -R /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/<name> \
-      /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.cuga/skills/
+cp -R <repo-root>/cuga-skills/<name> \
+      <cuga-host-checkout>/.cuga/skills/
 ```
 
 Then start cuga (per QUICKSTART, use bare uvicorn to skip the
@@ -337,8 +337,8 @@ digital_sales preset):
 ```bash
 # Terminal 1: opensandbox-server on :8080
 # Terminal 2:
-source /Users/anu/Documents/GitHub/cuga-agent-skills-branch/.venv/bin/activate
-cd /Users/anu/Documents/GitHub/cuga-agent-skills-branch
+source <cuga-host-checkout>/.venv/bin/activate
+cd <cuga-host-checkout>
 DYNACONF_SKILLS__ENABLED=true \
 DYNACONF_ADVANCED_FEATURES__OPENSANDBOX_SANDBOX=true \
 DYNACONF_ADVANCED_FEATURES__ENABLE_SHELL_TOOL=true \
@@ -364,7 +364,7 @@ note below about `Path.rglob` not following top-level symlinked skill dirs:
 ```bash
 # install globally — COPY, not symlink
 mkdir -p ~/.config/agents/skills
-cp -R /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-skills/<name> \
+cp -R <repo-root>/cuga-skills/<name> \
       ~/.config/agents/skills/<name>
 
 # verify discoverable from a totally different cwd

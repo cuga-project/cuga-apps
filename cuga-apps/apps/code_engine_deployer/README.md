@@ -120,7 +120,7 @@ Debian/Ubuntu: `apt install python3.11 python3.11-venv`.
 From the cuga-apps repo root:
 
 ```bash
-cd /path/to/agent-apps/cuga-apps
+cd <repo-root>/cuga-apps
 
 # Use Python 3.11 explicitly — see "Python" section above for why
 python3.11 -m venv .venv_cuga_deployer

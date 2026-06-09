@@ -29,7 +29,7 @@ see [ARCHITECTURE.md](ARCHITECTURE.md).
 ### One-time setup
 
 ```bash
-cd /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-apps/apps/ouroboros
+cd <repo-root>/cuga-apps/apps/ouroboros
 
 # 1. Fresh venv with brew Python 3.12
 /opt/homebrew/bin/python3.12 -m venv .venv
@@ -93,7 +93,7 @@ you'd need to monkey-patch `LLMManager.get_model`. See
 ### The HTTP server
 
 ```bash
-cd /Users/anu/Documents/GitHub/cuga-apps-may5/cuga-apps/apps/ouroboros
+cd <repo-root>/cuga-apps/apps/ouroboros
 
 # stop any stale instance
 lsof -ti TCP:28822 -sTCP:LISTEN | xargs kill 2>/dev/null
