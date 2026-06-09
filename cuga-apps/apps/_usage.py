@@ -32,6 +32,7 @@ Env:
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import json
 import logging
@@ -40,6 +41,7 @@ import re
 import sys
 import threading
 import time
+import uuid
 
 log = logging.getLogger("usage")
 
@@ -54,6 +56,15 @@ _UTT_MAX = int(os.getenv("USAGE_UTTERANCE_MAXLEN", "2000"))
 _EXEMPT = ("/health", "/usage", "/api/stats", "/track", "/favicon", "/static")
 
 _client = None  # lazy httpx.AsyncClient, created on the running loop
+
+# Correlation id for the in-flight utterance. track_utterance() sets it;
+# track_call() reads it so IN-PROCESS provider calls (the LLM, via _llm.py's
+# LangChain callback) are attributed to the utterance that triggered them.
+# A ContextVar gives per-request isolation under asyncio (each request handler
+# runs in its own task with its own copy). Cross-process callers — the MCP
+# servers (tavily, geo, …) — never set it, so their calls stay unattributed
+# (aggregate-only), which is exactly what we want for "LLM-exact" attribution.
+_CUR_UTT: contextvars.ContextVar = contextvars.ContextVar("cuga_utt_id", default=None)
 
 
 def _app_name(app) -> str:
@@ -172,29 +183,38 @@ def track_call(provider: str, *, app: str | None = None, ok: bool = True, n: int
     tools, LangChain callbacks). Never raises.
     """
     try:
-        _emit({"kind": "call", "provider": str(provider)[:40],
-               "app": app or _detect_app_name(), "ok": bool(ok),
-               "n": int(n), "ts": time.time()})
+        event = {"kind": "call", "provider": str(provider)[:40],
+                 "app": app or _detect_app_name(), "ok": bool(ok),
+                 "n": int(n), "ts": time.time()}
+        utt = _CUR_UTT.get()
+        if utt:                       # set only for in-process LLM calls
+            event["utt"] = utt
+        _emit(event)
     except Exception:  # noqa: BLE001
         pass
 
 
-def track_utterance(text: str, *, app: str | None = None) -> None:
+def track_utterance(text: str, *, app: str | None = None) -> str | None:
     """Record a user's natural-language input (chat utterance) for the dashboard.
 
     Truncates to USAGE_UTTERANCE_MAXLEN and scrubs obvious secrets before it
-    leaves the process. Fire-and-forget; never raises.
+    leaves the process. Also sets the per-utterance correlation id (_CUR_UTT) so
+    subsequent in-process provider calls (the LLM) attribute to this utterance.
+    Returns that id (callers may ignore it). Fire-and-forget; never raises.
     """
     try:
         if not text:
-            return
+            return None
         clean = _scrub(str(text).strip())[:_UTT_MAX]
         if not clean:
-            return
-        _emit({"kind": "utterance", "app": app or _detect_app_name(),
+            return None
+        uid = uuid.uuid4().hex[:12]
+        _CUR_UTT.set(uid)
+        _emit({"kind": "utterance", "id": uid, "app": app or _detect_app_name(),
                "text": clean, "ts": time.time()})
+        return uid
     except Exception:  # noqa: BLE001
-        pass
+        return None
 
 
 def install_usage(app, app_name: str | None = None) -> None:

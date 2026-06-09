@@ -393,13 +393,13 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
   const UNIVERSAL_VARS = ['LLM_PROVIDER', 'LLM_MODEL', 'RITS_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'AGENT_SETTING_CONFIG']
 
   return (
-    <div className="bg-tsurf border border-tborder rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-tsurf border border-tborder rounded-2xl overflow-x-auto shadow-sm">
       <table className="w-full">
         <thead>
           <tr className="border-b-2 border-tborder bg-tsurf2">
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-6 py-4 w-10">#</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4">Use Case</th>
-            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell w-[13rem]">Examples</th>
+            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell w-[11rem]">Examples</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Category</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">Tools</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">ENV Vars</th>
@@ -442,7 +442,7 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                   {(uc.examples?.length ?? 0) === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-col gap-1.5 w-[13rem]">
+                    <div className="flex flex-col gap-1.5 w-[11rem]">
                       {uc.examples!.slice(0, 2).map((ex) => (
                         <span
                           key={ex}
@@ -460,11 +460,11 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                     {catInfo.label}
                   </span>
                 </td>
-                <td className="px-4 py-5 hidden xl:table-cell">
+                <td className="px-4 py-5 hidden xl:table-cell align-top">
                   {(!uc.mcpUsage || uc.mcpUsage.length === 0) && (uc.inlineTools?.length ?? 0) === 0 && uc.tools.length === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5 max-w-[15rem]">
                       {uc.mcpUsage?.map((u) => (
                         <div key={u.server} className="flex flex-wrap items-center gap-1">
                           <button
@@ -515,11 +515,11 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-5 hidden xl:table-cell">
+                <td className="px-4 py-5 hidden xl:table-cell align-top">
                   {appEnvs.length === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 max-w-[12rem]">
                       {visibleEnvs.map((v) => (
                         <EnvChip key={v} name={v} />
                       ))}

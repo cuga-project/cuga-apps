@@ -112,6 +112,9 @@ class _Store:
         # utt_counts[app][day] = int  (persisted totals; text is NOT kept here)
         self._utt_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self._utt_recent: deque = deque(maxlen=_UTT_RECENT)   # live view, in-memory
+        # id -> recent item, so a later provider call can attribute to its
+        # utterance. Bounded to the deque (evicted ids are dropped).
+        self._utt_by_id: dict[str, dict] = {}
         self._utt_buffer: list[dict] = []                     # pending COS flush
         self._utt_seq = 0
         self._lock = threading.Lock()
@@ -131,21 +134,39 @@ class _Store:
             rec["last_ts"] = max(rec["last_ts"], ts)
             self._dirty = True
 
-    def record_call(self, provider: str, day: str, ok: bool, n: int) -> None:
+    def record_call(self, provider: str, day: str, ok: bool, n: int,
+                    utt: str | None = None) -> None:
         with self._lock:
             rec = self._providers[day][provider]
             if ok:
                 rec["calls"] += n
             else:
                 rec["errors"] += n
+            # In-process LLM calls carry the utterance id — attribute them to it.
+            if utt:
+                item = self._utt_by_id.get(utt)
+                if item is not None:
+                    item["calls"][provider] = item["calls"].get(provider, 0) + n
             self._dirty = True
 
-    def record_utterance(self, app: str, day: str, text: str, ts: float) -> None:
+    def record_utterance(self, app: str, day: str, text: str, ts: float,
+                         uid: str | None = None) -> None:
         with self._lock:
             self._utt_counts[app][day] += 1
-            item = {"app": app, "text": text, "ts": ts}
+            item: dict = {"app": app, "text": text, "ts": ts}
+            if uid:
+                item["id"] = uid
+                item["calls"] = {}            # provider -> count, filled by record_call
+                # Keep the id index bounded to the deque: if this append will
+                # evict the oldest item, drop that id from the index first.
+                if len(self._utt_recent) == self._utt_recent.maxlen and self._utt_recent:
+                    old = self._utt_recent[0]
+                    if old.get("id"):
+                        self._utt_by_id.pop(old["id"], None)
+                self._utt_by_id[uid] = item
             self._utt_recent.append(item)
-            self._utt_buffer.append({**item, "day": day})
+            # COS buffer stays text-only (calls arrive later; not persisted here).
+            self._utt_buffer.append({"app": app, "text": text, "ts": ts, "day": day})
             self._dirty = True
 
     def drain_utterances(self) -> list[dict]:
@@ -200,7 +221,14 @@ class _Store:
 
             utt_today = sum(by_day.get(today, 0) for by_day in self._utt_counts.values())
             utt_total = sum(sum(by_day.values()) for by_day in self._utt_counts.values())
-            recent_utts = list(self._utt_recent)[-50:][::-1]   # newest first
+            # newest first; copy the mutable `calls` dict under the lock so it
+            # can't be mutated by a concurrent record_call during serialization.
+            recent_utts = [
+                {"app": u["app"], "text": u["text"], "ts": u["ts"],
+                 **({"id": u["id"]} if u.get("id") else {}),
+                 **({"calls": dict(u["calls"])} if u.get("calls") else {})}
+                for u in list(self._utt_recent)[-50:][::-1]
+            ]
 
             return {
                 "generated_at": time.time(),
@@ -388,11 +416,13 @@ def _web(port: int) -> None:
                 n = int(ev.get("n") or 1)
             except (TypeError, ValueError):
                 n = 1
-            STORE.record_call(provider, day, bool(ev.get("ok", True)), n)
+            STORE.record_call(provider, day, bool(ev.get("ok", True)), n,
+                              utt=(str(ev.get("utt"))[:32] if ev.get("utt") else None))
         elif kind == "utterance":
             text = str(ev.get("text") or "")[:_UTT_TEXT_MAX]
             if text:
-                STORE.record_utterance(app_name, day, text, ts)
+                STORE.record_utterance(app_name, day, text, ts,
+                                       uid=(str(ev.get("id"))[:32] if ev.get("id") else None))
         else:                                   # request (default / back-compat)
             visitor = str(ev.get("visitor") or "")[:64]
             try:

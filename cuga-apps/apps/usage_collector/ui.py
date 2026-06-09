@@ -47,12 +47,32 @@ _APP_CSS = """<style>
   .utts li:hover { background: var(--cds-layer-hover-01); }
   .utt-app { font-weight: 600; min-width: 9rem; color: var(--cds-text-secondary); }
   .utt-text { flex: 1; white-space: pre-wrap; word-break: break-word; }
+  .utt-calls { display: inline-flex; flex-wrap: wrap; gap: var(--cds-sp-02); }
+  .callchip { font-family: var(--cds-font-mono); font-size: 0.6875rem; padding: 1px 6px; white-space: nowrap;
+              background: var(--cds-layer-accent-01); color: var(--cds-text-secondary); border: 1px solid var(--cds-border-subtle); }
   .utt-ago { white-space: nowrap; font-size: 0.6875rem; }
 
   .empty { color: var(--cds-text-secondary); padding: var(--cds-sp-07); text-align: center; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cds-support-success); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   .status-badge { display: flex; align-items: center; gap: var(--cds-sp-03); }
+
+  .search { margin-left: auto; min-width: 18rem; padding: var(--cds-sp-03) var(--cds-sp-04);
+            font-size: 0.8125rem; background: var(--cds-field-01); color: var(--cds-text-primary);
+            border: none; border-bottom: 1px solid var(--cds-border-strong); }
+  .search:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+
+  /* Metric glossary */
+  .legend { margin: 0 0 var(--cds-sp-07); background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle); }
+  .legend summary { cursor: pointer; padding: var(--cds-sp-04) var(--cds-sp-05); font-size: 0.6875rem;
+                    font-weight: 600; text-transform: uppercase; letter-spacing: 0.32px; color: var(--cds-text-secondary); }
+  .legend dl { margin: 0; padding: 0 var(--cds-sp-05) var(--cds-sp-05);
+               display: grid; grid-template-columns: max-content 1fr; gap: var(--cds-sp-03) var(--cds-sp-06); }
+  .legend dt { font-weight: 600; font-size: 0.8125rem; font-family: var(--cds-font-mono); white-space: nowrap; }
+  .legend dd { margin: 0; font-size: 0.8125rem; color: var(--cds-text-secondary); }
+  /* Headers/cells carrying a tooltip get a dotted underline + help cursor. */
+  th[title], .stat[title] { cursor: help; }
+  th[title] { text-decoration: underline dotted var(--cds-border-strong); text-underline-offset: 3px; }
 </style>"""
 
 _BODY = r"""
@@ -65,8 +85,25 @@ _BODY = r"""
 
 <main>
   <div class="summary" id="summary"></div>
+
+  <details class="legend">
+    <summary>What do these metrics mean?</summary>
+    <dl>
+      <dt>Requests</dt><dd>Tracked agent calls — POST requests to an app's endpoints. This is what the umbrella counts as an app "use".</dd>
+      <dt>Today / 7-day / Total</dt><dd>Requests in the current UTC day, over the last 7 days, and since the collector started.</dd>
+      <dt>Visitors</dt><dd>Unique anonymous visitors today — a daily-salted hash of the client IP. No IP is stored and the hash resets every day, so the same person counts once per day.</dd>
+      <dt>API&nbsp;calls</dt><dd>External/provider API calls made while serving requests — e.g. <b>watsonx</b> (LLM), <b>tavily</b> (web search), <b>alpha_vantage</b> (finance). Counted per provider, per day.</dd>
+      <dt>Errors</dt><dd>Provider calls that failed (the tool returned an error rather than a result).</dd>
+      <dt>Utterances</dt><dd>The natural-language text users submitted. Obvious secrets are scrubbed and the text is truncated before it's stored.</dd>
+      <dt>Last&nbsp;14&nbsp;days</dt><dd>Sparkline of daily request volume; the green bar is today. Hover a bar for that day's request + visitor counts.</dd>
+      <dt>Last&nbsp;seen</dt><dd>Time since the app's most recent tracked request.</dd>
+      <dt>×N&nbsp;chips</dt><dd>API calls a specific utterance triggered. Currently the in-process <b>LLM</b> calls (e.g. watsonx). Out-of-process MCP tools (tavily, geo, …) run in a separate server and appear only in the aggregate "Provider API calls" table above.</dd>
+    </dl>
+  </details>
+
   <div class="toolbar">
     <h2>Per-app usage</h2>
+    <input id="search" class="search" type="search" placeholder="Filter apps, providers, utterances…" aria-label="Filter dashboard" />
     <span class="refresh-badge" id="refreshBadge">auto-refresh 15s</span>
   </div>
   <div id="tableWrap">
@@ -104,42 +141,73 @@ _BODY = r"""
       }).join('') + '</span>';
   }
 
+  function searching() { return !!(document.getElementById('search').value || '').trim(); }
+
   function renderProviders(provs) {
     const wrap = document.getElementById('provWrap');
-    if (!provs.length) { wrap.innerHTML = '<div class="empty">No provider calls recorded yet.</div>'; return; }
+    if (!provs.length) {
+      wrap.innerHTML = '<div class="empty">' + (searching() ? 'No matching providers.' : 'No provider calls recorded yet.') + '</div>';
+      return;
+    }
     const rows = provs.map(p =>
       '<tr><td class="app-name">' + esc(p.provider) + '</td>' +
       '<td class="num ' + (p.calls_today ? 'today-pos' : 'muted') + '">' + (p.calls_today||0) + '</td>' +
       '<td class="num">' + (p.calls_total||0) + '</td>' +
       '<td class="num ' + (p.errors_total ? 'err' : 'muted') + '">' + (p.errors_total||0) + '</td></tr>').join('');
-    wrap.innerHTML = '<table><thead><tr><th>Provider</th><th class="num">Today</th>' +
-      '<th class="num">Total</th><th class="num">Errors</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    wrap.innerHTML = '<table><thead><tr>' +
+      '<th title="External API the apps call — LLM (watsonx), web search (tavily), finance (alpha_vantage), …">Provider</th>' +
+      '<th class="num" title="Calls made so far today (UTC)">Today</th>' +
+      '<th class="num" title="Calls since the collector started">Total</th>' +
+      '<th class="num" title="Calls that returned an error">Errors</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function callChips(calls) {
+    if (!calls) return '';
+    const keys = Object.keys(calls).sort();
+    if (!keys.length) return '';
+    return '<span class="utt-calls">' + keys.map(k =>
+      '<span class="callchip" title="' + esc(k) + ' API calls triggered by this utterance">' +
+      esc(k) + ' ×' + calls[k] + '</span>').join('') + '</span>';
   }
 
   function renderUtterances(utts) {
     const wrap = document.getElementById('uttWrap');
-    if (!utts.length) { wrap.innerHTML = '<div class="empty">No utterances recorded yet.</div>'; return; }
+    if (!utts.length) {
+      wrap.innerHTML = '<div class="empty">' + (searching() ? 'No matching utterances.' : 'No utterances recorded yet.') + '</div>';
+      return;
+    }
     wrap.innerHTML = '<ul class="utts">' + utts.map(u =>
       '<li><span class="utt-app">' + esc(u.app) + '</span>' +
       '<span class="utt-text">' + esc(u.text) + '</span>' +
+      callChips(u.calls) +
       '<span class="utt-ago muted">' + ago(u.ts) + '</span></li>').join('') + '</ul>';
   }
 
-  function render(data) {
-    const t = data.totals || {};
-    document.getElementById('summary').innerHTML =
-      [['Apps active', t.apps||0],['Requests today', t.requests_today||0],
-       ['Unique visitors today', t.uniques_today||0],['API calls today', t.calls_today||0],
-       ['Utterances today', t.utterances_today||0],['Requests all-time', t.requests_total||0]]
-      .map(([l,n]) => '<div class="stat"><div class="num">' + n + '</div><div class="lbl">' + l + '</div></div>').join('');
+  // [label, totals-key, tooltip] — the summary stat cards.
+  const SUMMARY = [
+    ['Apps active',           'apps',             'Apps that have received at least one tracked request.'],
+    ['Requests today',        'requests_today',   'Tracked agent calls (POST requests) so far today (UTC).'],
+    ['Unique visitors today', 'uniques_today',    'Distinct anonymous visitors today — a daily-salted IP hash. No IP is stored; resets each day.'],
+    ['API calls today',       'calls_today',      'External/provider API calls today — watsonx (LLM), tavily (search), alpha_vantage (finance), …'],
+    ['Utterances today',      'utterances_today', 'Natural-language inputs users submitted today (secrets scrubbed, text truncated).'],
+    ['Requests all-time',     'requests_total',   'All tracked requests since the collector started.'],
+  ];
 
-    renderProviders(data.providers || []);
-    renderUtterances((data.utterances || {}).recent || []);
+  let LAST = null;   // most recent /api/stats payload, re-filtered on search
 
-    const apps = data.apps || [];
+  function renderSummary(t) {
+    document.getElementById('summary').innerHTML = SUMMARY.map(([l,k,desc]) =>
+      '<div class="stat" title="' + esc(desc) + '"><div class="num">' + (t[k]||0) + '</div>' +
+      '<div class="lbl">' + l + '</div></div>').join('');
+  }
+
+  function renderApps(apps) {
     const wrap = document.getElementById('tableWrap');
-    if (apps.length === 0) {
-      wrap.innerHTML = '<div class="empty">No usage recorded yet. Once apps receive traffic, they\'ll appear here.</div>';
+    if (!apps.length) {
+      wrap.innerHTML = '<div class="empty">' + (searching()
+        ? 'No matching apps.'
+        : 'No usage recorded yet. Once apps receive traffic, they\'ll appear here.') + '</div>';
       return;
     }
     const rows = apps.map(a =>
@@ -154,9 +222,35 @@ _BODY = r"""
       '</tr>').join('');
     wrap.innerHTML =
       '<table><thead><tr>' +
-        '<th>App</th><th class="num">Today</th><th class="num">Visitors</th>' +
-        '<th class="num">7-day</th><th class="num">Total</th><th>Last 14 days</th><th>Last seen</th>' +
+        '<th title="App name (the app directory)">App</th>' +
+        '<th class="num" title="Tracked requests so far today (UTC)">Today</th>' +
+        '<th class="num" title="Unique anonymous visitors today (daily-salted IP hash)">Visitors</th>' +
+        '<th class="num" title="Requests over the last 7 days">7-day</th>' +
+        '<th class="num" title="Requests since the collector started">Total</th>' +
+        '<th title="Daily request volume; the green bar is today">Last 14 days</th>' +
+        '<th title="Time since the app\'s most recent tracked request">Last seen</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  // Store the payload, then (re)draw applying the current search filter. The
+  // summary totals are always unfiltered; the three tables filter by query.
+  function render(data) { LAST = data; draw(); }
+
+  function draw() {
+    const data = LAST || {};
+    renderSummary(data.totals || {});
+    const q = (document.getElementById('search').value || '').trim().toLowerCase();
+    let apps  = data.apps || [];
+    let provs = data.providers || [];
+    let utts  = (data.utterances || {}).recent || [];
+    if (q) {
+      apps  = apps.filter(a => (a.app || '').toLowerCase().includes(q));
+      provs = provs.filter(p => (p.provider || '').toLowerCase().includes(q));
+      utts  = utts.filter(u => ((u.app || '') + ' ' + (u.text || '')).toLowerCase().includes(q));
+    }
+    renderApps(apps);
+    renderProviders(provs);
+    renderUtterances(utts);
   }
 
   async function refresh() {
@@ -166,6 +260,7 @@ _BODY = r"""
       else { document.getElementById('statusText').textContent = 'Unauthorized'; }
     } catch (_) { document.getElementById('statusText').textContent = 'Offline'; }
   }
+  document.getElementById('search').addEventListener('input', draw);
   refresh();
   setInterval(refresh, 15000);
 </script>

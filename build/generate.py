@@ -156,6 +156,16 @@ def gen_start(ports: dict, mcp_ports: dict) -> str:
         lines.append(
             f'export {env_key}="${{{env_key}:-http://127.0.0.1:{port}/mcp}}"'
         )
+    # Export USAGE_COLLECTOR_URL *before* the MCP servers launch so the bundled
+    # servers (mcp-web/Tavily, mcp-finance/Alpha Vantage) inherit it and their
+    # track_call() pings reach the collector — not just the apps. The collector
+    # process itself starts below; any pings before it's up are fire-and-forget.
+    if "usage_collector" in ports:
+        uc_port = ports["usage_collector"]
+        lines.append(
+            f'export USAGE_COLLECTOR_URL="${{USAGE_COLLECTOR_URL:-http://127.0.0.1:{uc_port}/track}}"'
+        )
+
     lines += [
         'log() { echo "[run_all] $*"; }',
         "",
@@ -190,8 +200,9 @@ def gen_start(ports: dict, mcp_ports: dict) -> str:
     # request. Best-effort: if it's down, apps just log to stdout and run fine.
     if "usage_collector" in ports:
         uc_port = ports["usage_collector"]
+        # USAGE_COLLECTOR_URL was already exported above (before the MCP servers)
+        # so both the MCP servers and the apps inherit it.
         lines += [
-            f'export USAGE_COLLECTOR_URL="${{USAGE_COLLECTOR_URL:-http://127.0.0.1:{uc_port}/track}}"',
             f'log "starting usage_collector (stats dashboard) on :{uc_port}"',
             f'python -u usage_collector/main.py --port {uc_port} &',
             "",
