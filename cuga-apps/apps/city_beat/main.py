@@ -285,10 +285,14 @@ Call these in parallel-ish — the order doesn't matter, but each must run:
    shape). For each `news` item, copy `title`, `url`, and a 1–2 sentence
    `snippet` from the search result. For `wiki.summary`, pick the first
    2–4 sentences of the article extract — do not paraphrase.
-5. Call `save_briefing(thread_id=..., briefing_json=...)`.
-6. Reply to the user with a short prose summary that ends with the
-   "tagline" from the briefing. Two short paragraphs maximum — the right
-   panel shows the structured detail.
+5. Call `save_briefing(thread_id=..., briefing_json=...)`. This step is
+   REQUIRED and is the PRIMARY output — the panel on the right is what the
+   user reads. You MUST call it before you reply, even if you only have
+   partial results (e.g. weather failed but news succeeded).
+6. Reply with a SHORT framing ONLY — 1–2 sentences pointing the user to the
+   panel, ending with the "tagline" from the briefing. Do NOT repeat the
+   full structured detail (weather numbers, every headline, the background
+   blurb) in prose; the panel already shows it.
 
 ## Rules
 - Cite news as markdown links in your prose. Wikipedia is just `[More on
@@ -365,11 +369,16 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
-        thread_id = req.thread_id or str(uuid.uuid4())
+        from _usage import track_utterance; track_utterance(req.question)
+        # Stateless: the panel id keys the per-turn data the UI polls, but we
+        # reset it each turn and run the agent on a fresh memory thread, so
+        # nothing carries over from the previous question.
+        thread_id = req.thread_id or uuid.uuid4().hex
+        _sessions.pop(thread_id, None)
         augmented = f"[thread:{thread_id}] {req.question}"
         try:
             agent = _get_agent()
-            result = await agent.invoke(augmented, thread_id=thread_id)
+            result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
             return {"answer": str(result), "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")
@@ -387,6 +396,11 @@ def _web(port: int) -> None:
         return {"ok": True}
 
     print(f"\n  City Beat  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 

@@ -5,7 +5,7 @@ demo app inside the `cuga-apps` repo. Read it end-to-end before you write
 any code. Every code snippet here is copy-pasteable; every file path is
 real.
 
-The repo you're working in: `/home/amurthi/work/agent-apps/cuga-apps`.
+The repo you're working in: `<repo-root>/cuga-apps`.
 
 ---
 

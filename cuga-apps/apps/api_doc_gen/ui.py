@@ -4,10 +4,29 @@ _HTML = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API Doc Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root{
+  /* Carbon White (g10) tokens */
+  --cds-background:#ffffff; --cds-layer-01:#f4f4f4; --cds-layer-02:#ffffff;
+  --cds-layer-hover:#e8e8e8; --cds-layer-accent:#e0e0e0;
+  --cds-field-01:#f4f4f4; --cds-border-subtle:#e0e0e0; --cds-border-strong:#8d8d8d;
+  --cds-text-primary:#161616; --cds-text-secondary:#525252; --cds-text-placeholder:#a8a8a8;
+  --cds-text-helper:#6f6f6f; --cds-text-on-color:#ffffff;
+  --cds-link-primary:#0f62fe; --cds-link-hover:#0043ce;
+  --cds-interactive:#0f62fe; --cds-button-primary:#0f62fe;
+  --cds-button-primary-hover:#0353e9; --cds-button-primary-active:#002d9c;
+  --cds-focus:#0f62fe;
+  --cds-support-error:#da1e28; --cds-support-success:#24a148;
+  --cds-font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --cds-font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#0f1117;color:#e2e2e8;min-height:100vh;display:flex;flex-direction:column}
+body{font-family:var(--cds-font-sans);
+  background:#ffffff;color:#161616;min-height:100vh;display:flex;flex-direction:column;
+  -webkit-font-smoothing:antialiased}
 
 header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
   display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;flex-shrink:0}
@@ -153,6 +172,121 @@ input:focus{border-color:#818cf8}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;animation:spin .7s linear infinite}
+
+/* ════════════════════ Carbon polish (light) override ════════════════════ */
+/* Square structural corners; pills/avatars/spinners stay rounded. */
+header,.layout,.sidebar,.card,.tab,.btn,.btn-sm,.btn-danger,.btn-ghost,
+input[type=text],input[type=url],#chatInput,#sendBtn,#dropZone,
+.sample-card,.sample-tag,.chip,.copy-docs-btn,#docsPanel,#docsContent pre,
+#docsContent code,.msg-agent code,#docsContent th,#docsContent td,
+.toast,.msg-user,.msg-agent,.msg-thinking{border-radius:0 !important}
+
+/* Surfaces */
+header{background:#161616 !important;border-bottom:1px solid #393939 !important}
+header h1{color:#f4f4f4 !important}
+.sub{color:#c6c6c6 !important}.sub span{color:#78a9ff !important}
+#specBadge{background:var(--cds-support-success-bg,rgba(36,161,72,.12)) !important;
+  border:1px solid var(--cds-support-success) !important;color:var(--cds-support-success) !important}
+
+.sidebar{border-right:1px solid var(--cds-border-subtle) !important;background:var(--cds-background) !important}
+.card{background:var(--cds-layer-01) !important;border:1px solid var(--cds-border-subtle) !important}
+.slabel{color:var(--cds-text-secondary) !important}
+
+/* Tabs */
+.tab{border:1px solid var(--cds-border-subtle) !important;color:var(--cds-text-secondary) !important;background:transparent !important}
+.tab.active{background:var(--cds-interactive) !important;border-color:var(--cds-interactive) !important;color:#fff !important}
+
+/* Drop zone */
+#dropZone{border:2px dashed var(--cds-border-strong) !important}
+#dropZone:hover,#dropZone.drag{border-color:var(--cds-interactive) !important}
+#dropZone p{color:var(--cds-text-secondary) !important}
+#dropZone strong{color:var(--cds-link-primary) !important}
+
+/* Inputs */
+input[type=text],input[type=url]{background:var(--cds-field-01) !important;
+  border:none !important;border-bottom:1px solid var(--cds-border-strong) !important;
+  color:var(--cds-text-primary) !important}
+input[type=text]:focus,input[type=url]:focus{
+  border-bottom-color:var(--cds-border-strong) !important;
+  outline:2px solid var(--cds-focus) !important;outline-offset:-2px !important}
+#chatInput{background:var(--cds-field-01) !important;
+  border:none !important;border-bottom:1px solid var(--cds-border-strong) !important;
+  color:var(--cds-text-primary) !important}
+#chatInput:focus{outline:2px solid var(--cds-focus) !important;outline-offset:-2px !important;
+  border-bottom-color:var(--cds-border-strong) !important}
+#chatInput::placeholder{color:var(--cds-text-placeholder) !important}
+
+/* Buttons — IBM blue primary with Carbon focus ring */
+.btn,#sendBtn{background:var(--cds-button-primary) !important;color:#fff !important;
+  border:1px solid transparent !important;font-family:var(--cds-font-sans) !important}
+.btn:hover,#sendBtn:hover{background:var(--cds-button-primary-hover) !important}
+.btn:active,#sendBtn:active{background:var(--cds-button-primary-active) !important}
+.btn:focus-visible,#sendBtn:focus-visible,.btn:focus,#sendBtn:focus,
+.copy-docs-btn:focus-visible,.tab:focus-visible{
+  outline:2px solid var(--cds-focus) !important;outline-offset:-2px !important;
+  box-shadow:inset 0 0 0 1px #fff !important}
+.btn-danger{background:var(--cds-support-error) !important;color:#fff !important}
+.btn-danger:hover{background:#ba1b23 !important}
+.btn-ghost{background:transparent !important;border:1px solid var(--cds-border-strong) !important;
+  color:var(--cds-text-secondary) !important}
+.btn-ghost:hover{background:var(--cds-layer-hover) !important;color:var(--cds-text-primary) !important}
+.copy-docs-btn{background:transparent !important;border:1px solid var(--cds-border-strong) !important;
+  color:var(--cds-text-secondary) !important}
+.copy-docs-btn:hover{background:var(--cds-layer-hover) !important;color:var(--cds-text-primary) !important}
+
+/* Spec info */
+.info-key{color:var(--cds-text-secondary) !important}
+.info-val{color:var(--cds-text-primary) !important}
+.info-url{color:var(--cds-link-primary) !important}
+
+/* Sample cards */
+.sample-card{background:var(--cds-layer-02) !important;border:1px solid var(--cds-border-subtle) !important}
+.sample-card:hover{border-color:var(--cds-interactive) !important;background:var(--cds-layer-hover) !important}
+.sample-card.loaded{border-color:var(--cds-support-success) !important;
+  background:var(--cds-support-success-bg,rgba(36,161,72,.10)) !important}
+.sample-name{color:var(--cds-text-primary) !important}
+.sample-desc{color:var(--cds-text-secondary) !important}
+.sample-tag{background:var(--cds-layer-accent) !important;border:none !important;
+  border-radius:.9375rem !important;color:var(--cds-link-primary) !important}
+
+/* Docs panel */
+#docsPanel{background:var(--cds-layer-01) !important;border-bottom:1px solid var(--cds-border-subtle) !important}
+.docs-header{background:var(--cds-layer-01) !important;border-bottom:1px solid var(--cds-border-subtle) !important}
+.docs-title{color:var(--cds-text-secondary) !important}
+#docsContent{color:var(--cds-text-primary) !important}
+#docsContent h2{color:var(--cds-text-primary) !important;border-bottom:1px solid var(--cds-border-subtle) !important}
+#docsContent h3{color:var(--cds-link-primary) !important}
+#docsContent h4{color:var(--cds-text-secondary) !important}
+#docsContent strong{color:var(--cds-text-primary) !important}
+#docsContent code,.msg-agent code{background:var(--cds-layer-accent) !important;
+  color:var(--cds-link-primary) !important;font-family:var(--cds-font-mono) !important}
+#docsContent pre{background:var(--cds-background) !important;
+  border:1px solid var(--cds-border-subtle) !important}
+#docsContent pre code{color:var(--cds-text-primary) !important;background:none !important}
+#docsContent th{background:var(--cds-layer-accent) !important;color:var(--cds-text-primary) !important;
+  border:1px solid var(--cds-border-subtle) !important}
+#docsContent td{border:1px solid var(--cds-border-subtle) !important;color:var(--cds-text-secondary) !important}
+#docsContent td:first-child{color:var(--cds-link-primary) !important;font-family:var(--cds-font-mono) !important}
+#docsContent hr{border-top:1px solid var(--cds-border-subtle) !important}
+
+/* Chat messages */
+.msg-user{background:var(--cds-interactive) !important;color:#fff !important}
+.msg-agent{background:var(--cds-layer-01) !important;border:1px solid var(--cds-border-subtle) !important;
+  color:var(--cds-text-primary) !important}
+.msg-agent strong{color:var(--cds-text-primary) !important}
+.msg-thinking{color:var(--cds-text-secondary) !important}
+
+/* Welcome / chips */
+.welcome h2{color:var(--cds-text-secondary) !important}
+.chip{background:var(--cds-layer-02) !important;border:1px solid var(--cds-border-subtle) !important;
+  border-radius:0 !important;color:var(--cds-link-primary) !important}
+.chip:hover{background:var(--cds-interactive) !important;border-color:var(--cds-interactive) !important;color:#fff !important}
+
+/* Input bar */
+.input-bar{background:var(--cds-layer-01) !important;border-top:1px solid var(--cds-border-subtle) !important}
+
+/* Toast — keep status colors; square corners already applied */
+.toast{color:#fff !important}
 </style>
 </head>
 <body>

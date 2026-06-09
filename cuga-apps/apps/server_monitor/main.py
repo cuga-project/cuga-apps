@@ -512,8 +512,9 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         try:
-            result = await agent.invoke(req.question, thread_id="chat")
+            result = await agent.invoke(req.question, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=500)
@@ -559,6 +560,11 @@ def _web(port: int) -> None:
     async def ui():
         return HTMLResponse(_HTML)
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -572,20 +578,23 @@ _HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Server Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0f1117;
-    color: #e2e8f0;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #ffffff;
+    color: #161616;
     min-height: 100vh;
   }
 
   /* ─── Header ─────────────────────────────────────────────────────── */
   header {
-    background: #1a1a2e;
-    border-bottom: 1px solid #2d2d4a;
+    background: #f4f4f4;
+    border-bottom: 1px solid #e0e0e0;
     padding: 14px 28px;
     display: flex;
     align-items: center;
@@ -594,25 +603,25 @@ _HTML = """<!DOCTYPE html>
     top: 0;
     z-index: 10;
   }
-  header h1 { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: .3px; }
-  header .hostname { font-size: 12px; color: #6b7280; margin-left: 4px; }
+  header h1 { font-size: 16px; font-weight: 700; color: #161616; letter-spacing: .3px; }
+  header .hostname { font-size: 12px; color: #6f6f6f; margin-left: 4px; }
   header .badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
     text-transform: uppercase; letter-spacing: .5px;
   }
-  .badge.ok       { background: #14532d; color: #4ade80; }
-  .badge.warning  { background: #713f12; color: #fbbf24; }
-  .badge.critical { background: #7f1d1d; color: #f87171; }
-  .badge.unknown  { background: #374151; color: #9ca3af; }
+  .badge.ok       { background: #defbe6; color: #24a148; }
+  .badge.warning  { background: #fcf4d6; color: #684e00; }
+  .badge.critical { background: #fff1f1; color: #da1e28; }
+  .badge.unknown  { background: #e0e0e0; color: #525252; }
   .spacer { flex: 1; }
   .header-btn {
     padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
-    cursor: pointer; border: 1px solid #374151; background: #1f2937; color: #d1d5db;
+    cursor: pointer; border: 1px solid #e0e0e0; background: #ffffff; color: #161616;
     transition: background .15s;
   }
-  .header-btn:hover { background: #374151; }
-  .last-updated { font-size: 11px; color: #4b5563; }
+  .header-btn:hover { background: #e0e0e0; }
+  .last-updated { font-size: 11px; color: #6f6f6f; }
 
   /* ─── Layout ─────────────────────────────────────────────────────── */
   .layout {
@@ -626,65 +635,65 @@ _HTML = """<!DOCTYPE html>
 
   /* ─── Cards ──────────────────────────────────────────────────────── */
   .card {
-    background: #1a1a2e;
-    border: 1px solid #2d2d4a;
+    background: #f4f4f4;
+    border: 1px solid #e0e0e0;
     border-radius: 10px;
     overflow: hidden;
     margin-bottom: 16px;
   }
   .card-header {
     padding: 12px 16px 10px;
-    border-bottom: 1px solid #2d2d4a;
+    border-bottom: 1px solid #e0e0e0;
     display: flex; align-items: center; gap: 8px;
   }
-  .card-header h2 { font-size: 13px; font-weight: 600; color: #c5cae9; }
+  .card-header h2 { font-size: 13px; font-weight: 600; color: #161616; }
   .card-body { padding: 16px; }
 
   /* ─── Metric gauges ──────────────────────────────────────────────── */
   .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .metric-item { }
-  .metric-label { font-size: 11px; color: #6b7280; margin-bottom: 4px; display: flex; justify-content: space-between; }
-  .metric-val { font-weight: 600; color: #e2e8f0; }
+  .metric-label { font-size: 11px; color: #6f6f6f; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .metric-val { font-weight: 600; color: #161616; }
   .gauge-bg {
-    height: 6px; background: #2d2d4a; border-radius: 3px; overflow: hidden; margin-top: 2px;
+    height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; margin-top: 2px;
   }
   .gauge-fill {
     height: 100%; border-radius: 3px; transition: width .5s ease, background .5s;
   }
-  .gauge-ok       { background: #4ade80; }
-  .gauge-warning  { background: #fbbf24; }
-  .gauge-critical { background: #f87171; }
-  .metric-sub { font-size: 10px; color: #4b5563; margin-top: 2px; }
+  .gauge-ok       { background: #24a148; }
+  .gauge-warning  { background: #f1c21b; }
+  .gauge-critical { background: #da1e28; }
+  .metric-sub { font-size: 10px; color: #6f6f6f; margin-top: 2px; }
   .alerts-list { margin-top: 12px; }
   .alert-chip {
     display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px;
     margin: 2px 2px 2px 0;
   }
-  .chip-warning  { background: #451a03; color: #fbbf24; }
-  .chip-critical { background: #450a0a; color: #f87171; }
-  .chip-ok       { background: #052e16; color: #4ade80; }
+  .chip-warning  { background: #fcf4d6; color: #684e00; }
+  .chip-critical { background: #fff1f1; color: #da1e28; }
+  .chip-ok       { background: #defbe6; color: #24a148; }
 
   /* ─── Settings ───────────────────────────────────────────────────── */
   .settings-row {
     display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
   }
-  .settings-row label { font-size: 12px; color: #9ca3af; width: 100px; flex-shrink: 0; }
+  .settings-row label { font-size: 12px; color: #525252; width: 100px; flex-shrink: 0; }
   .settings-row input[type=number] {
     width: 70px; padding: 4px 8px; border-radius: 5px; font-size: 12px;
-    background: #0f1117; border: 1px solid #374151; color: #e2e8f0;
+    background: #ffffff; border: 1px solid #e0e0e0; color: #161616;
     appearance: textfield;
   }
-  .settings-hint { font-size: 10px; color: #4b5563; }
-  .settings-section { font-size: 11px; font-weight: 600; color: #6b7280;
+  .settings-hint { font-size: 10px; color: #6f6f6f; }
+  .settings-section { font-size: 11px; font-weight: 600; color: #6f6f6f;
     text-transform: uppercase; letter-spacing: .5px; margin: 12px 0 6px; }
   .save-btn {
     padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
-    cursor: pointer; border: none; background: #2563eb; color: #fff;
+    cursor: pointer; border: none; background: #0f62fe; color: #fff;
     transition: background .15s; margin-top: 6px;
   }
-  .save-btn:hover { background: #1d4ed8; }
-  .save-btn:disabled { background: #374151; color: #6b7280; cursor: default; }
-  .save-ok { color: #4ade80; font-size: 11px; margin-left: 8px; display: none; }
+  .save-btn:hover { background: #0353e9; }
+  .save-btn:disabled { background: #e0e0e0; color: #6f6f6f; cursor: default; }
+  .save-ok { color: #24a148; font-size: 11px; margin-left: 8px; display: none; }
 
   /* ─── Right column ───────────────────────────────────────────────── */
   .right-col { }
@@ -693,28 +702,28 @@ _HTML = """<!DOCTYPE html>
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .chip {
     padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;
-    background: #1f2937; border: 1px solid #374151; color: #9ca3af;
+    background: #ffffff; border: 1px solid #e0e0e0; color: #525252;
     cursor: pointer; transition: all .15s;
   }
-  .chip:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .chip:hover { background: #0f62fe; border-color: #0f62fe; color: #fff; }
   .chat-input-row { display: flex; gap: 8px; }
   .chat-input {
     flex: 1; padding: 8px 12px; border-radius: 7px; font-size: 13px;
-    background: #0f1117; border: 1px solid #374151; color: #e2e8f0;
+    background: #ffffff; border: 1px solid #e0e0e0; color: #161616;
     outline: none; transition: border-color .15s;
   }
-  .chat-input:focus { border-color: #2563eb; }
+  .chat-input:focus { border-color: #0f62fe; }
   .chat-send {
     padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 500;
-    cursor: pointer; border: none; background: #2563eb; color: #fff;
+    cursor: pointer; border: none; background: #0f62fe; color: #fff;
     transition: background .15s; white-space: nowrap;
   }
-  .chat-send:hover { background: #1d4ed8; }
-  .chat-send:disabled { background: #374151; color: #6b7280; cursor: default; }
+  .chat-send:hover { background: #0353e9; }
+  .chat-send:disabled { background: #e0e0e0; color: #6f6f6f; cursor: default; }
   .chat-result {
     margin-top: 14px; padding: 14px; border-radius: 7px;
-    background: #0f1117; border: 1px solid #2d2d4a;
-    font-size: 13px; line-height: 1.6; color: #d1d5db;
+    background: #f4f4f4; border: 1px solid #e0e0e0;
+    font-size: 13px; line-height: 1.6; color: #525252;
     white-space: pre-wrap; min-height: 48px;
     display: none;
   }
@@ -722,38 +731,193 @@ _HTML = """<!DOCTYPE html>
 
   /* ─── Alert log ──────────────────────────────────────────────────── */
   .alert-entry {
-    border: 1px solid #2d2d4a; border-radius: 7px; margin-bottom: 10px; overflow: hidden;
+    border: 1px solid #e0e0e0; border-radius: 7px; margin-bottom: 10px; overflow: hidden;
   }
   .alert-entry-header {
     padding: 10px 14px; display: flex; align-items: center; gap: 10px;
     cursor: pointer; user-select: none; transition: background .15s;
   }
-  .alert-entry-header:hover { background: #1f2937; }
+  .alert-entry-header:hover { background: #ffffff; }
   .alert-sev {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
     padding: 2px 7px; border-radius: 9px;
   }
-  .sev-warning  { background: #451a03; color: #fbbf24; }
-  .sev-critical { background: #450a0a; color: #f87171; }
-  .sev-ok       { background: #052e16; color: #4ade80; }
-  .alert-time { font-size: 11px; color: #6b7280; }
+  .sev-warning  { background: #fcf4d6; color: #684e00; }
+  .sev-critical { background: #fff1f1; color: #da1e28; }
+  .sev-ok       { background: #defbe6; color: #24a148; }
+  .alert-time { font-size: 11px; color: #6f6f6f; }
   .alert-chips-row { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; }
-  .alert-metrics-mini { font-size: 11px; color: #9ca3af; }
-  .alert-expand { font-size: 11px; color: #4b5563; margin-left: auto; }
+  .alert-metrics-mini { font-size: 11px; color: #525252; }
+  .alert-expand { font-size: 11px; color: #6f6f6f; margin-left: auto; }
   .alert-body {
-    padding: 12px 14px; font-size: 12px; line-height: 1.6; color: #d1d5db;
-    white-space: pre-wrap; background: #0f1117; border-top: 1px solid #2d2d4a;
+    padding: 12px 14px; font-size: 12px; line-height: 1.6; color: #525252;
+    white-space: pre-wrap; background: #f4f4f4; border-top: 1px solid #e0e0e0;
     display: none;
   }
   .alert-body.open { display: block; }
-  .empty-log { font-size: 13px; color: #4b5563; text-align: center; padding: 24px; }
+  .empty-log { font-size: 13px; color: #6f6f6f; text-align: center; padding: 24px; }
   .trigger-btn {
     padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
-    cursor: pointer; border: 1px solid #374151; background: #1f2937; color: #d1d5db;
+    cursor: pointer; border: 1px solid #e0e0e0; background: #ffffff; color: #161616;
     transition: background .15s; margin-left: auto;
   }
-  .trigger-btn:hover { background: #374151; }
-  .trigger-btn:disabled { color: #4b5563; cursor: default; }
+  .trigger-btn:hover { background: #e0e0e0; }
+  .trigger-btn:disabled { color: #6f6f6f; cursor: default; }
+
+  /* ─── Carbon polish — IBM Carbon Gray 100 theme ────────────────────── */
+  :root {
+    --cds-background:     #ffffff;
+    --cds-layer-01:       #f4f4f4;
+    --cds-layer-02:       #ffffff;
+    --cds-border-subtle:  #e0e0e0;
+    --cds-border-strong:  #8d8d8d;
+    --cds-text-primary:   #161616;
+    --cds-text-secondary: #525252;
+    --cds-text-helper:    #6f6f6f;
+    --cds-link:           #0f62fe;
+    --cds-interactive:    #0f62fe;
+    --cds-button-hover:   #0353e9;
+    --cds-focus:          #0f62fe;
+    --cds-font-mono:      'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  }
+
+  /* Surfaces */
+  body { background: var(--cds-background); color: var(--cds-text-primary); }
+  header {
+    background: #f4f4f4;
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  header h1 { color: var(--cds-text-primary); font-weight: 600; }
+  .card {
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
+  }
+  .card-header { border-bottom: 1px solid var(--cds-border-subtle); }
+  .card-header h2 { color: var(--cds-text-primary); font-weight: 600; }
+
+  /* Square all structural corners (Carbon) */
+  .card, .card-header, .header-btn, .save-btn, .chat-input, .chat-send,
+  .chat-result, .alert-entry, .alert-entry-header, .alert-body,
+  .trigger-btn, .settings-row input[type=number], .gauge-bg, .gauge-fill {
+    border-radius: 0 !important;
+  }
+
+  /* Status badges & chips keep the Carbon pill radius */
+  .badge { border-radius: 0.9375rem; font-weight: 600; }
+  .badge.ok       { background: #defbe6; color: #24a148; }
+  .badge.warning  { background: #fcf4d6; color: #684e00; }
+  .badge.critical { background: #fff1f1; color: #da1e28; }
+  .badge.unknown  { background: var(--cds-layer-01); color: #525252; }
+
+  /* Gauge fills onto Carbon support colors */
+  .gauge-bg     { background: #e0e0e0; }
+  .gauge-ok       { background: #24a148; }
+  .gauge-warning  { background: #f1c21b; }
+  .gauge-critical { background: #da1e28; }
+
+  /* Alert chips (rounded pills) onto Carbon support tints */
+  .chip-warning, .sev-warning  { background: #fcf4d6; color: #684e00; }
+  .chip-critical, .sev-critical { background: #fff1f1; color: #da1e28; }
+  .chip-ok, .sev-ok            { background: #defbe6; color: #24a148; }
+
+  /* Prompt chips */
+  .chip {
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
+  }
+  .chip:hover {
+    background: var(--cds-interactive);
+    border-color: var(--cds-interactive);
+    color: #fff;
+  }
+
+  /* Inputs — Carbon field: flat fill, bottom border, square */
+  .chat-input, .settings-row input[type=number] {
+    background: var(--cds-layer-01);
+    border: none;
+    border-bottom: 1px solid var(--cds-border-strong);
+    color: var(--cds-text-primary);
+  }
+  .chat-input:focus, .settings-row input[type=number]:focus {
+    border-color: transparent;
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+  }
+
+  /* Primary buttons → IBM blue with Carbon focus ring */
+  .save-btn, .chat-send {
+    background: var(--cds-interactive);
+    color: #fff;
+    border: none;
+    font-weight: 400;
+  }
+  .save-btn:hover, .chat-send:hover { background: var(--cds-button-hover); }
+  .save-btn:focus, .save-btn:focus-visible,
+  .chat-send:focus, .chat-send:focus-visible {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px #fff;
+  }
+  .save-btn:disabled, .chat-send:disabled {
+    background: var(--cds-layer-02); color: var(--cds-text-helper);
+  }
+
+  /* Secondary / tertiary buttons */
+  .header-btn, .trigger-btn {
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-primary);
+  }
+  .header-btn:hover, .trigger-btn:hover { background: #e0e0e0; }
+  .header-btn:focus, .header-btn:focus-visible,
+  .trigger-btn:focus, .trigger-btn:focus-visible {
+    outline: 2px solid var(--cds-focus); outline-offset: -2px;
+  }
+
+  /* Results / log surfaces */
+  .chat-result {
+    background: var(--cds-background);
+    border: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
+    font-family: var(--cds-font-mono);
+  }
+  .alert-entry { border: 1px solid var(--cds-border-subtle); }
+  .alert-entry-header:hover { background: var(--cds-layer-02); }
+  .alert-body {
+    background: var(--cds-background);
+    border-top: 1px solid var(--cds-border-subtle);
+    color: var(--cds-text-secondary);
+    font-family: var(--cds-font-mono);
+  }
+  .empty-log { color: var(--cds-text-helper); }
+
+  /* Accent / numeric values in IBM Plex Mono for the dashboard feel */
+  .metric-val, .alert-time { font-family: var(--cds-font-mono); }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 28px; background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 13px; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--cds-text-helper); margin-right: 4px;
+  }
+  .tool-pill {
+    font-size: 11px; color: var(--cds-text-secondary);
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -768,6 +932,21 @@ _HTML = """<!DOCTYPE html>
   <button class="header-btn" onclick="refreshMetrics()">↺ Refresh</button>
 </header>
 
+<!-- ─── App intro band ──────────────────────────────────────────────── -->
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Server Monitor.</strong> A DevOps agent that watches CPU, RAM, disk, and load, diagnoses threshold breaches, and answers system-health questions using safe read-only diagnostics.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">🖥 System metrics</span>
+    <span class="tool-pill">📊 Top processes</span>
+    <span class="tool-pill">💾 Disk usage</span>
+    <span class="tool-pill">🔧 Service status · systemctl</span>
+    <span class="tool-pill">🩺 Safe diagnostics · df/du/ps</span>
+  </div>
+</div>
+
 <!-- ─── Layout ──────────────────────────────────────────────────────── -->
 <div class="layout">
 
@@ -778,7 +957,7 @@ _HTML = """<!DOCTYPE html>
     <div class="card">
       <div class="card-header">
         <h2>📊 Live Metrics</h2>
-        <label style="font-size:11px;color:#6b7280;margin-left:auto;display:flex;align-items:center;gap:5px;cursor:pointer;">
+        <label style="font-size:11px;color:#6f6f6f;margin-left:auto;display:flex;align-items:center;gap:5px;cursor:pointer;">
           <input type="checkbox" id="auto-refresh" checked onchange="toggleAutoRefresh(this.checked)">
           auto-refresh
         </label>
@@ -812,19 +991,19 @@ _HTML = """<!DOCTYPE html>
         <div class="settings-row">
           <label>CPU %</label>
           <input type="number" id="cpu-warn" min="1" max="100" value="75">
-          <span style="color:#4b5563;font-size:12px;">/</span>
+          <span style="color:#6f6f6f;font-size:12px;">/</span>
           <input type="number" id="cpu-crit" min="1" max="100" value="90">
         </div>
         <div class="settings-row">
           <label>RAM %</label>
           <input type="number" id="ram-warn" min="1" max="100" value="80">
-          <span style="color:#4b5563;font-size:12px;">/</span>
+          <span style="color:#6f6f6f;font-size:12px;">/</span>
           <input type="number" id="ram-crit" min="1" max="100" value="92">
         </div>
         <div class="settings-row">
           <label>Disk %</label>
           <input type="number" id="disk-warn" min="1" max="100" value="80">
-          <span style="color:#4b5563;font-size:12px;">/</span>
+          <span style="color:#6f6f6f;font-size:12px;">/</span>
           <input type="number" id="disk-crit" min="1" max="100" value="90">
         </div>
 
@@ -958,7 +1137,7 @@ function renderMetrics(m) {
   const al = document.getElementById('alerts-list');
   if (m.alerts && m.alerts.length > 0) {
     const chips = m.alerts.map(a => `<span class="alert-chip chip-${sev}">${a}</span>`).join('');
-    al.innerHTML = `<div style="margin-top:8px;font-size:11px;color:#6b7280;margin-bottom:4px;">Active alerts</div>${chips}`;
+    al.innerHTML = `<div style="margin-top:8px;font-size:11px;color:#6f6f6f;margin-bottom:4px;">Active alerts</div>${chips}`;
   } else {
     al.innerHTML = `<div style="margin-top:8px;"><span class="alert-chip chip-ok">All metrics within thresholds ✓</span></div>`;
   }

@@ -575,6 +575,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         question = req.question.strip()
         if not question:
             return JSONResponse({"error": "Empty question"}, status_code=400)
@@ -610,6 +611,11 @@ def _web(port: int) -> None:
         return HTMLResponse(_HTML)
 
     print(f"\n  Code Engine Deployer  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 

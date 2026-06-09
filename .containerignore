@@ -1,0 +1,17 @@
+# Build-context ignore for the build/ all-in-one image (context = repo root).
+# Required at the context root because podman / podman-compose do NOT honor the
+# per-Dockerfile build/Dockerfile.dockerignore (that's BuildKit-only). Without
+# this, the multi-GB .venv dirs get copied into the build context and the podman
+# machine runs out of disk ("input/output error", "server probably quit").
+**/.venv
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.git
+**/dist
+**/.DS_Store
+**/*.log
+cuga-skills-ui
+docs

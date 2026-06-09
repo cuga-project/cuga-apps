@@ -59,6 +59,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Public deployment: layered, in-memory rate limiting on POST. Installed at
+# module scope because this app is served via uvicorn.run("main:app", ...),
+# which re-imports the module — a pre-uvicorn call wouldn't reach this instance.
+from _ratelimit import install_rate_limit
+install_rate_limit(app)
+from _usage import install_usage
+install_usage(app)
+
 _static = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_static), name="static")
 
@@ -349,6 +357,7 @@ async def config_status():
 @app.post("/plan")
 async def plan_itinerary(request: PlanRequest):
     """Generate a travel itinerary using the selected agent."""
+    from _usage import track_utterance; track_utterance(request.destination)
     agent = _get_agent(request.agent_type)
 
     interests_str = ", ".join(request.interests) if request.interests else "general sightseeing and local culture"
@@ -383,6 +392,7 @@ async def plan_itinerary(request: PlanRequest):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """Multi-turn follow-up. Use the same thread_id and agent_type as /plan."""
+    from _usage import track_utterance; track_utterance(request.message)
     agent = _get_agent(request.agent_type)
     result = await agent.invoke(request.message, thread_id=request.thread_id)
     if result.error:

@@ -1,0 +1,137 @@
+# =========================================================================
+# build/mcp_servers/docker-compose.yml — the MCP servers, on their own.
+#
+# This is the MCP-ONLY subset of the full dev stack
+# (../../cuga-apps/docker-compose.yml, which also brings up the apps + UI).
+# Use this when you want just the shared MCP servers running locally —
+# e.g. to develop an app against them, or to smoke-test before a CE deploy
+# (see ./deploy_mcp.sh).
+#
+# The image is built from the inner source root (../../cuga-apps) because
+# Dockerfile.mcp COPYs apps/_ports.py + mcp_servers/ from there; that's why
+# every `build.context` is ../../cuga-apps and every bind-mount host path is
+# rewritten relative to THIS file's directory (build/mcp_servers/).
+#
+# Quick start (from this directory):
+#   cp ../../cuga-apps/apps/.env.example ../../cuga-apps/apps/.env   # one-time
+#   docker compose up --build                      # all servers
+#   docker compose up --build mcp-web mcp-knowledge # just a couple
+#
+# Ports (from ../../cuga-apps/apps/_ports.py): 29100-29107, explorer 28900.
+# =========================================================================
+
+name: cuga-apps-mcp
+
+# Shared build + secret-mount config — each service overrides `command` with
+# the module it runs. YAML anchors keep this DRY across the 8 servers.
+x-mcp-build: &mcp-build
+  context: ../../cuga-apps
+  dockerfile: Dockerfile.mcp
+
+x-mcp-secret: &mcp-secret
+  # Secrets are mounted as a read-only file (sourced by entrypoint.sh) rather
+  # than injected via env_file:, so they never appear in `docker inspect` or
+  # in the image. See ../../cuga-apps/entrypoint.sh.
+  - ../../cuga-apps/apps/.env:/run/secrets/app.env:ro
+
+services:
+
+  mcp-web:
+    container_name: cuga-apps-mcp-web
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.web.server"]
+    volumes: *mcp-secret
+    ports: ["29100:29100"]
+    restart: unless-stopped
+
+  mcp-knowledge:
+    container_name: cuga-apps-mcp-knowledge
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.knowledge.server"]
+    volumes: *mcp-secret
+    ports: ["29101:29101"]
+    restart: unless-stopped
+
+  mcp-geo:
+    container_name: cuga-apps-mcp-geo
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.geo.server"]
+    volumes: *mcp-secret
+    ports: ["29102:29102"]
+    restart: unless-stopped
+
+  mcp-finance:
+    container_name: cuga-apps-mcp-finance
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.finance.server"]
+    volumes: *mcp-secret
+    ports: ["29103:29103"]
+    restart: unless-stopped
+
+  mcp-code:
+    container_name: cuga-apps-mcp-code
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.code.server"]
+    volumes: *mcp-secret
+    ports: ["29104:29104"]
+    restart: unless-stopped
+
+  mcp-local:
+    container_name: cuga-apps-mcp-local
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.local.server"]
+    volumes: *mcp-secret
+    ports: ["29105:29105"]
+    restart: unless-stopped
+
+  mcp-text:
+    container_name: cuga-apps-mcp-text
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.text.server"]
+    ports: ["29106:29106"]
+    # Extra RO mounts let extract_text read files written by the apps
+    # container — same volumes the apps container mounts.
+    volumes:
+      - ../../cuga-apps/apps/.env:/run/secrets/app.env:ro
+      - ../../cuga-apps/apps/drop_summarizer/inbox:/app/apps/drop_summarizer/inbox:ro
+      - ../../cuga-apps/apps/box_qa:/app/apps/box_qa:ro
+      - ../../cuga-apps/apps/deck_forge/data:/app/apps/deck_forge/data:ro
+    restart: unless-stopped
+
+  # Local-only: NOT deployed to Code Engine — needs BIRD data bind-mounts.
+  # Set BIRD_DEV_JSON_HOST / BIRD_DBS_DIR_HOST in ../../cuga-apps/apps/.env.
+  # If those host paths don't exist this one service fails to start; the
+  # rest of the stack is unaffected.
+  mcp-invocable_apis:
+    container_name: cuga-apps-mcp-invocable_apis
+    build: *mcp-build
+    command: ["python", "-m", "mcp_servers.invocable_apis.server"]
+    ports: ["29107:29107"]
+    volumes:
+      - ../../cuga-apps/apps/.env:/run/secrets/app.env:ro
+      - ${BIRD_DEV_JSON_HOST:-/home/amurthi/work/dev_20240627/dev.json}:/data/bird/dev.json:ro
+      - ${BIRD_DBS_DIR_HOST:-/home/amurthi/work/enterprise-benchmark/data/db}:/data/bird/dbs:ro
+      - ../../cuga-apps/mcp_servers/invocable_apis/state:/app/mcp_servers/invocable_apis/state
+      - ../../cuga-apps/apps/bird_invocable_api_creator/output:/app/apps/bird_invocable_api_creator/output
+    environment:
+      BIRD_DEV_JSON: /data/bird/dev.json
+      BIRD_DBS_DIR:  /data/bird/dbs
+    restart: unless-stopped
+
+  # Browse + invoke every MCP server's tools. Own image (no app-env secret).
+  mcp-tool-explorer:
+    container_name: cuga-apps-mcp-tool-explorer
+    build:
+      context: ../../cuga-apps
+      dockerfile: mcp_tool_explorer/Dockerfile
+    ports: ["28900:28900"]
+    depends_on:
+      - mcp-web
+      - mcp-knowledge
+      - mcp-geo
+      - mcp-finance
+      - mcp-code
+      - mcp-local
+      - mcp-text
+      - mcp-invocable_apis
+    restart: unless-stopped

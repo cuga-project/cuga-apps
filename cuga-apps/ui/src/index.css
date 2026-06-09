@@ -2,72 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Warm theme (default) ─────────────────────────────────────────────────── */
+/* ── Carbon "White" theme (light, default) ───────────────────────────────────
+   IBM Carbon Design System — White theme. Grays from the Carbon palette:
+   Gray 10 #f4f4f4 · Gray 20 #e0e0e0 · Gray 30 #c6c6c6 · Gray 50 #8d8d8d
+   Gray 60 #6f6f6f · Gray 70 #525252 · Gray 100 #161616. */
 
 :root,
 [data-theme="warm"] {
-  --t-bg:      #faf8f4;
-  --t-surface: #ffffff;
-  --t-s2:      #f5ede0;
-  --t-border:  #ddd0bc;
-  --t-b2:      #ede5d8;
-  --t-1:       #1c1917;
-  --t-2:       #57534e;
-  --t-3:       #a8a29e;
-  --t-4:       #c8bfb4;
+  --t-bg:      #f4f4f4;   /* Gray 10  — page background */
+  --t-surface: #ffffff;   /* White    — layer / cards   */
+  --t-s2:      #f4f4f4;   /* Gray 10  — hover / sublayer */
+  --t-border:  #e0e0e0;   /* Gray 20  — subtle border   */
+  --t-b2:      #c6c6c6;   /* Gray 30  — strong border   */
+  --t-1:       #161616;   /* Gray 100 — primary text    */
+  --t-2:       #525252;   /* Gray 70  — secondary text  */
+  --t-3:       #6f6f6f;   /* Gray 60  — helper text     */
+  --t-4:       #8d8d8d;   /* Gray 50  — faint text      */
 
-  --badge-enterprise:   #1d4ed8;
-  --badge-productivity: #047857;
-  --badge-developer:    #6d28d9;
-  --badge-researcher:   #b45309;
+  --badge-enterprise:   #0f62fe;   /* Blue 60   */
+  --badge-productivity: #198038;   /* Green 60  */
+  --badge-developer:    #8a3ffc;   /* Purple 60 */
+  --badge-researcher:   #8e6a00;   /* Yellow 70 */
 
-  --scrollbar-track: #f5ede0;
-  --scrollbar-thumb: #d6c9b5;
-  --scrollbar-hover: #a8a29e;
+  --scrollbar-track: #f4f4f4;
+  --scrollbar-thumb: #c6c6c6;
+  --scrollbar-hover: #a8a8a8;
 }
 
-/* ── Dark theme ───────────────────────────────────────────────────────────── */
+/* ── Carbon "Gray 100" theme (dark) ──────────────────────────────────────────
+   Gray 100 #161616 · Gray 90 #262626 · Gray 80 #393939 · Gray 70 #525252
+   Gray 60 #6f6f6f · Gray 50 #8d8d8d · Gray 30 #c6c6c6 · Gray 10 #f4f4f4. */
 
 [data-theme="dark"] {
-  --t-bg:      #111318;
-  --t-surface: #1a1d24;
-  --t-s2:      #21252f;
-  --t-border:  #2d3341;
-  --t-b2:      #1a1d24;
-  --t-1:       #e4e7ed;
-  --t-2:       #9aa0b0;
-  --t-3:       #5a6172;
-  --t-4:       #363d4e;
+  --t-bg:      #161616;   /* Gray 100 — page background */
+  --t-surface: #262626;   /* Gray 90  — layer-01        */
+  --t-s2:      #393939;   /* Gray 80  — layer-02 / hover */
+  --t-border:  #393939;   /* Gray 80  — subtle border   */
+  --t-b2:      #525252;   /* Gray 70  — strong border   */
+  --t-1:       #f4f4f4;   /* Gray 10  — primary text    */
+  --t-2:       #c6c6c6;   /* Gray 30  — secondary text  */
+  --t-3:       #8d8d8d;   /* Gray 50  — helper text     */
+  --t-4:       #6f6f6f;   /* Gray 60  — faint text      */
 
-  --badge-enterprise:   #7eb8f7;
-  --badge-productivity: #5dd9a4;
-  --badge-developer:    #b8a8f5;
-  --badge-researcher:   #f5c97a;
+  --badge-enterprise:   #78a9ff;   /* Blue 40   */
+  --badge-productivity: #42be65;   /* Green 40  */
+  --badge-developer:    #be95ff;   /* Purple 40 */
+  --badge-researcher:   #f1c21b;   /* Yellow 30 */
 
-  --scrollbar-track: #1a1d24;
-  --scrollbar-thumb: #2d3341;
-  --scrollbar-hover: #3d4558;
+  --scrollbar-track: #262626;
+  --scrollbar-thumb: #525252;
+  --scrollbar-hover: #6f6f6f;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
   background-color: var(--t-bg);
   color: var(--t-1);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: var(--scrollbar-track); }
-::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 9999px; }
+::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
 /* ── Code ─────────────────────────────────────────────────────────────────── */
 
+pre, code, .font-mono {
+  font-family: 'IBM Plex Mono', 'Fira Code', Consolas, monospace;
+}
+
 pre {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.8rem;
   line-height: 1.6;
 }

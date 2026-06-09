@@ -6,6 +6,11 @@
 # ── cuga framework ───────────────────────────────────────────────────────
 cuga
 
+# ouroboros — CugaSupervisor policy embedding store. sqlite-vec loads as a
+# SQLite extension, so the runtime Python must have enable_load_extension
+# (python:3.13-slim does; python.org's macOS build does not — see app README).
+sqlite-vec>=0.1.6
+
 # ── MCP client (for _mcp_bridge.py) ──────────────────────────────────────
 mcp>=1.0
 langchain-mcp-adapters
@@ -55,5 +60,14 @@ pyyaml
 # youtube_research         — transcript fetches (the agent handles search via mcp-web)
 youtube-transcript-api
 
-# newsletter               — feedparser still used by the inline scheduler paths
+# newsletter / ai_labs_news — feedparser (RSS/Atom parsing)
 feedparser
+
+# meetup_finder            — browser automation (CUGA's web capability). The
+# Chromium binary + OS libs are installed separately in Dockerfile.apps via
+# `playwright install --with-deps chromium`.
+playwright>=1.40
+
+# usage_collector          — optional durable snapshots to IBM COS / S3
+# (only used when USAGE_S3_BUCKET is set; falls back to a local JSON file).
+boto3>=1.28

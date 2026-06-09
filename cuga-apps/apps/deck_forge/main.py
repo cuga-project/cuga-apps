@@ -89,6 +89,7 @@ async def config_status():
 
 @app.post("/api/generate")
 async def generate(req: GenerateRequest):
+    from _usage import track_utterance; track_utterance(req.topic)
     from session import DeckForgeSession
 
     sid = str(uuid4())[:8]
@@ -201,4 +202,9 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="0.0.0.0")
     args = parser.parse_args()
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host=args.host, port=args.port)

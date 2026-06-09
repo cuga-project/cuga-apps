@@ -814,6 +814,11 @@ def _web(port: int) -> None:
         return HTMLResponse(_HTML)
 
     print(f"\n  Bird Invocable API Creator  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -827,90 +832,148 @@ _HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bird Invocable API Creator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* ── IBM Carbon Design System — White / g10 (light) ──────────────── */
+  :root{
+    --cds-background:#ffffff;
+    --cds-layer-01:#f4f4f4;
+    --cds-layer-02:#ffffff;
+    --cds-layer-hover:#e8e8e8;
+    --cds-layer-accent:#e0e0e0;
+    --cds-field-01:#f4f4f4;
+    --cds-border-subtle:#e0e0e0;
+    --cds-border-strong:#8d8d8d;
+    --cds-text-primary:#161616;
+    --cds-text-secondary:#525252;
+    --cds-text-placeholder:#a8a8a8;
+    --cds-text-helper:#6f6f6f;
+    --cds-link-primary:#0f62fe;
+    --cds-link-hover:#0043ce;
+    --cds-interactive:#0f62fe;
+    --cds-button-primary:#0f62fe;
+    --cds-button-primary-hover:#0353e9;
+    --cds-button-primary-active:#002d9c;
+    --cds-button-secondary:#393939;
+    --cds-button-secondary-hover:#4c4c4c;
+    --cds-button-danger:#da1e28;
+    --cds-button-danger-hover:#ba1b23;
+    --cds-focus:#0f62fe;
+    --cds-support-error:#da1e28;
+    --cds-support-success:#24a148;
+    --cds-support-warning:#f1c21b;
+    --cds-support-error-bg:rgba(218,30,40,0.12);
+    --cds-support-success-bg:rgba(36,161,72,0.12);
+    --cds-support-warning-bg:rgba(241,194,27,0.16);
+    --cds-support-info-bg:rgba(0,67,206,0.12);
+    --cds-font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --cds-font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-       background:#0f1117;color:#e2e8f0;min-height:100vh}
-  header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
-         display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-  header h1{font-size:16px;font-weight:700;color:#fff}
+  body{font-family:var(--cds-font-sans);font-size:14px;letter-spacing:0.16px;
+       background:var(--cds-background);color:var(--cds-text-primary);
+       min-height:100vh;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--cds-interactive);color:#fff}
+  header{background:#161616;border-bottom:1px solid #393939;height:48px;
+         padding:0 16px;display:flex;align-items:center;gap:12px;
+         position:sticky;top:0;z-index:8000}
+  header h1{font-size:14px;font-weight:400;letter-spacing:0.1px;color:#f4f4f4}
+  header h1 .hdr-prefix{font-weight:600;margin-right:4px}
   .layout{display:grid;grid-template-columns:340px 1fr;gap:20px;
           max-width:1320px;margin:0 auto;padding:20px 24px}
-  .card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;
-        margin-bottom:16px;overflow:hidden}
-  .card-h{padding:12px 16px 10px;border-bottom:1px solid #2d2d4a;
-          font-size:13px;font-weight:600;color:#c5cae9;display:flex;
+  .card{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+        border-radius:0;margin-bottom:16px;overflow:hidden}
+  .card-h{padding:12px 16px 10px;border-bottom:1px solid var(--cds-border-subtle);
+          font-size:13px;font-weight:600;color:var(--cds-text-primary);display:flex;
           align-items:center;gap:8px}
-  .card-b{padding:14px 16px}
-  select,input,button,textarea{font-family:inherit;font-size:12px;
-        background:#0f1117;border:1px solid #374151;color:#e2e8f0;
-        border-radius:5px;padding:5px 9px;outline:none}
-  select:focus,input:focus,textarea:focus{border-color:#0d9488}
-  button{background:#0d9488;color:#fff;border:none;cursor:pointer;
-         padding:6px 14px;border-radius:6px}
-  button:hover{background:#0f766e}
-  button:disabled{background:#374151;color:#6b7280;cursor:default}
-  .btn-ghost{background:#1f2937;border:1px solid #374151;color:#9ca3af}
-  .btn-red{background:#7f1d1d;color:#fecaca}
-  .btn-red:hover{background:#991b1b}
+  .card-b{padding:14px 16px;background:var(--cds-layer-02)}
+  select,input,button,textarea{font-family:var(--cds-font-sans);font-size:12px;
+        background:var(--cds-field-01);border:1px solid transparent;
+        border-bottom:1px solid var(--cds-border-strong);color:var(--cds-text-primary);
+        border-radius:0;padding:6px 9px;outline:none}
+  select:focus,input:focus,textarea:focus{outline:2px solid var(--cds-focus);
+        outline-offset:-2px;border-bottom-color:transparent}
+  button{background:var(--cds-button-primary);color:#fff;border:1px solid transparent;
+         cursor:pointer;padding:7px 14px;border-radius:0;font-size:12px;
+         transition:background 150ms cubic-bezier(0.2,0,0.38,0.9)}
+  button:hover{background:var(--cds-button-primary-hover)}
+  button:focus,button:focus-visible{outline:2px solid var(--cds-focus);
+         outline-offset:-2px;box-shadow:inset 0 0 0 1px #fff}
+  button:disabled{background:var(--cds-layer-accent);color:var(--cds-text-placeholder);
+         cursor:default;box-shadow:none}
+  .btn-ghost{background:transparent;border:1px solid var(--cds-border-strong);
+         color:var(--cds-link-primary)}
+  .btn-ghost:hover{background:var(--cds-layer-hover)}
+  .btn-red{background:var(--cds-button-danger);color:#fff}
+  .btn-red:hover{background:var(--cds-button-danger-hover)}
   .row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
-  .row label{font-size:12px;color:#9ca3af;min-width:90px}
-  .qlist{max-height:55vh;overflow:auto;border:1px solid #2d2d4a;border-radius:6px}
-  .qrow{padding:7px 10px;border-bottom:1px solid #2d2d4a;
+  .row label{font-size:12px;color:var(--cds-text-secondary);min-width:90px}
+  .qlist{max-height:55vh;overflow:auto;border:1px solid var(--cds-border-subtle)}
+  .qrow{padding:7px 10px;border-bottom:1px solid var(--cds-border-subtle);
+        background:var(--cds-layer-02);
         cursor:pointer;font-size:12px;line-height:1.35;display:flex;align-items:flex-start;gap:6px}
   .qrow:last-child{border-bottom:none}
-  .qrow:hover{background:#1f2937}
-  .qrow.sel{background:#0d3330}
-  .qid{color:#5eead4;font-weight:600;flex-shrink:0;width:34px}
+  .qrow:hover{background:var(--cds-layer-hover)}
+  .qrow.sel{background:var(--cds-support-info-bg);box-shadow:inset 2px 0 0 var(--cds-interactive)}
+  .qid{color:var(--cds-link-primary);font-weight:600;flex-shrink:0;width:34px;
+        font-family:var(--cds-font-mono)}
   .qstatus{flex-shrink:0;width:14px;text-align:center;font-size:11px}
-  .s-pass{color:#4ade80}
-  .s-fail{color:#f87171}
-  .s-none{color:#4b5563}
-  .s-ign{color:#facc15}
-  .qtext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .diff{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;flex-shrink:0}
-  .diff-simple{background:#0d3330;color:#5eead4}
-  .diff-moderate{background:#1e3a5f;color:#60a5fa}
-  .diff-challenging{background:#451a03;color:#fbbf24}
-  .gold-sql,.tool-seq{font-family:ui-monospace,monospace;font-size:11px;background:#0f1117;
-        border:1px solid #374151;border-radius:6px;padding:8px;
-        white-space:pre-wrap;color:#d1d5db;max-height:200px;overflow:auto}
-  .meta{font-size:10px;color:#6b7280;margin:8px 0 3px}
-  .empty{font-size:12px;color:#4b5563;text-align:center;padding:24px}
+  .s-pass{color:var(--cds-support-success)}
+  .s-fail{color:var(--cds-support-error)}
+  .s-none{color:var(--cds-text-placeholder)}
+  .s-ign{color:#8a6d00}
+  .qtext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cds-text-primary)}
+  .diff{font-size:10px;padding:1px 8px;border-radius:0.9375rem;margin-left:6px;flex-shrink:0}
+  .diff-simple{background:var(--cds-support-success-bg);color:var(--cds-support-success)}
+  .diff-moderate{background:var(--cds-support-info-bg);color:var(--cds-link-primary)}
+  .diff-challenging{background:var(--cds-support-warning-bg);color:#8a6d00}
+  .gold-sql,.tool-seq{font-family:var(--cds-font-mono);font-size:11px;background:var(--cds-layer-01);
+        border:1px solid var(--cds-border-subtle);border-radius:0;padding:8px;
+        white-space:pre-wrap;color:var(--cds-text-primary);max-height:200px;overflow:auto}
+  .meta{font-size:10px;color:var(--cds-text-helper);margin:8px 0 3px;
+        text-transform:uppercase;letter-spacing:0.32px;font-weight:600}
+  .empty{font-size:12px;color:var(--cds-text-placeholder);text-align:center;padding:24px}
   .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px}
-  .stat{background:#0f1117;border:1px solid #2d2d4a;border-radius:6px;padding:8px 10px}
-  .stat-v{font-size:18px;font-weight:600;color:#5eead4}
-  .stat-l{font-size:10px;color:#6b7280;margin-top:2px;text-transform:uppercase}
-  .stat.warn .stat-v{color:#fbbf24}
-  .stat.bad  .stat-v{color:#f87171}
-  .badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;
+  .stat{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+        border-radius:0;padding:8px 10px}
+  .stat-v{font-size:18px;font-weight:600;color:var(--cds-link-primary);font-family:var(--cds-font-mono)}
+  .stat-l{font-size:10px;color:var(--cds-text-helper);margin-top:2px;text-transform:uppercase;letter-spacing:0.32px}
+  .stat.warn .stat-v{color:#8a6d00}
+  .stat.bad  .stat-v{color:var(--cds-support-error)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:0.9375rem;font-size:10px;
          font-weight:600;margin-left:4px}
-  .b-pass{background:#0d3330;color:#5eead4}
-  .b-fail{background:#451a03;color:#f87171}
-  .b-ign {background:#422006;color:#facc15}
-  .b-none{background:#1f2937;color:#9ca3af}
-  .pill{display:inline-block;padding:1px 8px;border-radius:8px;
-        background:#1f2937;color:#9ca3af;font-size:10px;margin-right:4px}
-  .tool-row{padding:8px 10px;border:1px solid #2d2d4a;border-radius:6px;
-            margin-bottom:6px;background:#0f1117;cursor:pointer}
-  .tool-row:hover{background:#1f2937}
-  .answer{font-size:12px;line-height:1.6;color:#d1d5db;white-space:pre-wrap;
-        background:#0f1117;border:1px solid #2d2d4a;border-radius:7px;
-        padding:12px;margin-top:10px;max-height:240px;overflow:auto}
-  .progress{height:6px;background:#1f2937;border-radius:3px;overflow:hidden;margin-top:6px}
-  .progress-bar{height:100%;background:#0d9488;transition:width 0.3s}
+  .b-pass{background:var(--cds-support-success-bg);color:var(--cds-support-success)}
+  .b-fail{background:var(--cds-support-error-bg);color:var(--cds-support-error)}
+  .b-ign {background:var(--cds-support-warning-bg);color:#8a6d00}
+  .b-none{background:var(--cds-layer-accent);color:var(--cds-text-secondary)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:0.9375rem;
+        background:var(--cds-layer-accent);color:var(--cds-text-secondary);font-size:10px;margin-right:4px}
+  .tool-row{padding:8px 10px;border:1px solid var(--cds-border-subtle);border-radius:0;
+            margin-bottom:6px;background:var(--cds-layer-02);cursor:pointer;
+            transition:background 110ms cubic-bezier(0.2,0,0.38,0.9)}
+  .tool-row:hover{background:var(--cds-layer-hover)}
+  .answer{font-size:12px;line-height:1.6;color:var(--cds-text-primary);white-space:pre-wrap;
+        background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);border-radius:0;
+        padding:12px;margin-top:10px;max-height:240px;overflow:auto;font-family:var(--cds-font-mono)}
+  .progress{height:6px;background:var(--cds-layer-accent);border-radius:0;overflow:hidden;margin-top:6px}
+  .progress-bar{height:100%;background:var(--cds-interactive);transition:width 0.3s}
   .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-  .filter{padding:3px 9px;border-radius:10px;font-size:11px;cursor:pointer;
-          background:#1f2937;border:1px solid #374151;color:#9ca3af}
-  .filter.on{background:#0d3330;border-color:#0d9488;color:#5eead4}
+  .filter{padding:3px 9px;border-radius:0.9375rem;font-size:11px;cursor:pointer;
+          background:var(--cds-layer-accent);border:1px solid transparent;color:var(--cds-text-secondary)}
+  .filter.on{background:var(--cds-support-info-bg);border-color:var(--cds-interactive);color:var(--cds-link-primary)}
+  *::-webkit-scrollbar{width:8px;height:8px}
+  *::-webkit-scrollbar-thumb{background:var(--cds-border-strong)}
+  *::-webkit-scrollbar-track{background:transparent}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🪶 Bird Invocable API Creator</h1>
+  <h1><span class="hdr-prefix">IBM</span>Bird Invocable API Creator</h1>
   <div style="flex:1"></div>
-  <span id="hdr-stat" style="font-size:11px;color:#4b5563"></span>
+  <span id="hdr-stat" style="font-size:11px;color:#8d8d8d"></span>
 </header>
 
 <div class="layout">
@@ -927,7 +990,7 @@ _HTML = """<!DOCTYPE html>
           <button class="btn-ghost" onclick="reEmit()">📥 Re-emit</button>
           <button class="btn-ghost" onclick="loadAll()">↺</button>
         </div>
-        <div id="batch-status" style="font-size:11px;color:#6b7280;margin-top:8px"></div>
+        <div id="batch-status" style="font-size:11px;color:#6f6f6f;margin-top:8px"></div>
         <div id="batch-progress" class="progress" style="display:none">
           <div id="batch-bar" class="progress-bar" style="width:0"></div>
         </div>
@@ -936,7 +999,7 @@ _HTML = """<!DOCTYPE html>
 
     <div class="card">
       <div class="card-h">❓ Questions
-        <span style="margin-left:auto;font-size:10px;color:#6b7280" id="qcount"></span>
+        <span style="margin-left:auto;font-size:10px;color:#6f6f6f" id="qcount"></span>
       </div>
       <div class="card-b">
         <div class="filters">
@@ -970,7 +1033,7 @@ _HTML = """<!DOCTYPE html>
 
     <div class="card">
       <div class="card-h">🧰 Tool browser
-        <span style="margin-left:auto;font-size:10px;color:#6b7280" id="tcount"></span>
+        <span style="margin-left:auto;font-size:10px;color:#6f6f6f" id="tcount"></span>
       </div>
       <div class="card-b">
         <div class="row">
@@ -1073,11 +1136,11 @@ function renderTools() {
     return `
       <div class="tool-row" onclick="showToolUsers('${escapeHtml(t.name)}')">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="color:#5eead4;font-weight:600;font-size:12px;font-family:ui-monospace,monospace">
+          <span style="color:#0f62fe;font-weight:600;font-size:12px;font-family:'IBM Plex Mono',ui-monospace,monospace">
             ${escapeHtml(t.name)}</span>
           ${badge}
         </div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:3px;line-height:1.4">
+        <div style="font-size:11px;color:#525252;margin-top:3px;line-height:1.4">
           ${escapeHtml(t.description || '(no description)')}</div>
         <div style="margin-top:5px">${slotChips || '<span class="pill">no slots</span>'}</div>
       </div>`;
@@ -1216,8 +1279,8 @@ function renderStats(s) {
         <div class="stat-l">pass-rate</div>
       </div>
     </div>
-    <div style="margin-top:10px;font-size:11px;color:#9ca3af">
-      <span style="color:#6b7280">sequence lengths:</span> ${lenDist || '—'}
+    <div style="margin-top:10px;font-size:11px;color:#525252">
+      <span style="color:#6f6f6f">sequence lengths:</span> ${lenDist || '—'}
     </div>
   `;
 }
@@ -1234,7 +1297,7 @@ async function pickQ(qid) {
     document.getElementById('insp-body').innerHTML = renderInspector(qid, data, rec);
   } catch (e) {
     document.getElementById('insp-body').innerHTML =
-      `<div class="empty" style="color:#f87171">Error: ${e.message}</div>`;
+      `<div class="empty" style="color:#da1e28">Error: ${e.message}</div>`;
   }
 }
 
@@ -1256,7 +1319,7 @@ function renderInspector(qid, meta, rec) {
   const gold = rec && rec.gold_result
     ? JSON.stringify(rec.gold_result) : '—';
   const failure = rec && rec.failure_msg
-    ? `<div class="meta">Failure:</div><div class="gold-sql" style="color:#fca5a5">${escapeHtml(rec.failure_msg)}</div>`
+    ? `<div class="meta">Failure:</div><div class="gold-sql" style="color:#da1e28">${escapeHtml(rec.failure_msg)}</div>`
     : '';
   // For each step's tool, render its description + slot list inline so the
   // user can read the sequence without scrolling away to the Tool Browser.
@@ -1267,27 +1330,27 @@ function renderInspector(qid, meta, rec) {
         const t = TOOLS_BY_NAME[s.tool] || {};
         const props = (t.params_schema && t.params_schema.properties) || {};
         const slotLines = Object.entries(props).map(([k,v]) =>
-          `<div style="font-size:11px;color:#9ca3af;margin-left:14px">` +
-          `<span style="color:#5eead4">${escapeHtml(k)}</span> ` +
+          `<div style="font-size:11px;color:#525252;margin-left:14px">` +
+          `<span style="color:#0f62fe;font-family:'IBM Plex Mono',ui-monospace,monospace">${escapeHtml(k)}</span> ` +
           `(${escapeHtml(v.type||'?')})` +
           (v.description ? ` — ${escapeHtml(v.description)}` : '') +
           `</div>`).join('');
         return `<div class="tool-row" style="margin-bottom:6px">
-          <div style="font-family:ui-monospace,monospace;font-size:12px;color:#c5cae9">
-            <span style="color:#6b7280">step ${i+1}:</span>
-            <span style="color:#5eead4">${escapeHtml(s.tool)}</span>
+          <div style="font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;color:#161616">
+            <span style="color:#6f6f6f">step ${i+1}:</span>
+            <span style="color:#0f62fe">${escapeHtml(s.tool)}</span>
           </div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:3px;line-height:1.4">
+          <div style="font-size:11px;color:#525252;margin-top:3px;line-height:1.4">
             ${escapeHtml(t.description || '(no description registered)')}</div>
           ${slotLines}</div>`;
       }).join('');
   }
   return `
-    <div style="font-size:13px;color:#c5cae9;line-height:1.4">
+    <div style="font-size:13px;color:#161616;line-height:1.4">
       <span class="qid">#${qid}</span>${escapeHtml(meta.question || '(missing)')} ${badge}
     </div>
     <div class="meta">Evidence:</div>
-    <div style="font-size:11px;color:#9ca3af">${escapeHtml(meta.evidence || '(none)')}</div>
+    <div style="font-size:11px;color:#525252">${escapeHtml(meta.evidence || '(none)')}</div>
     <div class="meta">Gold SQL:</div>
     <div class="gold-sql">${escapeHtml(meta.SQL || '(unavailable)')}</div>
     <div class="meta">Tool sequence (recorded):</div>

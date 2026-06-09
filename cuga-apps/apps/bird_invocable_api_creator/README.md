@@ -367,7 +367,7 @@ Open http://localhost:28815/ to drive the whole pipeline:
 ### Docker (recommended)
 
 ```bash
-cd /home/amurthi/work/agent-apps/cuga-apps
+cd <repo-root>/cuga-apps
 
 # Configure LLM in apps/.env
 cat >> apps/.env <<'EOF'
@@ -412,8 +412,8 @@ curl -sX POST http://localhost:28815/question/california_schools/0 \
 
 | Env var | Default | Read by |
 |---|---|---|
-| `BIRD_DEV_JSON` | `/home/amurthi/work/dev_20240627/dev.json` | mcp-invocable_apis |
-| `BIRD_DBS_DIR` | `/home/amurthi/work/enterprise-benchmark/data/db` | mcp-invocable_apis |
+| `BIRD_DEV_JSON` | `mcp_servers/invocable_apis/data/dev.json` | mcp-invocable_apis |
+| `BIRD_DBS_DIR` | `mcp_servers/invocable_apis/data/db` | mcp-invocable_apis |
 | `INVOCABLE_APIS_STATE_DIR` | `mcp_servers/invocable_apis/state` | mcp-invocable_apis |
 | `BIRD_DEV_JSON_HOST` | (unset → falls back to default) | docker-compose bind-mount source |
 | `BIRD_DBS_DIR_HOST` | (unset → falls back to default) | docker-compose bind-mount source |

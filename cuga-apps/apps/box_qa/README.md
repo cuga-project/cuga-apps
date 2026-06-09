@@ -30,7 +30,7 @@ lists files, fetches document content, and answers questions with citations.
 
 ```bash
 pip install -r requirements.txt
-pip install -e /Users/anu/Documents/GitHub/cuga-agent-apr10
+pip install -e <path-to-cuga>   # local cuga checkout
 ```
 
 ### 2. Box app config

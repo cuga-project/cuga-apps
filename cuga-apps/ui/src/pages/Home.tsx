@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import {
   USE_CASES,
   CATEGORIES,
-  STATUS_LABELS,
-  type Status,
-  type UseCaseType,
   type Category,
 } from '../data/usecases'
 import { resolveAppUrl } from '../data/deployment'
+
+// Source lives in the public cuga-apps repo; each app's `demoPath` is a tree
+// path under it. Used by the "Check out code" affordance on not-yet-shippable
+// apps (for-later / exploratory), which open the source instead of a detail page.
+const REPO_TREE = 'https://github.com/cuga-project/cuga-apps/tree/main'
+const githubUrl = (demoPath: string | null) =>
+  demoPath ? `${REPO_TREE}/${demoPath}` : 'https://github.com/cuga-project/cuga-apps'
 
 // Apps default to ship-ready (✦ badge, sorted to top). Listing an id below
 // flips it to "for-later" — useful for demos that aren't polished enough
@@ -41,9 +45,11 @@ const stageOf = (id: string): Stage =>
   : FOR_LATER_IDS.has(id) ? 'for-later'
   : 'ship-ready'
 
+// Only the Showcase stage carries a badge now; everything else is grouped under
+// "Additional apps" with no glyph, to keep the table calm.
 const STAGE_BADGE: Record<Stage, { glyph: string; cls: string } | null> = {
   'ship-ready':  { glyph: '✦', cls: 'text-amber-500' },
-  'exploratory': { glyph: '⚗', cls: 'text-purple-500' },
+  'exploratory': null,
   'for-later':   null,
 }
 
@@ -53,14 +59,21 @@ function StageGlyph({ id, ml }: { id: string; ml: string }) {
   return <span className={`${badge.cls} ${ml} font-bold`}>{badge.glyph}</span>
 }
 
-type ShipFilter = 'all' | Stage
+// Two meaningful buckets for the reader: the polished demos ("Showcase") and
+// everything else ("Additional apps" = for-later + exploratory). 'all' shows both.
+type ShipFilter = 'all' | 'showcase' | 'additional'
 
 const SHIP_FILTER_LABEL: Record<ShipFilter, string> = {
-  'all':         'All',
-  'ship-ready':  '✦ Ship-ready',
-  'for-later':   'For later',
-  'exploratory': '⚗ Exploratory',
+  'all':        'All',
+  'showcase':   '✦ Showcase',
+  'additional': 'Additional apps',
 }
+
+// Does an app match the active stage filter? 'additional' is the complement of
+// the showcase stage (for-later OR exploratory).
+const matchesShipFilter = (id: string, f: ShipFilter): boolean =>
+  f === 'all' ||
+  (f === 'showcase' ? stageOf(id) === 'ship-ready' : stageOf(id) !== 'ship-ready')
 
 function ShipFilterChips({
   value,
@@ -69,19 +82,17 @@ function ShipFilterChips({
   value: ShipFilter
   onChange: (v: ShipFilter) => void
 }) {
-  const options: ShipFilter[] = ['all', 'ship-ready', 'for-later', 'exploratory']
+  const options: ShipFilter[] = ['all', 'showcase', 'additional']
   return (
     <div className="flex items-center gap-2.5 flex-wrap">
       <span className="text-sm text-t4 font-semibold uppercase tracking-wider w-20 shrink-0">Stage</span>
       {options.map((opt) => {
         const active = value === opt
         const activeCls =
-          opt === 'ship-ready'
+          opt === 'showcase'
             ? 'bg-amber-500 text-white border-amber-500'
-            : opt === 'for-later'
+            : opt === 'additional'
             ? 'bg-slate-500 text-white border-slate-500'
-            : opt === 'exploratory'
-            ? 'bg-purple-600 text-white border-purple-600'
             : 'bg-indigo-600 text-white border-indigo-600'
         return (
           <button
@@ -102,60 +113,7 @@ function ShipFilterChips({
 // URL resolution moved to ../data/deployment.ts (resolveAppUrl) — handles
 // localhost rewrite for local dev AND CE rewrite for Hugging Face deploys.
 
-const TYPE_CONFIG: Record<UseCaseType, { label: string; icon: string; activeCls: string }> = {
-  'event-driven':          { label: 'Event-driven',          icon: '⚡', activeCls: 'bg-amber-500 text-white border-amber-500' },
-  'document-intelligence': { label: 'Document Intelligence', icon: '📄', activeCls: 'bg-cyan-500 text-white border-cyan-500' },
-  'audio-video':           { label: 'Audio / Video',         icon: '🎬', activeCls: 'bg-violet-500 text-white border-violet-500' },
-  'other':                 { label: 'Other',                 icon: '✦',  activeCls: 'bg-t2 text-tsurf border-t2' },
-}
-
-const TYPE_BADGE_CLS: Record<UseCaseType, string> = {
-  'event-driven':          'bg-amber-500/10 text-amber-600 border-amber-500/30',
-  'document-intelligence': 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
-  'audio-video':           'bg-violet-500/10 text-violet-600 border-violet-500/30',
-  'other':                 'bg-tsurf2 text-t3 border-tborder',
-}
-
-function TypeBadge({ type }: { type: UseCaseType }) {
-  const { label, icon } = TYPE_CONFIG[type]
-  return (
-    <span className={`text-sm px-2.5 py-1 rounded-md font-medium border ${TYPE_BADGE_CLS[type]}`}>
-      {icon} {label}
-    </span>
-  )
-}
-
-const ALL_TYPES = Object.keys(TYPE_CONFIG) as UseCaseType[]
 const ALL_CATEGORIES = Object.keys(CATEGORIES) as Category[]
-
-function TypeFilterChips({
-  value,
-  onChange,
-}: {
-  value: UseCaseType | 'all'
-  onChange: (v: UseCaseType | 'all') => void
-}) {
-  return (
-    <div className="flex items-center gap-2.5 flex-wrap">
-      <span className="text-sm text-t4 font-semibold uppercase tracking-wider w-20 shrink-0">Type</span>
-      {ALL_TYPES.map((t) => {
-        const { label, icon, activeCls } = TYPE_CONFIG[t]
-        const active = value === t
-        return (
-          <button
-            key={t}
-            onClick={() => onChange(active ? 'all' : t)}
-            className={`text-sm px-3.5 py-1.5 rounded-full font-medium border transition-all ${
-              active ? activeCls : 'bg-tsurf border-tborder text-t3 hover:text-t1 hover:border-t2'
-            }`}
-          >
-            {icon} {label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function CategoryFilterChips({
   value,
@@ -187,11 +145,54 @@ function CategoryFilterChips({
   )
 }
 
-const STATUS_ICON: Record<Status, string> = {
-  working:       '✅',
-  partial:       '🔧',
-  'not-working': '🚫',
-  gap:           '❌',
+// Where to get each app-specific API key. Universal keys (LLM_PROVIDER,
+// ANTHROPIC_API_KEY, …) are filtered out of the column, so this only needs the
+// per-app providers. An entry makes the env chip a clickable link.
+const ENV_KEY_HELP: Record<string, string> = {
+  TAVILY_API_KEY:        'https://app.tavily.com/home',
+  ALPHA_VANTAGE_API_KEY: 'https://www.alphavantage.co/support/#api-key',
+  OPENTRIPMAP_API_KEY:   'https://opentripmap.io/product',
+  BOX_CONFIG_PATH:       'https://developer.box.com/guides/authentication/jwt/jwt-setup/',
+  BOX_FOLDER_ID:         'https://support.box.com/hc/en-us/articles/360043697154-Finding-a-Folder-or-File-ID',
+  SMTP_HOST:             'https://support.google.com/mail/answer/7126229',
+  SMTP_USERNAME:         'https://support.google.com/accounts/answer/185833',
+  SMTP_PASSWORD:         'https://support.google.com/accounts/answer/185833',
+  BIRD_DEV_JSON:         'https://bird-bench.github.io/',
+  BIRD_DBS_DIR:          'https://bird-bench.github.io/',
+}
+
+function EnvChip({ name }: { name: string }) {
+  const href = ENV_KEY_HELP[name]
+  const base = 'text-xs px-2 py-1 font-mono border whitespace-nowrap'
+  if (!href) {
+    return <span className={`${base} bg-amber-500/10 text-amber-600 border-amber-500/20`}>{name}</span>
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title={`How to get ${name} ↗`}
+      className={`${base} bg-amber-500/10 text-amber-600 border-amber-500/30 hover:border-amber-500 hover:underline`}
+    >
+      {name} ↗
+    </a>
+  )
+}
+
+// Curated display order for the ship-ready apps (by reliability × wow ×
+// capability-distinctiveness). Ids not listed fall to the end, preserving their
+// source order. Only affects ordering within the ship-ready stage.
+const SHIP_READY_ORDER = [
+  'travel-agent', 'city-beat', 'wiki-dive', 'paper-scout', 'find-a-doctor',
+  'hiking-research', 'arch-diagram', 'youtube-research', 'github-trending', 'ai-labs-news',
+  'recipe-composer', 'movie-recommender', 'web-researcher', 'newsletter', 'webpage-summarizer',
+  'server-monitor', 'stock-alert', 'ibm-cloud-advisor', 'ibm-docs-qa', 'meetup-finder', 'ouroboros',
+]
+const shipOrderIndex = (id: string) => {
+  const i = SHIP_READY_ORDER.indexOf(id)
+  return i === -1 ? Number.MAX_SAFE_INTEGER : i
 }
 
 // ── Domain buckets (mirrors docs/apps_overview.svg) ───────────────────────────
@@ -235,9 +236,9 @@ const BUCKET_ACCENT: Record<BucketAccent, { bar: string; badge: string; pill: st
   pink:    { bar: 'bg-pink-500',    badge: 'text-pink-500',
              pill: 'border-pink-500/30 hover:border-pink-500 hover:bg-pink-500/5',
              ring: 'ring-pink-500/40' },
-  cyan:    { bar: 'bg-cyan-500',    badge: 'text-cyan-500',
-             pill: 'border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/5',
-             ring: 'ring-cyan-500/40' },
+  cyan:    { bar: 'bg-sky-600',     badge: 'text-sky-700',
+             pill: 'border-sky-500/30 hover:border-sky-600 hover:bg-sky-500/5',
+             ring: 'ring-sky-500/40' },
   violet:  { bar: 'bg-violet-500',  badge: 'text-violet-500',
              pill: 'border-violet-500/30 hover:border-violet-500 hover:bg-violet-500/5',
              ring: 'ring-violet-500/40' },
@@ -351,14 +352,12 @@ function DomainBuckets({
 interface TableProps {
   useCases: typeof USE_CASES
   search: string
-  filterStatus: Status | 'all'
-  filterType: UseCaseType | 'all'
   filterCategory: Category | 'all'
   filterBucket: string | null
   filterShip: ShipFilter
 }
 
-function UseCaseTable({ useCases, search, filterStatus, filterType, filterCategory, filterBucket, filterShip }: TableProps) {
+function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterShip }: TableProps) {
   const navigate = useNavigate()
 
   const bucketAppIds = useMemo(() => {
@@ -374,16 +373,17 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
         !search ||
         uc.name.toLowerCase().includes(search.toLowerCase()) ||
         uc.tagline.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus = filterStatus === 'all' || uc.status === filterStatus
-      const matchesType = filterType === 'all' || uc.type === filterType
       const matchesCategory = filterCategory === 'all' || uc.category === filterCategory
-      const matchesShip = filterShip === 'all' || stageOf(uc.id) === filterShip
-      return matchesSearch && matchesStatus && matchesType && matchesCategory && matchesShip
+      const matchesShip = matchesShipFilter(uc.id, filterShip)
+      return matchesSearch && matchesCategory && matchesShip
     })
-    // Stable sort: ship-ready first, then for-later, then exploratory.
+    // Stable sort: ship-ready first (in the curated SHIP_READY_ORDER), then
+    // for-later, then exploratory (each preserving source order).
     .sort((a, b) => {
       const order: Record<Stage, number> = { 'ship-ready': 0, 'for-later': 1, 'exploratory': 2 }
-      return order[stageOf(a.id)] - order[stageOf(b.id)]
+      const byStage = order[stageOf(a.id)] - order[stageOf(b.id)]
+      if (byStage !== 0) return byStage
+      return shipOrderIndex(a.id) - shipOrderIndex(b.id)
     })
 
   if (filtered.length === 0) {
@@ -393,23 +393,21 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
   const UNIVERSAL_VARS = ['LLM_PROVIDER', 'LLM_MODEL', 'RITS_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'AGENT_SETTING_CONFIG']
 
   return (
-    <div className="bg-tsurf border border-tborder rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-tsurf border border-tborder rounded-2xl overflow-x-auto shadow-sm">
       <table className="w-full">
         <thead>
           <tr className="border-b-2 border-tborder bg-tsurf2">
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-6 py-4 w-10">#</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4">Use Case</th>
-            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden md:table-cell">Type</th>
+            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell w-[11rem]">Examples</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Category</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">Tools</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">ENV Vars</th>
-            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4">Status</th>
             <th className="px-4 py-4 w-10"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-tborder">
           {filtered.map((uc, i) => {
-            const statusInfo = STATUS_LABELS[uc.status]
             const catInfo = CATEGORIES[uc.category]
             const visibleTools = uc.tools.slice(0, 3)
             const extraTools = uc.tools.length - visibleTools.length
@@ -419,10 +417,18 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
             // null on Hugging Face when the app isn't deployed to CE; null
             // on local when uc.appUrl itself is null.
             const launchUrl = uc.comingSoon ? null : resolveAppUrl(uc)
+            // For-later / exploratory apps aren't polished enough for the detail
+            // page — their row opens the source on GitHub instead.
+            const notShippable = stageOf(uc.id) !== 'ship-ready'
+            const repoUrl = githubUrl(uc.demoPath)
+            const openRow = () =>
+              notShippable
+                ? window.open(repoUrl, '_blank', 'noopener,noreferrer')
+                : navigate(`/use-case/${uc.id}`)
             return (
               <tr
                 key={uc.id}
-                onClick={() => navigate(`/use-case/${uc.id}`)}
+                onClick={openRow}
                 className="hover:bg-tsurf2 cursor-pointer transition-colors group"
               >
                 <td className="px-6 py-5 text-t4 text-sm font-mono">{i + 1}</td>
@@ -432,24 +438,42 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
                   </div>
                   <div className="text-sm text-t3 mt-1 leading-relaxed">{uc.tagline}</div>
                 </td>
-                <td className="px-4 py-5 hidden md:table-cell">
-                  <TypeBadge type={uc.type} />
+                <td className="px-4 py-5 hidden lg:table-cell align-top">
+                  {(uc.examples?.length ?? 0) === 0 ? (
+                    <span className="text-sm text-t4">—</span>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 w-[11rem]">
+                      {uc.examples!.slice(0, 2).map((ex) => (
+                        <span
+                          key={ex}
+                          title={ex}
+                          className="bg-tsurf2 text-t2 border border-tborder rounded px-2 py-1 text-xs italic whitespace-normal break-words leading-snug line-clamp-2"
+                        >
+                          “{ex}”
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-5 hidden lg:table-cell">
                   <span className="text-sm px-2.5 py-1 rounded-full font-medium bg-tsurf2 text-t3 border border-tborder">
                     {catInfo.label}
                   </span>
                 </td>
-                <td className="px-4 py-5 hidden xl:table-cell">
+                <td className="px-4 py-5 hidden xl:table-cell align-top">
                   {(!uc.mcpUsage || uc.mcpUsage.length === 0) && (uc.inlineTools?.length ?? 0) === 0 && uc.tools.length === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5 max-w-[15rem]">
                       {uc.mcpUsage?.map((u) => (
                         <div key={u.server} className="flex flex-wrap items-center gap-1">
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-emerald-900/30 text-emerald-300 border border-emerald-800/40 whitespace-nowrap">
-                            mcp-{u.server}
-                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/mcp-servers#mcp-${u.server}`) }}
+                            title={`View the mcp-${u.server} server`}
+                            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-indigo-500/10 text-indigo-700 border border-indigo-500/30 whitespace-nowrap cursor-pointer hover:bg-indigo-500/20 hover:text-indigo-800 hover:underline"
+                          >
+                            mcp-{u.server} ↗
+                          </button>
                           {u.tools.slice(0, 3).map((t) => (
                             <span key={t} className="text-xs px-2 py-1 rounded-md font-mono bg-tsurf2 text-t3 border border-tborder whitespace-nowrap">
                               {t}
@@ -462,7 +486,7 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
                       ))}
                       {(uc.inlineTools?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-amber-900/30 text-amber-300 border border-amber-800/40 whitespace-nowrap">
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md font-semibold bg-amber-500/10 text-amber-700 border border-amber-500/30 whitespace-nowrap">
                             inline
                           </span>
                           {uc.inlineTools!.slice(0, 3).map((t) => (
@@ -491,46 +515,60 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-5 hidden xl:table-cell">
+                <td className="px-4 py-5 hidden xl:table-cell align-top">
                   {appEnvs.length === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 max-w-[12rem]">
                       {visibleEnvs.map((v) => (
-                        <span key={v} className="text-xs px-2 py-1 rounded-md font-mono bg-amber-500/10 text-amber-600 border border-amber-500/20 whitespace-nowrap">
-                          {v}
-                        </span>
+                        <EnvChip key={v} name={v} />
                       ))}
                       {extraEnvs > 0 && (
-                        <span className="text-xs px-2 py-1 rounded-md bg-tsurf2 text-t4 border border-tborder">
+                        <span className="text-xs px-2 py-1 bg-tsurf2 text-t4 border border-tborder">
                           +{extraEnvs}
                         </span>
                       )}
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-5">
-                  <span className={`text-sm font-medium text-${statusInfo.color}-500`}>
-                    {STATUS_ICON[uc.status]} {statusInfo.label}
-                  </span>
-                </td>
                 <td className="px-4 py-5 text-right" onClick={(e) => e.stopPropagation()}>
-                  {uc.comingSoon ? (
-                    <span className="inline-block px-3 py-1.5 text-sm font-medium bg-tsurf2 text-t4 border border-tborder rounded-lg whitespace-nowrap">
-                      Coming soon
-                    </span>
-                  ) : launchUrl ? (
-                    <a
-                      href={launchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block px-3.5 py-1.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors whitespace-nowrap shadow-sm"
-                    >
-                      Try it →
-                    </a>
-                  ) : (
-                    <span className="text-t4 text-base">→</span>
-                  )}
+                  <div className="inline-flex flex-col items-end gap-1.5">
+                    {notShippable ? (
+                      <a
+                        href={repoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-3.5 py-1.5 text-sm font-semibold bg-tsurf border border-tborder text-t2 hover:text-t1 hover:border-t2 transition-colors whitespace-nowrap"
+                      >
+                        Check out code ↗
+                      </a>
+                    ) : (
+                      <>
+                        {uc.comingSoon ? (
+                          <span className="inline-block px-3 py-1.5 text-sm font-medium bg-tsurf2 text-t4 border border-tborder whitespace-nowrap">
+                            Coming soon
+                          </span>
+                        ) : launchUrl ? (
+                          <a
+                            href={launchUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block px-3.5 py-1.5 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors whitespace-nowrap"
+                          >
+                            Try it →
+                          </a>
+                        ) : null}
+                        <a
+                          href={repoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-t3 hover:text-indigo-600 hover:underline whitespace-nowrap"
+                        >
+                          Check out code ↗
+                        </a>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             )
@@ -545,74 +583,70 @@ function UseCaseTable({ useCases, search, filterStatus, filterType, filterCatego
 
 export default function Home() {
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<Status | 'all'>('all')
-  const [filterType, setFilterType] = useState<UseCaseType | 'all'>('all')
   const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all')
   const [filterBucket, setFilterBucket] = useState<string | null>(null)
-  const [filterShip, setFilterShip] = useState<ShipFilter>('ship-ready')
+  const [filterShip, setFilterShip] = useState<ShipFilter>('showcase')
 
   const visible = USE_CASES.filter((u) => !u.hidden)
 
-  const counts = useMemo(() => ({
-    working:      visible.filter((u) => u.status === 'working').length,
-    partial:      visible.filter((u) => u.status === 'partial').length,
-    notWorking:   visible.filter((u) => u.status === 'not-working').length,
-    gap:          visible.filter((u) => u.status === 'gap').length,
-  }), [])
-
-  const tableProps = { search, filterStatus, filterType, filterCategory, filterBucket, filterShip }
+  const tableProps = { search, filterCategory, filterBucket, filterShip }
 
   return (
     <div className="p-6 md:p-8 max-w-screen-2xl mx-auto">
 
-      {/* ── Hero ── */}
-      <div className="mb-10">
-        <h2 className="text-4xl font-bold text-t1 mb-1 tracking-tight">CUGA Apps</h2>
-        <p className="text-base text-t3 mb-8">AI-powered demo apps built on the CUGA agent framework</p>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-3xl">
-          <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-5">
-            <div className="text-4xl font-bold text-emerald-500 mb-1">{counts.working}</div>
-            <div className="text-sm font-medium text-emerald-600/80">Working demos</div>
-          </div>
-          <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-5">
-            <div className="text-4xl font-bold text-amber-500 mb-1">{counts.partial}</div>
-            <div className="text-sm font-medium text-amber-600/80">Partial / setup needed</div>
-          </div>
-          <div className="bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
-            <div className="text-4xl font-bold text-orange-500 mb-1">{counts.notWorking}</div>
-            <div className="text-sm font-medium text-orange-600/80">Not working</div>
-          </div>
-          <div className="bg-tsurf2 border border-tborder rounded-2xl p-5">
-            <div className="text-4xl font-bold text-t3 mb-1">{counts.gap}</div>
-            <div className="text-sm font-medium text-t4">On roadmap</div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Universal env vars ── */}
-      <div className="mb-8 px-5 py-4 bg-tsurf border border-tborder rounded-2xl">
-        <div className="text-base font-semibold text-t1 mb-3">Required for all apps</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { key: 'AGENT_SETTING_CONFIG', value: 'settings.rits.toml' },
-            { key: 'LLM_MODEL', value: 'gpt-oss-120b' },
-            { key: 'LLM_PROVIDER', value: 'rits' },
-          ].map(({ key, value }) => (
-            <div key={key} className="flex flex-col gap-1 bg-tsurf2 border border-tborder rounded-xl px-3.5 py-2.5">
-              <span className="font-mono text-sm font-semibold text-amber-600">{key}</span>
-              <span className="font-mono text-sm text-t2">{value}</span>
+      {/* ── Hero pitch ── */}
+      <div className="mb-10 bg-tsurf border border-tborder overflow-hidden">
+        <div className="flex flex-col lg:flex-row">
+          {/* Pitch */}
+          <div className="flex-1 p-7 md:p-9">
+            <div className="inline-flex items-center gap-2 mb-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-500/10 border border-indigo-500/25 px-2 py-0.5">
+                IBM Research
+              </span>
+              <span className="text-xs text-t4 font-mono">pip install cuga</span>
             </div>
-          ))}
-          <div className="flex flex-col gap-1 bg-tsurf2 border border-tborder rounded-xl px-3.5 py-2.5">
-            <span className="font-mono text-sm font-semibold text-amber-600">RITS_API_KEY</span>
-            <span className="text-sm text-t3">
-              TunnelAll VPN →{' '}
-              <a href="http://rits.fmaas.res.ibm.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline">
-                rits.fmaas.res.ibm.com
+            <h2 className="text-3xl md:text-4xl font-semibold text-t1 mb-3 tracking-tight leading-tight">
+              Real agentic apps, built on CUGA
+            </h2>
+            <p className="text-base text-t2 leading-relaxed max-w-2xl mb-5">
+              <strong className="text-t1">CUGA</strong> — the <strong className="text-t1">C</strong>onfigurable{' '}
+              <strong className="text-t1">G</strong>eneralist <strong className="text-t1">A</strong>gent — is a
+              lightweight, open-source agent harness from IBM Research. It handles the unglamorous machinery
+              around a model: planning a task out, calling tools, writing and running code, holding intermediate
+              state together, and retrying when something fails. You start from a strong generalist and narrow it
+              to your domain — your tools, your procedure, your guardrails.
+            </p>
+            <p className="text-base text-t2 leading-relaxed max-w-2xl mb-6">
+              <strong className="text-t1">CUGA Apps</strong> is what that feels like in practice: {visible.length}{' '}
+              working examples that double as copy-and-edit templates for real applications. Each one is a{' '}
+              <code className="font-mono text-sm text-indigo-600">CugaAgent</code> wrapped in a FastAPI UI, drawing
+              on seven shared MCP servers.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <a href="https://cuga.dev" target="_blank" rel="noopener noreferrer"
+                 className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
+                cuga.dev ↗
               </a>
-            </span>
+              <a href="https://github.com/cuga-project/cuga-agent" target="_blank" rel="noopener noreferrer"
+                 className="px-4 py-2 text-sm font-semibold bg-tsurf border border-tborder text-t2 hover:text-t1 hover:border-t2 transition-colors">
+                GitHub ↗
+              </a>
+            </div>
+          </div>
+          {/* Proof points */}
+          <div className="lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-tborder bg-tsurf2/40 p-7 md:p-9 flex flex-col justify-center gap-6">
+            <div>
+              <div className="text-3xl font-semibold text-t1">#1</div>
+              <div className="text-sm text-t3">on <a href="https://appworld.dev/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">AppWorld</a> — 750 tasks, 457 APIs</div>
+            </div>
+            <div>
+              <div className="text-3xl font-semibold text-t1">#1</div>
+              <div className="text-sm text-t3">on <a href="https://webarena.dev/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">WebArena</a> — Feb–Sep 2025</div>
+            </div>
+            <div>
+              <div className="text-3xl font-semibold text-t1">{visible.length}</div>
+              <div className="text-sm text-t3">working example apps</div>
+            </div>
           </div>
         </div>
       </div>
@@ -630,20 +664,9 @@ export default function Home() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-4 py-2 bg-tsurf border border-tborder rounded-xl text-base text-t1 placeholder-t4 focus:outline-none focus:border-indigo-500 w-72"
           />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as Status | 'all')}
-            className="px-4 py-2 bg-tsurf border border-tborder rounded-xl text-base text-t2 focus:outline-none focus:border-indigo-500"
-          >
-            <option value="all">All statuses</option>
-            <option value="working">Working</option>
-            <option value="partial">Partial</option>
-            <option value="not-working">Not working</option>
-            <option value="gap">Gap</option>
-          </select>
-          {(search || filterStatus !== 'all' || filterType !== 'all' || filterCategory !== 'all' || filterBucket || filterShip !== 'ship-ready') && (
+          {(search || filterCategory !== 'all' || filterBucket || filterShip !== 'showcase') && (
             <button
-              onClick={() => { setSearch(''); setFilterStatus('all'); setFilterType('all'); setFilterCategory('all'); setFilterBucket(null); setFilterShip('ship-ready') }}
+              onClick={() => { setSearch(''); setFilterCategory('all'); setFilterBucket(null); setFilterShip('showcase') }}
               className="px-4 py-2 text-sm font-medium text-t3 hover:text-t1 bg-tsurf2 border border-tborder rounded-xl transition-colors"
             >
               Clear all
@@ -651,7 +674,6 @@ export default function Home() {
           )}
         </div>
         <ShipFilterChips value={filterShip} onChange={setFilterShip} />
-        <TypeFilterChips value={filterType} onChange={setFilterType} />
         <CategoryFilterChips value={filterCategory} onChange={setFilterCategory} />
       </div>
 
@@ -659,9 +681,8 @@ export default function Home() {
       <UseCaseTable useCases={visible} {...tableProps} />
 
       <p className="mt-5 text-sm text-t4">
-        Click any row to see architecture, run instructions, and how CUGA powers it.{' '}
-        <span className="text-amber-500">✦</span> ship-ready ·{' '}
-        <span className="text-purple-500">⚗</span> exploratory · everything else is for-later
+        <span className="text-amber-500">✦</span> Showcase rows open architecture, run instructions, and how
+        CUGA powers them · Additional apps open their source on GitHub.
       </p>
     </div>
   )

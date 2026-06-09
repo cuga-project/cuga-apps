@@ -2,77 +2,18 @@
 HTML UI for the Movie Recommender demo app.
 Exported as _HTML — a single self-contained string served by the FastAPI root endpoint.
 
+Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
+`_carbon` foundation.
+
 Layout:
   Left  — Chat panel: prompt chips, message history, input field
   Right — Live data panel: collected preferences + recommendation cards
 """
 
-_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Movie Recommender</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+from _carbon import carbon_head, carbon_css
 
-  :root {
-    --bg:       #0f1117;
-    --card:     #1a1a2e;
-    --border:   #2d2d4a;
-    --accent:   #e040fb;
-    --accent2:  #00d4aa;
-    --accent3:  #ff9800;
-    --text:     #e2e8f0;
-    --muted:    #8892a4;
-    --danger:   #ff4d6d;
-    --success:  #00c896;
-  }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 14px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── Header ── */
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .header-icon { font-size: 22px; }
-  header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.4px; }
-  header h1 span { color: var(--accent); }
-  .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--muted);
-    margin-left: auto;
-  }
-  .status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--success);
-    animation: pulse 2s infinite;
-  }
-  .status-dot.busy { background: var(--accent); animation: none; }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.4; }
-  }
+_APP_CSS = """<style>
+  body { display: flex; flex-direction: column; }
 
   /* ── Main layout ── */
   main {
@@ -80,166 +21,205 @@ _HTML = """<!DOCTYPE html>
     grid-template-columns: 420px 1fr;
     gap: 0;
     flex: 1;
+    min-height: 0;
     overflow: hidden;
-    height: calc(100vh - 57px);
+  }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
   }
 
   /* ── Left panel: chat ── */
   .chat-panel {
-    background: var(--card);
-    border-right: 1px solid var(--border);
+    background: var(--cds-layer-01);
+    border-right: 1px solid var(--cds-border-subtle);
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
   .panel-title {
-    padding: 12px 18px;
-    font-size: 11px;
+    padding: var(--cds-sp-04) var(--cds-sp-05);
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.32px;
+    color: var(--cds-text-secondary);
+    border-bottom: 1px solid var(--cds-border-subtle);
   }
 
   /* Prompt chips */
   .chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
+    gap: var(--cds-sp-03);
+    padding: var(--cds-sp-04);
+    border-bottom: 1px solid var(--cds-border-subtle);
   }
   .chip {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 4px 11px;
-    font-size: 12px;
-    color: var(--muted);
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem;
+    padding: var(--cds-sp-02) var(--cds-sp-04);
+    font-size: 0.75rem;
+    color: var(--cds-text-secondary);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive);
     white-space: nowrap;
   }
-  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip:hover { border-color: var(--cds-interactive); background: var(--cds-interactive); color: #fff; }
 
   /* Messages */
   .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 14px;
+    padding: var(--cds-sp-05);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--cds-sp-04);
     scroll-behavior: smooth;
   }
-  .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   .msg {
     max-width: 100%;
-    padding: 10px 14px;
-    border-radius: 10px;
-    line-height: 1.65;
+    padding: var(--cds-sp-04) var(--cds-sp-05);
+    line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
-    font-size: 13px;
+    font-size: 0.8125rem;
   }
   .msg.user {
-    background: var(--accent);
+    background: var(--cds-interactive);
     color: #fff;
     align-self: flex-end;
-    border-bottom-right-radius: 3px;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
   .msg.agent {
-    background: var(--bg);
-    border: 1px solid var(--border);
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
     align-self: flex-start;
-    border-bottom-left-radius: 3px;
   }
   .msg.error {
-    background: rgba(255,77,109,0.12);
-    border: 1px solid var(--danger);
-    color: var(--danger);
+    background: var(--cds-support-error-bg);
+    border-left: 3px solid var(--cds-support-error);
+    color: var(--cds-text-primary);
     align-self: flex-start;
   }
   .msg.thinking {
-    color: var(--muted);
+    color: var(--cds-text-secondary);
     font-style: italic;
-    border: 1px dashed var(--border);
+    border: 1px dashed var(--cds-border-strong);
     align-self: flex-start;
   }
 
   /* Input row */
   .input-row {
     display: flex;
-    gap: 8px;
-    padding: 12px 14px;
-    border-top: 1px solid var(--border);
+    gap: 0;
+    padding: var(--cds-sp-04);
+    border-top: 1px solid var(--cds-border-subtle);
   }
   .input-row input {
     flex: 1;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 14px;
-    color: var(--text);
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .input-row input:focus { border-color: var(--accent); }
-  .input-row input::placeholder { color: var(--muted); }
-  .btn {
-    background: var(--accent);
-    color: #fff;
+    background: var(--cds-field-01);
+    color: var(--cds-text-primary);
     border: none;
-    border-radius: 8px;
-    padding: 9px 18px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.15s;
+    border-bottom: 1px solid var(--cds-border-strong);
+    padding: 0 var(--cds-sp-05);
+    min-height: 3rem;
+    font-family: var(--cds-font-sans);
+    font-size: 0.875rem;
+    letter-spacing: 0.16px;
+    outline: none;
+    transition: outline var(--cds-dur-fast) var(--cds-ease-productive);
   }
-  .btn:hover  { opacity: 0.85; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .input-row input:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+  .input-row input::placeholder { color: var(--cds-text-placeholder); }
+  .btn {
+    background: var(--cds-button-primary);
+    color: var(--cds-text-on-color);
+    border: 1px solid transparent;
+    min-height: 3rem;
+    padding: 0 var(--cds-sp-06);
+    font-family: var(--cds-font-sans);
+    font-size: 0.875rem;
+    font-weight: 400;
+    letter-spacing: 0.16px;
+    cursor: pointer;
+    transition: background var(--cds-dur-mod) var(--cds-ease-productive);
+  }
+  .btn:hover  { background: var(--cds-button-primary-hover); }
+  .btn:active { background: var(--cds-button-primary-active); }
+  .btn:focus-visible, .btn:focus {
+    outline: 2px solid var(--cds-focus);
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px var(--cds-focus-inset);
+  }
+  .btn:disabled {
+    background: var(--cds-layer-accent);
+    color: var(--cds-text-placeholder);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
 
   /* ── Right panel ── */
   .data-panel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    background: var(--cds-background);
   }
   .data-panel-header {
-    padding: 12px 20px;
-    font-size: 11px;
+    padding: var(--cds-sp-04) var(--cds-sp-05);
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.32px;
+    color: var(--cds-text-secondary);
+    border-bottom: 1px solid var(--cds-border-subtle);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--cds-sp-04);
   }
   .refresh-badge {
     margin-left: auto;
-    font-size: 10px;
-    color: var(--muted);
-    opacity: 0.6;
+    font-size: 0.625rem;
+    color: var(--cds-text-helper);
+    text-transform: none;
+    letter-spacing: 0.16px;
   }
 
   .data-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 18px;
+    padding: var(--cds-sp-06);
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: var(--cds-sp-06);
   }
-  .data-scroll::-webkit-scrollbar { width: 4px; }
-  .data-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   /* Empty state */
   .empty-state {
@@ -248,145 +228,166 @@ _HTML = """<!DOCTYPE html>
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: var(--muted);
-    gap: 14px;
+    color: var(--cds-text-secondary);
+    gap: var(--cds-sp-05);
     text-align: center;
-    padding: 40px;
+    padding: var(--cds-sp-08);
   }
-  .empty-state .icon { font-size: 56px; opacity: 0.25; }
-  .empty-state p { font-size: 13px; max-width: 300px; line-height: 1.7; }
+  .empty-state .icon { font-size: 56px; opacity: 0.35; }
+  .empty-state p { font-size: 0.8125rem; max-width: 300px; line-height: 1.7; }
   .empty-state .hint {
-    font-size: 12px;
-    color: var(--accent);
-    border: 1px dashed var(--accent);
-    padding: 6px 16px;
-    border-radius: 20px;
-    opacity: 0.7;
+    font-size: 0.75rem;
+    color: var(--cds-link-primary);
+    border: 1px dashed var(--cds-interactive);
+    padding: var(--cds-sp-03) var(--cds-sp-05);
+    border-radius: 0.9375rem;
   }
 
   /* Section headers inside right panel */
   .section-title {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    margin-bottom: 10px;
+    letter-spacing: 0.32px;
+    color: var(--cds-text-secondary);
+    margin-bottom: var(--cds-sp-04);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cds-sp-03);
   }
   .section-title::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--border);
+    background: var(--cds-border-subtle);
   }
 
   /* Preferences block */
   .prefs-block {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-05);
   }
   .pref-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 10px;
+    gap: var(--cds-sp-03);
+    margin-bottom: var(--cds-sp-04);
   }
   .pref-row:last-child { margin-bottom: 0; }
   .pref-label {
-    font-size: 11px;
-    color: var(--muted);
+    font-size: 0.6875rem;
+    color: var(--cds-text-helper);
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.32px;
     width: 100%;
-    margin-bottom: 4px;
+    margin-bottom: var(--cds-sp-02);
   }
   .pref-tag {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 3px 11px;
-    font-size: 12px;
-    color: var(--text);
+    background: var(--cds-layer-accent);
+    border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem;
+    padding: var(--cds-sp-01) var(--cds-sp-04);
+    font-size: 0.75rem;
+    color: var(--cds-text-primary);
   }
-  .pref-tag.genre   { border-color: #6c63ff; color: #a89cf7; }
-  .pref-tag.liked   { border-color: var(--success); color: var(--success); }
-  .pref-tag.disliked{ border-color: var(--danger); color: var(--danger); }
-  .pref-tag.actor   { border-color: var(--accent2); color: var(--accent2); }
-  .pref-tag.director{ border-color: var(--accent3); color: var(--accent3); }
-  .pref-tag.mood    { border-color: var(--accent); color: var(--accent); }
+  .pref-tag.genre    { background: var(--cds-support-info-bg);    border-color: transparent; color: var(--cds-link-primary); }
+  .pref-tag.liked    { background: var(--cds-support-success-bg); border-color: transparent; color: var(--cds-support-success); }
+  .pref-tag.disliked { background: var(--cds-support-error-bg);   border-color: transparent; color: var(--cds-support-error); }
+  .pref-tag.actor    { background: var(--cds-support-info-bg);    border-color: transparent; color: var(--cds-link-primary); }
+  .pref-tag.director { background: var(--cds-support-warning-bg); border-color: transparent; color: var(--cds-text-primary); }
+  .pref-tag.mood     { background: var(--cds-support-info-bg);    border-color: transparent; color: var(--cds-link-primary); }
 
   /* Recommendation cards */
   .rec-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-    transition: border-color 0.2s;
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-05);
+    transition: background var(--cds-dur-mod) var(--cds-ease-productive);
   }
-  .rec-card:hover { border-color: var(--accent); }
+  .rec-card:hover { background: var(--cds-layer-hover); }
   .rec-card-header {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 8px;
+    gap: var(--cds-sp-04);
+    margin-bottom: var(--cds-sp-03);
   }
   .rec-number {
-    background: var(--accent);
+    background: var(--cds-interactive);
     color: #fff;
     width: 26px; height: 26px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 0.75rem;
+    font-weight: 600;
     flex-shrink: 0;
+    font-family: var(--cds-font-mono);
   }
   .rec-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--cds-text-primary);
     line-height: 1.3;
   }
   .rec-meta {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 2px;
+    font-size: 0.6875rem;
+    color: var(--cds-text-secondary);
+    margin-top: var(--cds-sp-01);
     display: flex;
-    gap: 8px;
+    gap: var(--cds-sp-03);
     flex-wrap: wrap;
     align-items: center;
   }
   .rec-meta .badge {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    background: var(--cds-layer-accent);
+    border: 1px solid var(--cds-border-subtle);
     padding: 1px 7px;
-    font-size: 11px;
+    font-size: 0.6875rem;
+    font-family: var(--cds-font-mono);
   }
   .rec-reason {
-    font-size: 13px;
-    color: #c0c8d8;
+    font-size: 0.8125rem;
+    color: var(--cds-text-secondary);
     line-height: 1.6;
-    padding-left: 38px;
+    padding-left: 42px;
   }
-</style>
-</head>
-<body>
 
-<header>
-  <div class="header-icon">🎬</div>
-  <h1>Movie <span>Recommender</span></h1>
-  <div class="status-badge">
+  /* Status dot in header */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--cds-support-success);
+    animation: pulse 2s infinite;
+  }
+  .status-dot.busy { background: var(--cds-interactive); animation: none; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+</style>"""
+
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Movie&nbsp;Recommender</div>
+  <div class="cds-header__actions">
     <div class="status-dot" id="statusDot"></div>
-    <span id="statusText">Ready</span>
+    <span class="cds-helper-01" id="statusText">Ready</span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Movie Recommender.</strong> Describe your taste — genres, films, mood — and get a personalised set of watch-next picks with a reason for each.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">🎬 Movie picks · LLM</span>
+    <span class="tool-pill">📚 Wikipedia</span>
+    <span class="tool-pill">🗂 Taste profile</span>
+  </div>
+</div>
 
 <main>
   <!-- Left: Chat panel -->
@@ -394,15 +395,12 @@ _HTML = """<!DOCTYPE html>
     <div class="panel-title">Chat with the agent</div>
 
     <div class="chips">
-      <div class="chip" onclick="sendChip(this)">I love thriller movies</div>
-      <div class="chip" onclick="sendChip(this)">My favourite film is Inception</div>
-      <div class="chip" onclick="sendChip(this)">I enjoy Christopher Nolan's work</div>
-      <div class="chip" onclick="sendChip(this)">Recommend me something like Interstellar</div>
-      <div class="chip" onclick="sendChip(this)">I'm in the mood for something uplifting</div>
-      <div class="chip" onclick="sendChip(this)">I love sci-fi and action films</div>
-      <div class="chip" onclick="sendChip(this)">Suggest 5 movies for tonight</div>
-      <div class="chip" onclick="sendChip(this)">I dislike horror movies</div>
-      <div class="chip" onclick="sendChip(this)">My favourite actor is Tom Hanks</div>
+      <div class="chip" onclick="sendChip(this)">I love Inception and sci-fi thrillers — recommend 5 for tonight</div>
+      <div class="chip" onclick="sendChip(this)">Something like Interstellar but more uplifting</div>
+      <div class="chip" onclick="sendChip(this)">I enjoy Christopher Nolan and Denis Villeneuve — what should I watch?</div>
+      <div class="chip" onclick="sendChip(this)">Cozy feel-good movies for a rainy night, nothing scary</div>
+      <div class="chip" onclick="sendChip(this)">Fast, intense action films like Mad Max</div>
+      <div class="chip" onclick="sendChip(this)">I dislike horror but love Tom Hanks dramas</div>
     </div>
 
     <div class="messages" id="messages"></div>
@@ -411,7 +409,7 @@ _HTML = """<!DOCTYPE html>
       <input
         type="text"
         id="userInput"
-        placeholder="Tell me what you enjoy watching…"
+        placeholder="Describe what you like — genres, films, mood — in one message…"
         onkeydown="if(event.key==='Enter') sendMessage()"
       />
       <button class="btn" id="sendBtn" onclick="sendMessage()">Send</button>
@@ -625,6 +623,14 @@ _HTML = """<!DOCTYPE html>
     sendMessage();
   }
 </script>
-</body>
-</html>
 """
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Movie Recommender")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)

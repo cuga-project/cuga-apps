@@ -143,6 +143,7 @@ def _web(port: int):
 
     @app.post("/ask")
     async def ask(req: AskRequest):
+        from _usage import track_utterance; track_utterance(req.question)
         thread_id = str(uuid.uuid4())
         try:
             agent = _get_agent()
@@ -156,6 +157,11 @@ def _web(port: int):
     async def health():
         return {"status": "ok"}
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

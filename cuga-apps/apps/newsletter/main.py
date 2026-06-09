@@ -357,6 +357,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         feeds = _load_store().get("feeds", [])
         if feeds:
             feed_list = "\n".join(f"- {url}" for url in feeds)
@@ -364,7 +365,7 @@ def _web(port: int) -> None:
         else:
             prompt = req.question
         try:
-            result = await _agent.invoke(prompt, thread_id="query")
+            result = await _agent.invoke(prompt, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
@@ -437,6 +438,11 @@ def _web(port: int) -> None:
         return _WEB_HTML
 
     print(f"\n  Newsletter Intelligence · CugaAgent  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -450,61 +456,108 @@ _WEB_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Newsletter Intelligence · CugaAgent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root{
+  /* Carbon White (g10) */
+  --cds-background:#ffffff;
+  --cds-layer-01:#f4f4f4;
+  --cds-layer-02:#ffffff;
+  --cds-layer-hover:#e8e8e8;
+  --cds-layer-accent:#e0e0e0;
+  --cds-field-01:#f4f4f4;
+  --cds-border-subtle:#e0e0e0;
+  --cds-border-strong:#8d8d8d;
+  --cds-text-primary:#161616;
+  --cds-text-secondary:#525252;
+  --cds-text-helper:#6f6f6f;
+  --cds-text-placeholder:#a8a8a8;
+  --cds-link-primary:#0f62fe;
+  --cds-link-hover:#0043ce;
+  /* IBM Blue interaction ramp */
+  --cds-interactive:#0f62fe;
+  --cds-button-primary:#0f62fe;
+  --cds-button-primary-hover:#0353e9;
+  --cds-button-primary-active:#002d9c;
+  --cds-focus:#0f62fe;
+  --cds-support-error:#da1e28;
+  --cds-support-success:#24a148;
+  --cds-support-warning:#f1c21b;
+  --cds-support-info:#0043ce;
+  --cds-font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --cds-font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f0f13;color:#e2e2e8;min-height:100vh;padding:40px 24px 80px}
+body{font-family:var(--cds-font-sans);background:var(--cds-background);color:var(--cds-text-primary);min-height:100vh;padding:40px 24px 80px;-webkit-font-smoothing:antialiased;letter-spacing:.16px}
+::selection{background:var(--cds-interactive);color:#fff}
 header{text-align:center;margin-bottom:32px}
-h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px}
-.sub{font-size:13px;color:#6b6b7e}.sub span{color:#7c7cf8;font-weight:500}
+/* App intro band: one-line blurb + the tools this app uses */
+.app-intro{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;background:var(--cds-layer-01);border-bottom:1px solid var(--cds-border-subtle);max-width:1060px;margin:0 auto 24px}
+.app-intro__blurb{font-size:13px;color:var(--cds-text-secondary);line-height:1.5;max-width:48rem}
+.app-intro__blurb strong{color:var(--cds-text-primary);font-weight:600}
+.app-intro__tools{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.app-intro__tools .tools-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--cds-text-helper);margin-right:4px}
+.tool-pill{font-size:11px;color:var(--cds-text-secondary);background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:999px;padding:3px 10px;white-space:nowrap}
+h1{font-size:22px;font-weight:600;color:var(--cds-text-primary);margin-bottom:4px;letter-spacing:0}
+.sub{font-size:13px;color:var(--cds-text-secondary)}.sub span{color:var(--cds-link-primary);font-weight:500}
 .layout{display:grid;grid-template-columns:290px 1fr;gap:20px;max-width:1060px;margin:0 auto;align-items:start}
 @media(max-width:720px){.layout{grid-template-columns:1fr}}
-.card{background:#1a1a24;border:1px solid #2e2e40;border-radius:12px;padding:18px;margin-bottom:16px}
+.card{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);border-radius:0;padding:18px;margin-bottom:16px}
 .card:last-child{margin-bottom:0}
-.card-title{font-size:11px;font-weight:700;color:#6b6b7e;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
-.section-label{font-size:11px;font-weight:600;color:#4a4a60;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px;padding-top:16px;border-top:1px solid #1e1e2e}
+.card-title{font-size:11px;font-weight:600;color:var(--cds-text-secondary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.section-label{font-size:11px;font-weight:600;color:var(--cds-text-helper);letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px;padding-top:16px;border-top:1px solid var(--cds-border-subtle)}
 .section-label:first-child{margin-top:0;padding-top:0;border-top:none}
-label{display:block;font-size:11px;color:#6b6b7e;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
-input[type=text],input[type=password],select{width:100%;background:#0f0f13;border:1px solid #2e2e40;border-radius:7px;padding:8px 12px;font-size:13px;color:#e2e2e8;outline:none;transition:border-color .15s}
-input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-input::placeholder{color:#4a4a60}
+label{display:block;font-size:11px;color:var(--cds-text-secondary);margin-bottom:4px;font-weight:400;text-transform:uppercase;letter-spacing:.05em}
+input[type=text],input[type=password],select{width:100%;background:var(--cds-field-01);border:none;border-bottom:1px solid var(--cds-border-strong);border-radius:0;padding:8px 12px;font-size:13px;color:var(--cds-text-primary);font-family:var(--cds-font-sans);outline:none;transition:outline .11s,background .11s}
+input:focus,select:focus{outline:2px solid var(--cds-focus);outline-offset:-2px}
+input::placeholder{color:var(--cds-text-placeholder)}
 .field{margin-bottom:10px}
 .row{display:flex;gap:8px;margin-top:10px}.row>*{flex:1}
-button{background:#6366f1;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap;width:100%;margin-top:10px}
-button:hover{background:#4f52d9}button:disabled{opacity:.45;cursor:default}
-button.secondary{background:#1e1e2e;border:1px solid #2e2e40;color:#94a3b8}
-button.secondary:hover{background:#252535}
-button.danger-sm{background:transparent;border:1px solid #7f1d1d;color:#f87171;width:auto;margin:0;padding:3px 8px;font-size:12px;border-radius:5px}
-button.danger-sm:hover{background:#7f1d1d}
-button.btn-sm{background:#1e1e2e;border:1px solid #2e2e40;color:#94a3b8;width:auto;margin:0;padding:3px 8px;font-size:12px;border-radius:5px}
-button.btn-sm:hover{background:#252535}
-.status-row{display:flex;align-items:center;gap:7px;margin-top:10px;padding:8px 12px;background:#0f0f13;border:1px solid #1e1e2e;border-radius:7px;font-size:12px}
+button{background:var(--cds-button-primary);color:#fff;border:1px solid transparent;border-radius:0;padding:8px 16px;font-size:13px;font-weight:400;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap;width:100%;margin-top:10px;font-family:var(--cds-font-sans)}
+button:hover{background:var(--cds-button-primary-hover)}
+button:active{background:var(--cds-button-primary-active)}
+button:focus-visible,button:focus{outline:2px solid var(--cds-focus);outline-offset:-2px;box-shadow:inset 0 0 0 1px #fff}
+button:disabled{opacity:.45;cursor:default}
+button.secondary{background:var(--cds-layer-accent);border:1px solid var(--cds-border-subtle);color:var(--cds-text-primary)}
+button.secondary:hover{background:var(--cds-layer-hover)}
+button.danger-sm{background:transparent;border:1px solid var(--cds-support-error);color:var(--cds-support-error);width:auto;margin:0;padding:3px 8px;font-size:12px;border-radius:0}
+button.danger-sm:hover{background:var(--cds-support-error);color:#fff}
+button.btn-sm{background:var(--cds-layer-accent);border:1px solid var(--cds-border-subtle);color:var(--cds-text-primary);width:auto;margin:0;padding:3px 8px;font-size:12px;border-radius:0}
+button.btn-sm:hover{background:var(--cds-layer-hover)}
+.status-row{display:flex;align-items:center;gap:7px;margin-top:10px;padding:8px 12px;background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:0;font-size:12px}
 .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.dot.on{background:#10b981;box-shadow:0 0 5px #10b981}.dot.off{background:#374151}
-.status-text{color:#6b6b7e;flex:1}.status-text strong{color:#e2e2e8}
+.dot.on{background:var(--cds-support-success);box-shadow:0 0 5px var(--cds-support-success)}.dot.off{background:var(--cds-border-strong)}
+.status-text{color:var(--cds-text-secondary);flex:1}.status-text strong{color:var(--cds-text-primary)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{background:#111827;border:1px solid #1e293b;border-radius:6px;padding:5px 10px;font-size:12px;color:#94a3b8;cursor:pointer;transition:background .1s}
-.chip:hover{background:#1e293b;color:#e2e8f0}
-.result{margin-top:14px;padding:14px;background:#111827;border:1px solid #1e293b;border-radius:9px;font-size:14px;line-height:1.7;color:#e2e8f0;display:none}
+.chip{background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:.9375rem;padding:5px 10px;font-size:12px;color:var(--cds-text-secondary);cursor:pointer;transition:all .15s}
+.chip:hover{background:var(--cds-interactive);border-color:var(--cds-interactive);color:#fff}
+.result{margin-top:14px;padding:14px;background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:0;font-size:14px;line-height:1.7;color:var(--cds-text-primary);display:none}
 .result.visible{display:block}
-.thinking{color:#6b6b7e;font-style:italic;font-size:13px}
+.result strong{color:var(--cds-text-primary);font-weight:600}
+.thinking{color:var(--cds-text-secondary);font-style:italic;font-size:13px}
 .spinner{display:inline-block;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .fadein{animation:fadein .2s ease}
-.feed-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e1e2e;gap:8px}
+.feed-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--cds-border-subtle);gap:8px}
 .feed-item:last-child{border-bottom:none}
-.feed-url{font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.alert-row{padding:8px 10px;background:#0f0f13;border:1px solid #1e1e2e;border-radius:7px;margin-bottom:6px}
+.feed-url{font-size:12px;color:var(--cds-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.alert-row{padding:8px 10px;background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:0;margin-bottom:6px}
 .alert-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .alert-btns{display:flex;gap:4px;margin-top:6px}
-.badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
-.badge-daily{background:#1e1e3e;color:#818cf8}
-.badge-hourly{background:#1e2e1e;color:#34d399}
-.badge-on_demand{background:#1e1e1e;color:#6b6b7e}
-.log-entry{padding:8px 10px;background:#0f0f13;border:1px solid #1e1e2e;border-radius:7px;margin-bottom:6px;font-size:12px}
-.log-meta{color:#6b6b7e;margin-bottom:4px}
-.log-body{color:#94a3b8;line-height:1.5;white-space:pre-wrap;word-break:break-word}
-.log-body.alert-hit{color:#fbbf24}
+.badge{font-size:10px;padding:2px 7px;border-radius:.9375rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.badge-daily{background:rgba(0,67,206,0.12);color:var(--cds-link-primary)}
+.badge-hourly{background:rgba(36,161,72,0.12);color:var(--cds-support-success)}
+.badge-on_demand{background:var(--cds-layer-accent);color:var(--cds-text-secondary)}
+.log-entry{padding:8px 10px;background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);border-radius:0;margin-bottom:6px;font-size:12px}
+.log-meta{color:var(--cds-text-secondary);margin-bottom:4px}
+.log-body{color:var(--cds-text-secondary);line-height:1.5;white-space:pre-wrap;word-break:break-word;font-family:var(--cds-font-mono)}
+.log-body.alert-hit{color:var(--cds-support-warning);color:#8a6d00}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-thumb{background:var(--cds-border-strong)}
+*::-webkit-scrollbar-track{background:transparent}
 </style>
 </head>
 <body>
@@ -512,6 +565,20 @@ button.btn-sm:hover{background:#252535}
   <h1>Newsletter Intelligence</h1>
   <p class="sub">Powered by <span>CugaAgent</span> · live RSS feeds</p>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Newsletter Intelligence.</strong> Pulls live articles from your RSS feeds to summarize the latest news, answer free-form questions, and run scheduled keyword alerts that email you on a match.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📰 RSS feeds</span>
+    <span class="tool-pill">🔎 Feed search</span>
+    <span class="tool-pill">📄 Page fetch</span>
+    <span class="tool-pill">🔔 Scheduled alerts</span>
+    <span class="tool-pill">📧 Email · SMTP</span>
+  </div>
+</div>
 
 <div class="layout">
 
@@ -602,7 +669,7 @@ async function loadFeeds() {
 function renderFeedList(feeds) {
   const el = document.getElementById('feedList')
   if (!feeds.length) {
-    el.innerHTML = '<div style="font-size:12px;color:#4a4a60;padding:4px 0">No feeds configured yet</div>'
+    el.innerHTML = '<div style="font-size:12px;color:var(--cds-text-placeholder);padding:4px 0">No feeds configured yet</div>'
     return
   }
   el.innerHTML = feeds.map(url => {
@@ -709,9 +776,9 @@ function renderAlertList(alerts) {
     return `<div class="alert-row">
       <div class="alert-meta">
         <span class="dot ${dotClass}"></span>
-        <strong style="font-size:13px;color:#e2e2e8">${a.keywords}</strong>
+        <strong style="font-size:13px;color:var(--cds-text-primary)">${a.keywords}</strong>
         ${badge}
-        <span style="font-size:11px;color:#4a4a60">· ${lastRun}</span>
+        <span style="font-size:11px;color:var(--cds-text-placeholder)">· ${lastRun}</span>
       </div>
       <div class="alert-btns">
         <button class="btn-sm" data-run-id="${a.id}" onclick="runAlert('${a.id}')">Run Now</button>
@@ -725,14 +792,14 @@ function renderAlertList(alerts) {
 function renderAlertLog(entries) {
   const el = document.getElementById('recentLog')
   if (!entries.length) {
-    el.innerHTML = '<div style="font-size:12px;color:#4a4a60;padding:4px 0">No recent outputs</div>'
+    el.innerHTML = '<div style="font-size:12px;color:var(--cds-text-placeholder);padding:4px 0">No recent outputs</div>'
     return
   }
   el.innerHTML = entries.slice(0, 20).map(e => {
     const ts      = new Date(e.timestamp).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})
     const isAlert = e.result.startsWith('ALERT')
     const preview = e.result.slice(0, 240)
-    const matchTag = isAlert ? ' · <span style="color:#fbbf24">match</span>' : ''
+    const matchTag = isAlert ? ' · <span style="color:#8a6d00">match</span>' : ''
     return `<div class="log-entry">
       <div class="log-meta">${ts} · <strong>${e.keywords}</strong>${matchTag}</div>
       <div class="log-body${isAlert ? ' alert-hit' : ''}">${preview}${e.result.length > 240 ? '…' : ''}</div>

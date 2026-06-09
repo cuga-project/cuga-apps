@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # =====================================================================
+# ⚠  LEGACY / DEPRECATED — NOT part of the current deployment model.
+#
+# This is the OLD per-app / per-UI fan-out CE deployment. It is SUPERSEDED
+# by the two current deployment sets:
+#   - build/             → all-in-one `cuga-agent-apps` (UI + apps + MCP)
+#   - build/mcp_servers/ → standalone `cuga-apps-mcp-*` servers
+# Kept for reference only; do not use for new deployments.
+# =====================================================================
 # deploy_umbrella_ui_to_ce.sh — deploy the umbrella UI to IBM Code Engine.
 #
 # Sibling of:
 #   build_ui_image.sh   — builds + pushes the UI image to Docker Hub
 #   deploy_ui.sh        — pushes to Docker Hub (HF Space sync currently disabled)
-#   deploy_mcp.sh       — deploys 7 MCP servers + tool-explorer to CE (ICR)
+#   ../build/mcp_servers/deploy_mcp.sh  — deploys 7 MCP servers + tool-explorer to CE (ICR)
 #   deploy_apps.sh      — deploys 21 cuga-apps to CE (ICR)
 #
 # What this script does:

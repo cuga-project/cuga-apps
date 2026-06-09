@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import sys
+import uuid
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -226,8 +227,9 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         try:
-            result = await agent.invoke(req.question, thread_id="chat")
+            result = await agent.invoke(req.question, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             log.exception("Agent error")
@@ -241,6 +243,11 @@ def _web(port: int) -> None:
     async def ui():
         return HTMLResponse(_HTML)
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -248,85 +255,121 @@ def _web(port: int) -> None:
 # HTML UI
 # ---------------------------------------------------------------------------
 
-_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hiking Research</title>
-<style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:#0f1117;color:#e2e8f0;min-height:100vh}
+from _carbon import carbon_head, carbon_css
 
-  header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
-    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-  header h1{font-size:16px;font-weight:700;color:#fff}
-  .badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
-  .badge-green{background:#052e16;color:#4ade80}
-  .badge-blue{background:#1e3a5f;color:#60a5fa}
-  .spacer{flex:1}
-  .hdr-hint{font-size:11px;color:#4b5563}
+_APP_CSS = """<style>
+  body{background:var(--cds-background);color:var(--cds-text-primary);min-height:100vh}
 
-  .layout{display:grid;grid-template-columns:380px 1fr;gap:20px;
-    max-width:1400px;margin:0 auto;padding:20px 24px}
+  .hdr-hint{font-size:0.75rem;color:#c6c6c6}
 
-  .card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;
-    overflow:hidden;margin-bottom:16px}
-  .card-header{padding:12px 16px 10px;border-bottom:1px solid #2d2d4a;
-    display:flex;align-items:center;gap:8px}
-  .card-header h2{font-size:13px;font-weight:600;color:#c5cae9}
-  .card-body{padding:16px}
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
+  }
+
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:var(--cds-sp-06);
+    max-width:1400px;margin:0 auto;padding:var(--cds-sp-06) var(--cds-sp-06)}
+  @media (max-width:820px){.layout{grid-template-columns:1fr}}
+
+  .card{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+    overflow:hidden;margin-bottom:var(--cds-sp-05)}
+  .card-header{padding:var(--cds-sp-04) var(--cds-sp-05);border-bottom:1px solid var(--cds-border-subtle);
+    display:flex;align-items:center;gap:var(--cds-sp-03)}
+  .card-header h2{font-size:0.875rem;font-weight:600;color:var(--cds-text-primary)}
+  .card-body{padding:var(--cds-sp-05)}
 
   /* Chat */
-  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
-  .chip{padding:4px 10px;border-radius:12px;font-size:11px;background:#1f2937;
-    border:1px solid #374151;color:#9ca3af;cursor:pointer;transition:all .15s}
-  .chip:hover{background:#16a34a;border-color:#16a34a;color:#fff}
-  .chat-row{display:flex;gap:8px}
-  .chat-input{flex:1;padding:8px 12px;border-radius:7px;font-size:13px;
-    background:#0f1117;border:1px solid #374151;color:#e2e8f0;outline:none}
-  .chat-input:focus{border-color:#16a34a}
-  .chat-send{padding:8px 16px;border-radius:7px;font-size:13px;cursor:pointer;
-    border:none;background:#16a34a;color:#fff;white-space:nowrap}
-  .chat-send:hover{background:#15803d}
-  .chat-send:disabled{background:#374151;color:#6b7280;cursor:default}
-  .chat-result{margin-top:12px;padding:12px;border-radius:7px;background:#0f1117;
-    border:1px solid #2d2d4a;font-size:13px;line-height:1.6;color:#d1d5db;
+  .chips{display:flex;flex-wrap:wrap;gap:var(--cds-sp-03);margin-bottom:var(--cds-sp-04)}
+  .chip{padding:var(--cds-sp-02) var(--cds-sp-04);border-radius:0.9375rem;font-size:0.75rem;
+    background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);
+    color:var(--cds-text-secondary);cursor:pointer;
+    transition:all var(--cds-dur-mod) var(--cds-ease-productive)}
+  .chip:hover{background:var(--cds-interactive);border-color:var(--cds-interactive);color:#fff}
+  .chat-row{display:flex;gap:0}
+  .chat-input{flex:1}
+  .chat-send{flex:none;white-space:nowrap;min-width:8rem}
+  .chat-result{margin-top:var(--cds-sp-04);padding:var(--cds-sp-05);
+    background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);
+    font-size:0.875rem;line-height:1.6;color:var(--cds-text-primary);
     white-space:pre-wrap;display:none}
   .chat-result.vis{display:block}
+  .chat-result a{color:var(--cds-link-primary)}
+  .chat-result a:hover{color:var(--cds-link-hover);text-decoration:underline}
 
   /* Hike cards */
-  .hike-grid{display:flex;flex-direction:column;gap:10px}
-  .hike-card{background:#0f1117;border:1px solid #2d2d4a;border-radius:8px;padding:14px}
-  .hike-card:hover{border-color:#374151}
-  .hike-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
-  .hike-name{font-size:14px;font-weight:600;color:#f1f5f9;line-height:1.3;text-decoration:none}
-  .hike-name:hover{color:#4ade80;text-decoration:underline}
-  .hike-badges{display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0}
-  .diff-easy{background:#052e16;color:#4ade80;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
-  .diff-moderate{background:#431407;color:#fb923c;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
-  .diff-hard{background:#450a0a;color:#f87171;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
-  .diff-unknown{background:#1f2937;color:#9ca3af;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
-  .kid-badge{background:#1e1b4b;color:#a5b4fc;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
-  .hike-meta{display:flex;gap:14px;font-size:11px;color:#6b7280;margin-bottom:6px;flex-wrap:wrap}
-  .hike-desc{font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:8px}
-  .hike-review-btn{font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;
-    border:1px solid #374151;background:#1f2937;color:#9ca3af}
-  .hike-review-btn:hover{background:#16a34a;border-color:#16a34a;color:#fff}
+  .hike-grid{display:flex;flex-direction:column;gap:var(--cds-sp-04)}
+  .hike-card{background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);
+    padding:var(--cds-sp-05);transition:background var(--cds-dur-mod) var(--cds-ease-productive)}
+  .hike-card:hover{background:var(--cds-layer-hover)}
+  .hike-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--cds-sp-03);margin-bottom:var(--cds-sp-03)}
+  .hike-name{font-size:0.875rem;font-weight:600;color:var(--cds-text-primary);line-height:1.3;text-decoration:none}
+  .hike-name:hover{color:var(--cds-link-primary);text-decoration:underline}
+  .hike-badges{display:flex;gap:var(--cds-sp-02);flex-wrap:wrap;flex-shrink:0}
+  .diff-easy,.diff-moderate,.diff-hard,.diff-unknown,.kid-badge{
+    display:inline-flex;align-items:center;height:1.5rem;padding:0 var(--cds-sp-03);
+    border-radius:0.9375rem;font-size:0.75rem;font-weight:400;white-space:nowrap}
+  .diff-easy{background:var(--cds-support-success-bg);color:var(--cds-support-success)}
+  .diff-moderate{background:var(--cds-support-warning-bg);color:var(--cds-text-primary)}
+  .diff-hard{background:var(--cds-support-error-bg);color:var(--cds-support-error)}
+  .diff-unknown{background:var(--cds-layer-accent);color:var(--cds-text-secondary)}
+  .kid-badge{background:var(--cds-support-info-bg);color:var(--cds-link-primary)}
+  .hike-meta{display:flex;gap:var(--cds-sp-05);font-size:0.75rem;color:var(--cds-text-secondary);margin-bottom:var(--cds-sp-03);flex-wrap:wrap}
+  .hike-desc{font-size:0.8125rem;color:var(--cds-text-secondary);line-height:1.5;margin-bottom:var(--cds-sp-03)}
+  .hike-review-btn{font-size:0.75rem;padding:var(--cds-sp-02) var(--cds-sp-04);cursor:pointer;
+    border:1px solid var(--cds-interactive);background:transparent;color:var(--cds-interactive);
+    transition:all var(--cds-dur-mod) var(--cds-ease-productive)}
+  .hike-review-btn:hover{background:var(--cds-interactive);color:#fff}
+  .hike-review-btn:focus-visible{outline:2px solid var(--cds-focus);outline-offset:-2px}
 
-  .empty-state{font-size:13px;color:#4b5563;text-align:center;padding:48px 20px;line-height:1.8}
-  .empty-state strong{color:#6b7280;display:block;font-size:15px;margin-bottom:4px}
-</style>
-</head>
-<body>
+  .refresh-btn{margin-left:auto;cursor:pointer}
 
-<header>
-  <h1>🥾 Hiking Research</h1>
-  <span class="badge badge-green" id="count-badge">0 trails</span>
-  <div class="spacer"></div>
-  <span class="hdr-hint">OpenStreetMap trails · Tavily reviews</span>
+  .empty-state{font-size:0.875rem;color:var(--cds-text-placeholder);text-align:center;padding:var(--cds-sp-09) var(--cds-sp-05);line-height:1.8}
+  .empty-state strong{color:var(--cds-text-secondary);display:block;font-size:1rem;margin-bottom:var(--cds-sp-02)}
+</style>"""
+
+_BODY = """
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Hiking&nbsp;Research</div>
+  <span class="cds-tag cds-tag--green" id="count-badge">0 trails</span>
+  <div class="cds-header__actions">
+    <span class="hdr-hint">OpenStreetMap trails · Tavily reviews</span>
+  </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Hiking Research.</strong> Discover and compare trails near any place, filter by difficulty and kid-friendliness, and get AI summaries of hiker reviews from the web.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📍 Geocoding · OSM</span>
+    <span class="tool-pill">🥾 Trails · Overpass/OSM</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+  </div>
+</div>
 
 <div class="layout">
 
@@ -346,10 +389,10 @@ _HTML = """<!DOCTYPE html>
           <span class="chip" onclick="ask(this.textContent)">Show hikes within 40 km of Edinburgh</span>
         </div>
         <div class="chat-row">
-          <input class="chat-input" id="chat-input" type="text"
+          <input class="cds-input chat-input" id="chat-input" type="text"
             placeholder="Find hikes near… filter by difficulty…"
             onkeydown="if(event.key==='Enter')ask()">
-          <button class="chat-send" id="chat-send" onclick="ask()">Send</button>
+          <button class="cds-btn chat-send" id="chat-send" onclick="ask()">Send</button>
         </div>
         <div class="chat-result" id="chat-result"></div>
       </div>
@@ -361,7 +404,7 @@ _HTML = """<!DOCTYPE html>
     <div class="card">
       <div class="card-header">
         <h2>🗺️ Trails Found</h2>
-        <button class="badge badge-blue" style="margin-left:auto;cursor:pointer;border:none"
+        <button class="cds-btn cds-btn--tertiary cds-btn--sm refresh-btn"
           onclick="loadHikes()">↺ Refresh</button>
       </div>
       <div class="card-body">
@@ -384,7 +427,7 @@ function mdToHtml(text) {
   return esc(text)
     .replace(/[*][*](.+?)[*][*]/g, '<strong>$1</strong>')
     .replace(/[*](.+?)[*]/g,       '<em>$1</em>')
-    .replace(/`(.+?)`/g,           '<code style="background:#1f2937;padding:1px 4px;border-radius:3px">$1</code>')
+    .replace(/`(.+?)`/g,           '<code style="background:var(--cds-layer-accent);color:var(--cds-link-primary);padding:1px 5px;font-family:var(--cds-font-mono);font-size:0.75rem">$1</code>')
     .replace(/^#{1,3} (.+)$/gm,    '<strong>$1</strong>')
     .replace(/^[ \\t]*[-*] (.+)$/gm, '&nbsp;&nbsp;• $1')
     .replace(/\\n/g, '<br>');
@@ -410,7 +453,7 @@ async function ask(question) {
     await loadHikes();
     // second refresh after a short delay in case the agent's tool ran late
     setTimeout(loadHikes, 1200);
-  } catch(e) { res.innerHTML = '<span style="color:#f87171">Error: ' + esc(e.message) + '</span>'; }
+  } catch(e) { res.innerHTML = '<span style="color:var(--cds-support-error)">Error: ' + esc(e.message) + '</span>'; }
   btn.disabled = false; btn.textContent = 'Send';
 }
 
@@ -479,8 +522,17 @@ function esc(s) {
 setInterval(loadHikes, 15000);
 loadHikes();
 </script>
-</body>
-</html>"""
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Hiking Research")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)
 
 
 # ---------------------------------------------------------------------------

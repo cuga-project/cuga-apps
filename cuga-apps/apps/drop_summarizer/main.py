@@ -46,6 +46,8 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from _carbon import carbon_head, carbon_css  # noqa: E402  (apps root on sys.path)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -305,6 +307,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         if req.filename and req.filename in _pending_files:
             return JSONResponse(
                 {"error": f"'{req.filename}' is still being processed. Please wait a moment."},
@@ -351,6 +354,11 @@ def _web(port: int) -> None:
     async def ui():
         return HTMLResponse(_HTML)
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -358,123 +366,107 @@ def _web(port: int) -> None:
 # HTML UI
 # ---------------------------------------------------------------------------
 
-_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Drop Summarizer</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+_APP_CSS = """<style>
+  body { background: var(--cds-background); }
 
-  header { background: #1a1a2e; border-bottom: 1px solid #2d2d4a;
-    padding: 14px 28px; display: flex; align-items: center; gap: 12px;
-    position: sticky; top: 0; z-index: 10; }
-  header h1 { font-size: 16px; font-weight: 700; color: #fff; }
-  .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px;
-    font-weight: 600; text-transform: uppercase; }
-  .badge-green { background: #14532d; color: #4ade80; }
-  .badge-gray  { background: #374151; color: #9ca3af; }
-  .spacer { flex: 1; }
-  .hdr-stat { font-size: 11px; color: #4b5563; }
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: var(--cds-sp-06);
+    max-width: 1280px; margin: 0 auto; padding: var(--cds-sp-06) var(--cds-sp-06); }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
 
-  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px;
-    max-width: 1280px; margin: 0 auto; padding: 20px 24px; }
+  .card { background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle);
+    overflow: hidden; margin-bottom: var(--cds-sp-05); }
+  .card-header { padding: var(--cds-sp-04) var(--cds-sp-05);
+    border-bottom: 1px solid var(--cds-border-subtle);
+    display: flex; align-items: center; gap: var(--cds-sp-03); }
+  .card-header h2 { font-size: 0.875rem; font-weight: 600; color: var(--cds-text-primary); }
+  .card-body { padding: var(--cds-sp-05); }
 
-  .card { background: #1a1a2e; border: 1px solid #2d2d4a; border-radius: 10px;
-    overflow: hidden; margin-bottom: 16px; }
-  .card-header { padding: 12px 16px 10px; border-bottom: 1px solid #2d2d4a;
-    display: flex; align-items: center; gap: 8px; }
-  .card-header h2 { font-size: 13px; font-weight: 600; color: #c5cae9; }
-  .card-body { padding: 16px; }
+  .hdr-stat { font-size: 0.75rem; color: var(--cds-text-helper); }
 
   /* Drop zone */
-  .drop-zone { border: 2px dashed #374151; border-radius: 8px;
-    padding: 28px 16px; text-align: center; cursor: pointer;
-    transition: all .2s; position: relative; overflow: hidden; }
-  .drop-zone:hover, .drop-zone.drag-over { border-color: #2563eb;
-    background: rgba(37,99,235,.08); }
+  .drop-zone { border: 1px dashed var(--cds-border-strong); border-radius: 0;
+    padding: var(--cds-sp-07) var(--cds-sp-05); text-align: center; cursor: pointer;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive); position: relative; overflow: hidden;
+    background: var(--cds-field-01); }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--cds-interactive);
+    background: var(--cds-support-info-bg); }
   .drop-zone input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%;
     opacity: 0; cursor: pointer; z-index: 2; }
-  .drop-zone .dz-icon { font-size: 32px; margin-bottom: 8px; }
-  .drop-zone p { font-size: 13px; color: #9ca3af; line-height: 1.5; }
-  .drop-zone small { font-size: 11px; color: #4b5563; }
+  .drop-zone .dz-icon { font-size: 28px; margin-bottom: var(--cds-sp-03); }
+  .drop-zone p { font-size: 0.875rem; color: var(--cds-text-secondary); line-height: 1.5; }
+  .drop-zone small { font-size: 0.75rem; color: var(--cds-text-helper); }
 
-  /* Settings rows */
-  .srow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .srow label { font-size: 12px; color: #9ca3af; min-width: 90px; }
-  input[type=text], input[type=password], input[type=email], input[type=number] {
-    flex: 1; padding: 5px 9px; border-radius: 5px; font-size: 12px;
-    background: #0f1117; border: 1px solid #374151; color: #e2e8f0; outline: none; }
-  input:focus { border-color: #2563eb; }
-  .btn { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
-    cursor: pointer; border: none; background: #2563eb; color: #fff;
-    transition: background .15s; }
-  .btn:hover { background: #1d4ed8; }
-  .btn:disabled { background: #374151; color: #6b7280; cursor: default; }
-  .btn-sm { padding: 3px 10px; font-size: 11px; }
-  .btn-ghost { background: #1f2937; border: 1px solid #374151; color: #9ca3af; }
-  .btn-ghost:hover { background: #374151; }
-  .save-ok { color: #4ade80; font-size: 11px; margin-left: 6px; display: none; }
-  .section-label { font-size: 11px; font-weight: 600; color: #6b7280;
-    text-transform: uppercase; letter-spacing: .5px; margin: 12px 0 6px; }
+  /* Buttons (Carbon) */
+  .btn { display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 var(--cds-sp-05); min-height: 2.5rem; border-radius: 0; border: 1px solid transparent;
+    font-family: var(--cds-font-sans); font-size: 0.875rem; font-weight: 400; letter-spacing: 0.16px;
+    cursor: pointer; background: var(--cds-button-primary); color: var(--cds-text-on-color);
+    transition: background var(--cds-dur-mod) var(--cds-ease-productive); }
+  .btn:hover { background: var(--cds-button-primary-hover); }
+  .btn:active { background: var(--cds-button-primary-active); }
+  .btn:focus, .btn:focus-visible { outline: 2px solid var(--cds-focus); outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px var(--cds-focus-inset); }
+  .btn:disabled { background: var(--cds-layer-accent); color: var(--cds-text-placeholder);
+    cursor: default; box-shadow: none; }
+  .btn-sm { min-height: 2rem; padding: 0 var(--cds-sp-04); font-size: 0.75rem; }
+  .btn-ghost { background: transparent; border: 1px solid var(--cds-border-strong);
+    color: var(--cds-text-secondary); }
+  .btn-ghost:hover { background: var(--cds-layer-hover); color: var(--cds-text-primary); }
 
-  /* Tags input */
-  .tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
-    background: #1f2937; border: 1px solid #374151; border-radius: 10px;
-    font-size: 11px; color: #9ca3af; }
-  .tag-del { cursor: pointer; color: #6b7280; font-size: 12px; }
-  .tag-del:hover { color: #f87171; }
-  .kw-input-row { display: flex; gap: 6px; }
+  /* Chips (suggested questions) */
+  .chips { display: flex; flex-wrap: wrap; gap: var(--cds-sp-03); margin-bottom: var(--cds-sp-04); }
+  .chip { padding: var(--cds-sp-02) var(--cds-sp-04); border-radius: 0.9375rem; font-size: 0.75rem;
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle); color: var(--cds-text-secondary);
+    cursor: pointer; transition: all var(--cds-dur-fast) var(--cds-ease-productive); }
+  .chip:hover { background: var(--cds-interactive); border-color: var(--cds-interactive); color: #fff; }
 
   /* Chat */
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .chip { padding: 4px 10px; border-radius: 12px; font-size: 11px;
-    background: #1f2937; border: 1px solid #374151; color: #9ca3af;
-    cursor: pointer; transition: all .15s; }
-  .chip:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
-  .chat-row { display: flex; gap: 8px; }
-  .chat-input { flex: 1; padding: 8px 12px; border-radius: 7px; font-size: 13px;
-    background: #0f1117; border: 1px solid #374151; color: #e2e8f0; outline: none; }
-  .chat-input:focus { border-color: #2563eb; }
-  .chat-send { padding: 8px 16px; border-radius: 7px; font-size: 13px;
-    cursor: pointer; border: none; background: #2563eb; color: #fff; white-space: nowrap; }
-  .chat-send:hover { background: #1d4ed8; }
-  .chat-send:disabled { background: #374151; color: #6b7280; cursor: default; }
-  .chat-result { margin-top: 12px; padding: 12px; border-radius: 7px;
-    background: #0f1117; border: 1px solid #2d2d4a; font-size: 13px;
-    line-height: 1.6; color: #d1d5db; white-space: pre-wrap; display: none; }
+  .chat-row { display: flex; gap: 0; }
+  .chat-input { flex: 1; padding: 0 var(--cds-sp-05); min-height: 3rem; border-radius: 0; font-size: 0.875rem;
+    background: var(--cds-field-01); border: none; border-bottom: 1px solid var(--cds-border-strong);
+    color: var(--cds-text-primary); outline: none; font-family: var(--cds-font-sans); }
+  .chat-input::placeholder { color: var(--cds-text-placeholder); }
+  .chat-input:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+  .chat-send { padding: 0 var(--cds-sp-05); min-height: 3rem; border-radius: 0; font-size: 0.875rem;
+    cursor: pointer; border: 1px solid transparent; background: var(--cds-button-primary); color: #fff;
+    white-space: nowrap; flex: none; transition: background var(--cds-dur-mod) var(--cds-ease-productive); }
+  .chat-send:hover { background: var(--cds-button-primary-hover); }
+  .chat-send:focus, .chat-send:focus-visible { outline: 2px solid var(--cds-focus); outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px var(--cds-focus-inset); }
+  .chat-send:disabled { background: var(--cds-layer-accent); color: var(--cds-text-placeholder); cursor: default; }
+  .chat-result { margin-top: var(--cds-sp-04); padding: var(--cds-sp-05); border-radius: 0;
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle); font-size: 0.875rem;
+    line-height: 1.6; color: var(--cds-text-primary); white-space: pre-wrap; display: none; }
   .chat-result.vis { display: block; }
 
   /* Summary feed */
-  .sum-entry { border: 1px solid #2d2d4a; border-radius: 7px; margin-bottom: 10px; }
-  .sum-header { padding: 10px 14px; display: flex; align-items: center; gap: 8px;
-    cursor: pointer; }
-  .sum-header:hover { background: #1f2937; border-radius: 7px 7px 0 0; }
-  .sum-filename { font-size: 12px; font-weight: 600; color: #c5cae9; flex: 1;
+  .sum-entry { border: 1px solid var(--cds-border-subtle); border-radius: 0; margin-bottom: var(--cds-sp-04);
+    background: var(--cds-layer-02); }
+  .sum-header { padding: var(--cds-sp-04) var(--cds-sp-05); display: flex; align-items: center;
+    gap: var(--cds-sp-03); cursor: pointer; }
+  .sum-header:hover { background: var(--cds-layer-hover); }
+  .sum-filename { font-size: 0.8125rem; font-weight: 600; color: var(--cds-text-primary); flex: 1;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sum-time { font-size: 10px; color: #6b7280; }
-  .sum-wc { font-size: 10px; color: #4b5563; }
-  .sum-alert-badge { font-size: 10px; background: #451a03; color: #fbbf24;
-    padding: 1px 6px; border-radius: 8px; }
-  .sum-body { padding: 10px 14px; font-size: 12px; line-height: 1.6;
-    color: #d1d5db; white-space: pre-wrap; border-top: 1px solid #2d2d4a;
-    background: #0f1117; display: none; }
+  .sum-time { font-size: 0.6875rem; color: var(--cds-text-helper); }
+  .sum-wc { font-size: 0.6875rem; color: var(--cds-text-helper); }
+  .sum-alert-badge { font-size: 0.6875rem; background: var(--cds-support-warning-bg); color: var(--cds-text-primary);
+    padding: 1px 8px; border-radius: 0.9375rem; }
+  .sum-body { padding: var(--cds-sp-04) var(--cds-sp-05); font-size: 0.8125rem; line-height: 1.6;
+    color: var(--cds-text-secondary); white-space: pre-wrap; border-top: 1px solid var(--cds-border-subtle);
+    background: var(--cds-layer-01); display: none; }
   .sum-body.open { display: block; }
-  .sum-entry.sum-active { border-color: #2563eb; background: #0f1e3a; }
-  .sum-entry.sum-active .sum-header { background: #1e3a5f; border-radius: 6px 6px 0 0; }
-  .empty-state { font-size: 13px; color: #4b5563; text-align: center; padding: 32px; }
-</style>
-</head>
-<body>
+  .sum-entry.sum-active { border-color: var(--cds-interactive); }
+  .sum-entry.sum-active .sum-header { background: var(--cds-support-info-bg); }
+  .empty-state { font-size: 0.875rem; color: var(--cds-text-placeholder); text-align: center; padding: var(--cds-sp-08); }
+</style>"""
 
-<header>
-  <h1>📄 Drop Summarizer</h1>
-  <div class="spacer"></div>
-  <span class="hdr-stat" id="hdr-stat">—</span>
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Drop&nbsp;Summarizer</div>
+  <div class="cds-header__actions">
+    <span class="hdr-stat" id="hdr-stat">—</span>
+    <span class="cds-tag cds-tag--blue">Powered by CugaAgent</span>
+  </div>
 </header>
 
 <div class="layout">
@@ -496,9 +488,9 @@ _HTML = """<!DOCTYPE html>
           <div class="dz-icon">⬆️</div>
           <p>Drop a file here or click to upload</p>
           <small>.txt · .md · .pdf · .png · .jpg · .tiff · .bmp</small>
-          <small style="color:#f87171;margin-top:6px;display:block">⚠️ Do not upload confidential or sensitive data</small>
+          <small style="color:var(--cds-support-error);margin-top:6px;display:block">⚠️ Do not upload confidential or sensitive data</small>
         </div>
-        <div id="upload-status" style="font-size:12px;margin-top:8px;display:none"></div>
+        <div id="upload-status" style="font-size:0.75rem;margin-top:var(--cds-sp-03);display:none"></div>
       </div>
     </div>
 
@@ -516,10 +508,10 @@ _HTML = """<!DOCTYPE html>
       </div>
       <div class="card-body">
         <!-- Active file banner -->
-        <div id="active-file-banner" style="display:none;background:#1e3a5f;border:1px solid #2563eb;border-radius:8px;padding:8px 14px;margin-bottom:10px;display:none;align-items:center;gap:10px">
-          <span style="font-size:.8rem;color:#93c5fd">Talking to:</span>
-          <span id="active-file-name" style="font-size:.85rem;font-weight:600;color:#dbeafe;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-          <button onclick="clearActiveFile()" style="background:none;border:none;color:#93c5fd;cursor:pointer;font-size:.8rem;padding:0">✕ ask all docs</button>
+        <div id="active-file-banner" style="display:none;background:var(--cds-support-info-bg);border-left:3px solid var(--cds-interactive);padding:var(--cds-sp-03) var(--cds-sp-05);margin-bottom:var(--cds-sp-04);align-items:center;gap:var(--cds-sp-04)">
+          <span style="font-size:0.75rem;color:var(--cds-text-secondary)">Talking to:</span>
+          <span id="active-file-name" style="font-size:0.8125rem;font-weight:600;color:var(--cds-text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+          <button onclick="clearActiveFile()" style="background:none;border:none;color:var(--cds-link-primary);cursor:pointer;font-size:0.75rem;padding:0">✕ ask all docs</button>
         </div>
         <div class="chips">
           <span class="chip" onclick="ask(this.textContent)">What were today's key themes?</span>
@@ -545,8 +537,8 @@ _HTML = """<!DOCTYPE html>
     <div class="card">
       <div class="card-header">
         <h2>📋 Summary Feed</h2>
-        <span id="sum-count" style="font-size:11px;color:#6b7280;margin-left:auto"></span>
-        <button class="btn btn-sm btn-ghost" style="margin-left:8px" onclick="loadSummaries()">↺ Refresh</button>
+        <span id="sum-count" style="font-size:0.75rem;color:var(--cds-text-helper);margin-left:auto"></span>
+        <button class="btn btn-sm btn-ghost" style="margin-left:var(--cds-sp-03)" onclick="loadSummaries()">↺ Refresh</button>
       </div>
       <div class="card-body" id="feed-body">
         <div class="empty-state">No summaries yet — upload a file above.</div>
@@ -600,10 +592,10 @@ async function uploadFile(file) {
     const res = await fetch('/upload', { method: 'POST', body: fd });
     const data = await res.json();
     status.textContent = `⏳ ${file.name} queued — processing…`;
-    status.style.color = '#93c5fd';
+    status.style.color = 'var(--cds-link-primary)';
     _pollForFile(data.filename, status);
   } catch(e) {
-    status.style.color = '#f87171';
+    status.style.color = 'var(--cds-support-error)';
     status.textContent = 'Upload failed: ' + e.message;
   }
 }
@@ -619,14 +611,14 @@ async function _pollForFile(filename, statusEl) {
       const match = summaries.find(s => s.filename === filename);
       if (match) {
         renderFeed(summaries);
-        statusEl.style.color = '#4ade80';
+        statusEl.style.color = 'var(--cds-support-success)';
         statusEl.textContent = `✓ ${filename} ready`;
         setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
         return;
       }
     } catch(e) {}
   }
-  statusEl.style.color = '#f87171';
+  statusEl.style.color = 'var(--cds-support-error)';
   statusEl.textContent = `Processing ${filename} is taking longer than expected.`;
 }
 
@@ -665,8 +657,8 @@ function renderFeed(entries) {
         <span class="sum-filename" style="cursor:pointer" onclick="setActiveFile('${esc(e.filename)}','${e.id}')" title="Focus chat on this file">${esc(e.filename)}</span>
         <span class="sum-wc">${e.word_count}w</span>
         <span class="sum-time">${fmtTime(e.created_at)}</span>
-        <button class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd;border:1px solid #2563eb;padding:2px 8px;font-size:10px;border-radius:5px;margin-left:6px" onclick="setActiveFile('${esc(e.filename)}','${e.id}')">Focus</button>
-        <span id="si-${i}" style="font-size:11px;color:#4b5563;margin-left:4px;cursor:pointer" onclick="toggleSum('se-${i}','si-${i}')">▸</span>
+        <button class="btn btn-sm btn-ghost" style="margin-left:6px" onclick="setActiveFile('${esc(e.filename)}','${e.id}')">Focus</button>
+        <span id="si-${i}" style="font-size:0.75rem;color:var(--cds-text-helper);margin-left:4px;cursor:pointer" onclick="toggleSum('se-${i}','si-${i}')">▸</span>
       </div>
       <div class="sum-body" id="se-${i}">${esc(e.summary)}</div>
     </div>`).join('');
@@ -705,8 +697,17 @@ async function ask(question) {
 
 init();
 </script>
-</body>
-</html>"""
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Drop Summarizer")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)
 
 
 # ---------------------------------------------------------------------------

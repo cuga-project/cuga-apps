@@ -19,6 +19,12 @@ from mcp_servers._core import tool_error, tool_result, get_json
 from mcp_servers._core.serve import make_server, run
 from apps._ports import MCP_FINANCE_PORT  # noqa: E402
 
+try:
+    from apps._usage import track_call
+except Exception:  # noqa: BLE001 — tracking is optional, never block the server
+    def track_call(*_a, **_k):  # type: ignore
+        pass
+
 mcp = make_server("mcp-finance")
 
 _COINGECKO = "https://api.coingecko.com/api/v3"
@@ -106,7 +112,9 @@ def get_stock_quote(symbol: str, api_key: str | None = None) -> str:
             "symbol": symbol.upper(),
             "apikey": api_key,
         })
+        track_call("alpha_vantage", app="mcp-finance")
     except Exception as exc:
+        track_call("alpha_vantage", app="mcp-finance", ok=False)
         return tool_error(f"Alpha Vantage failed: {exc}", code="upstream")
 
     if "Note" in data or "Information" in data:

@@ -15,19 +15,19 @@ export default function CodeBlock({ code, language = 'bash' }: Props) {
   }
 
   return (
-    <div className="relative group rounded-lg bg-gray-950 border border-gray-800 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900/50">
-        <span className="text-xs text-gray-500 font-mono">{language}</span>
+    <div className="relative group bg-[#161616] border border-[#393939] overflow-hidden">
+      {/* Header — Carbon Gray 90 bar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[#393939] bg-[#262626]">
+        <span className="text-xs text-[#8d8d8d] font-mono">{language}</span>
         <button
           onClick={handleCopy}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-2 py-0.5 rounded hover:bg-gray-800"
+          className="text-xs text-[#8d8d8d] hover:text-[#f4f4f4] transition-colors px-2 py-0.5 hover:bg-[#393939]"
         >
           {copied ? '✓ copied' : 'copy'}
         </button>
       </div>
       {/* Code */}
-      <pre className="p-4 overflow-x-auto text-gray-300 text-xs leading-relaxed whitespace-pre">
+      <pre className="p-4 overflow-x-auto text-[#f4f4f4] text-xs leading-relaxed whitespace-pre">
         {code}
       </pre>
     </div>

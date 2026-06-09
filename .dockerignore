@@ -1,0 +1,15 @@
+# Build-context ignore for the build/ all-in-one image (context = repo root).
+# Mirrors .containerignore so both Docker (BuildKit) and podman slim the context
+# the same way — without this the multi-GB .venv dirs blow up the context.
+**/.venv
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.git
+**/dist
+**/.DS_Store
+**/*.log
+cuga-skills-ui
+docs

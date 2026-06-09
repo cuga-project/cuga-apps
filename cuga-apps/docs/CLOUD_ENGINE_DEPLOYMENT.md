@@ -1,5 +1,24 @@
 # Deploying cuga-apps to IBM Cloud Code Engine
 
+> ## ⚠ LEGACY — superseded by the all-in-one deployment
+>
+> This runbook documents the **old per-app / per-UI fan-out** model (each app +
+> the UI as separate Code Engine services). The project has since consolidated
+> to **two** deployment sets:
+>
+> - **[../../build/](../../build/)** — the all-in-one `cuga-agent-apps` image
+>   (UI + all ship-ready apps + 5 internal MCP servers + stats, one container).
+>   See [build/ce/README.md](../../build/ce/README.md) and
+>   [build/DEPLOYMENT.md](../../build/DEPLOYMENT.md).
+> - **[../../build/mcp_servers/](../../build/mcp_servers/)** — the standalone
+>   `cuga-apps-mcp-*` servers (what `CUGA_TARGET=ce` source-runs against).
+>
+> Kept for reference only — the one-time CE setup (project / ICR / secrets) and
+> footgun notes below still apply. The per-app build/deploy scripts it calls
+> (`build_apps_image.sh`, `deploy_apps.sh`, `deploy_ui.sh`,
+> `deploy_umbrella_ui_to_ce.sh`) are likewise legacy. **Do not use for new
+> deployments.**
+
 Operator playbook for deploying the cuga-apps stack to IBM Cloud Code Engine
 (CE). Captures the one-time setup, the per-image build/push, the per-service
 deploy, and every footgun we hit getting there.
@@ -58,10 +77,17 @@ running services on Code Engine, Docker Hub, or Hugging Face Spaces).
 
 | Layer | Build (image) | Deploy (running service) |
 |---|---|---|
-| MCP servers + tool-explorer | [build_mcp_image.sh](../build_mcp_image.sh) → `icr.io/<ns>/mcp` and `icr.io/<ns>/mcp-tool-explorer` | [deploy_mcp.sh](../deploy_mcp.sh) → 7 CE apps + tool-explorer |
+| MCP servers + tool-explorer | [build_mcp_image.sh](../../build/mcp_servers/build_mcp_image.sh) → `icr.io/<ns>/mcp` and `icr.io/<ns>/mcp-tool-explorer` | [deploy_mcp.sh](../../build/mcp_servers/deploy_mcp.sh) → 7 CE apps + tool-explorer |
 | 19 cuga-apps (one shared image) | [build_apps_image.sh](../build_apps_image.sh) → `icr.io/<ns>/apps` | [deploy_apps.sh](../deploy_apps.sh) → 19 CE apps |
 | Umbrella UI — Docker Hub push (and HF Space sync, currently disabled) | [build_ui_image.sh](../build_ui_image.sh) → Docker Hub `<user>/cuga-apps-ui` | [deploy_ui.sh](../deploy_ui.sh) → Docker Hub push (+ HF Space sync) |
 | Umbrella UI — Code Engine | (reuses `build_ui_image.sh`) | [deploy_umbrella_ui_to_ce.sh](../deploy_umbrella_ui_to_ce.sh) → CE app `cuga-apps-ui` pulling from Docker Hub |
+
+> **Where the MCP scripts live.** `build_mcp_image.sh` and `deploy_mcp.sh`
+> live in [../../build/mcp_servers/](../../build/mcp_servers/) (the consolidated
+> MCP-server deployment home), alongside an MCP-only `docker-compose.yml`. The
+> apps/ui builders + deployers stay here in the inner source root. Run the MCP
+> scripts from that directory; everything below assumes `$MCP_DIR` points at it
+> (e.g. `export MCP_DIR="$REPO_ROOT/../build/mcp_servers"`).
 
 All three builders default to `--platform linux/amd64`, default tag `latest`,
 default ICR namespace `routing_namespace` (apps + MCP) or Docker Hub user
@@ -80,15 +106,15 @@ The end-to-end order, when changing anything:
 
 ```bash
 # Build
-./build_mcp_image.sh                # MCPs + tool-explorer
-./build_apps_image.sh               # 19 cuga-apps
-./build_ui_image.sh                 # umbrella UI (to Docker Hub)
+(cd "$MCP_DIR" && ./build_mcp_image.sh)   # MCPs + tool-explorer (build/mcp_servers/)
+./build_apps_image.sh                     # 19 cuga-apps
+./build_ui_image.sh                       # umbrella UI (to Docker Hub)
 
 # Deploy
-./deploy_mcp.sh                     # MCPs (must come before apps — apps need MCP URLs)
-./deploy_apps.sh                    # 19 apps
-./deploy_umbrella_ui_to_ce.sh       # UI to CE (option A — internal/private)
-HF_TOKEN=hf_xxx ./deploy_ui.sh      # UI to HF Space (option B — public demo)
+(cd "$MCP_DIR" && ./deploy_mcp.sh)        # MCPs first — apps need MCP URLs (build/mcp_servers/)
+./deploy_apps.sh                          # 19 apps
+./deploy_umbrella_ui_to_ce.sh             # UI to CE (option A — internal/private)
+HF_TOKEN=hf_xxx ./deploy_ui.sh            # UI to HF Space (option B — public demo)
 ```
 
 You can pick UI option A, option B, or both — the same Docker Hub image
@@ -121,7 +147,7 @@ project. Pick the login flow that matches how your account is set up.
 ```bash
 ibmcloud login --sso
 # → opens a browser, copy the one-time code, paste it back into the terminal
-ibmcloud target -r us-south -g <your-resource-group>
+ibmcloud target -r us-east -g <your-resource-group>
 ```
 
 If your account belongs to multiple IBM Cloud accounts (most IBMers do), the
@@ -137,7 +163,7 @@ ibmcloud target -c <account-id>                    # switch to it
 ```bash
 # One-time: create an API key in the IBM Cloud console
 #   https://cloud.ibm.com/iam/apikeys → "Create" → save the JSON
-ibmcloud login --apikey "$(cat ~/ibmcloud-apikey.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["apikey"])')" -r us-south
+ibmcloud login --apikey "$(cat ~/ibmcloud-apikey.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["apikey"])')" -r us-east
 ibmcloud target -g <your-resource-group>
 ```
 
@@ -145,7 +171,7 @@ Or pass the key directly via env:
 
 ```bash
 export IBMCLOUD_API_KEY=<your-key>
-ibmcloud login -r us-south -g <your-resource-group>
+ibmcloud login -r us-east -g <your-resource-group>
 ```
 
 #### Verify and select your CE project
@@ -156,7 +182,7 @@ specific Code Engine project these scripts will deploy into:
 ```bash
 ibmcloud target                                    # shows account + region + RG
 # Account: ... 
-# Region:  us-south
+# Region:  us-east
 # Resource group: <your-RG>
 
 ibmcloud ce project list                           # show CE projects in this RG
@@ -179,10 +205,10 @@ idempotent — re-run from where you left off.
 ### Decide on three values you'll reuse
 
 ```bash
-export REGION=us-south
+export REGION=us-east
 export PROJECT=<your-CE-project-name>
 export NAMESPACE=cuga-apps                 # ICR namespace
-export REPO_ROOT=/home/amurthi/work/agent-apps/cuga-apps
+export REPO_ROOT=$(pwd)
 export REG=$REGION.icr.io/$NAMESPACE
 ```
 
@@ -268,9 +294,10 @@ Three build scripts cover everything except `mcp-invocable_apis` (see
 and push by default; pass `--no-push` to build only.
 
 ```bash
-cd "$REPO_ROOT"
+export MCP_DIR="$REPO_ROOT/../build/mcp_servers"
 
-./build_mcp_image.sh          # icr.io/<ns>/mcp + mcp-tool-explorer
+(cd "$MCP_DIR" && ./build_mcp_image.sh)   # icr.io/<ns>/mcp + mcp-tool-explorer
+cd "$REPO_ROOT"
 ./build_apps_image.sh         # icr.io/<ns>/apps  (only needed for Step 7)
 ./build_ui_image.sh           # docker.io/<user>/cuga-apps-ui (Docker Hub, not ICR)
 ```
@@ -278,7 +305,7 @@ cd "$REPO_ROOT"
 Override defaults via env vars (consistent across all three):
 
 ```bash
-IMAGE_TAG=v3 ./build_mcp_image.sh           # versioned tag instead of :latest
+IMAGE_TAG=v3 "$MCP_DIR"/build_mcp_image.sh  # versioned tag instead of :latest
 NAMESPACE=my-other-ns ./build_apps_image.sh # different ICR namespace
 DOCKERHUB_USER=me ./build_ui_image.sh       # different Docker Hub user
 ```
@@ -286,8 +313,8 @@ DOCKERHUB_USER=me ./build_ui_image.sh       # different Docker Hub user
 The `build_mcp_image.sh` script can also build just one of its two images:
 
 ```bash
-./build_mcp_image.sh mcp              # only the shared MCP image
-./build_mcp_image.sh tool-explorer    # only the explorer
+"$MCP_DIR"/build_mcp_image.sh mcp           # only the shared MCP image
+"$MCP_DIR"/build_mcp_image.sh tool-explorer # only the explorer
 ```
 
 > **Why is the UI on Docker Hub instead of ICR?** The umbrella UI is consumed
@@ -311,11 +338,12 @@ docker manifest inspect amurthi44g1wd/cuga-apps-ui:latest >/dev/null && echo "UI
 
 ## Step 4 — Deploy the 7 MCP servers
 
-Use [deploy_mcp.sh](deploy_mcp.sh) — idempotent, retries on transient registry errors,
-mounts the secret at a non-conflicting path (more on this below).
+Use [deploy_mcp.sh](../../build/mcp_servers/deploy_mcp.sh) — idempotent, retries
+on transient registry errors, mounts the secret at a non-conflicting path (more
+on this below).
 
 ```bash
-cd "$REPO_ROOT"
+cd "$MCP_DIR"
 ./deploy_mcp.sh                            # all 7
 ./deploy_mcp.sh text                       # one
 ./deploy_mcp.sh web knowledge geo          # subset
@@ -353,7 +381,7 @@ you're already done. To deploy *only* the explorer (e.g. when re-running after
 URL changes):
 
 ```bash
-./deploy_mcp.sh tool-explorer
+"$MCP_DIR"/deploy_mcp.sh tool-explorer
 ```
 
 Under the hood the script reads the public CE URL of every `cuga-apps-mcp-*`
@@ -364,7 +392,7 @@ explicit env-var injection.
 
 Open `ibmcloud ce app get --name cuga-apps-mcp-tool-explorer --output url` in a
 browser — all 7 MCPs should show as online. Any that you skipped in Step 4 will
-appear offline; rerun `./deploy_mcp.sh tool-explorer` later to pick them up.
+appear offline; rerun `"$MCP_DIR"/deploy_mcp.sh tool-explorer` later to pick them up.
 
 ---
 
@@ -732,7 +760,7 @@ Re-authenticate and re-target:
 
 ```bash
 ibmcloud login --sso                              # or --apikey ...
-ibmcloud target -r us-south -g <your-resource-group>
+ibmcloud target -r us-east -g <your-resource-group>
 ibmcloud ce project select --name <your-project>
 ```
 

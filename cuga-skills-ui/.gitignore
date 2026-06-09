@@ -1,0 +1,4 @@
+.cuga/
+__pycache__/
+*.pyc
+.env

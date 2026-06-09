@@ -61,6 +61,12 @@ class RITSChatModel(_BaseChatModel):
     base_url: str
     api_key: str
     temperature: float = 0.0
+    # RITS prod (and the underlying OpenAI-compat backend) defaults to a
+    # low max_tokens (~1024) when the request omits the field, which
+    # silently truncates long answers — the bug surface is "scout
+    # returned 222 chars of partial JSON". Set a generous default here;
+    # callers can still override via kwargs.
+    max_tokens: int = 16000
     bound_tools: Optional[List[Dict[str, Any]]] = Field(default=None)
 
     @model_validator(mode="after")
@@ -111,7 +117,8 @@ class RITSChatModel(_BaseChatModel):
             "model": payload_model,
             "messages": msgs,
             "temperature": self.temperature,
-            **kwargs,
+            "max_tokens": self.max_tokens,
+            **kwargs,   # caller-supplied kwargs (e.g. max_tokens override) win
         }
         if self.bound_tools:
             payload["tools"] = self.bound_tools
@@ -196,6 +203,39 @@ def detect_provider() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Usage tracking — count every LLM call, tagged by provider, for the dashboard.
+# One callback handler attached at construction fires for all providers (watsonx,
+# rits, openai, …) since LangChain dispatches start events around _generate.
+# ---------------------------------------------------------------------------
+try:
+    from langchain_core.callbacks import BaseCallbackHandler
+
+    class _LLMCallCounter(BaseCallbackHandler):
+        def __init__(self, provider: str) -> None:
+            self.provider = provider
+
+        def _count(self) -> None:
+            try:
+                from _usage import track_call
+                track_call(self.provider)
+            except Exception:  # noqa: BLE001 — tracking must never break a call
+                pass
+
+        def on_chat_model_start(self, *args: Any, **kwargs: Any) -> None:
+            self._count()
+
+        def on_llm_start(self, *args: Any, **kwargs: Any) -> None:
+            self._count()
+except Exception:  # noqa: BLE001 — if callbacks import fails, skip LLM counting
+    _LLMCallCounter = None  # type: ignore
+
+
+def _usage_callbacks(provider: str) -> list:
+    """Callbacks list that counts each LLM call for `provider` (empty if unavailable)."""
+    return [_LLMCallCounter(provider)] if _LLMCallCounter else []
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -227,6 +267,7 @@ def create_llm(
             model=m or "gpt-4.1",
             api_key=resolved_key,
             temperature=0,
+            callbacks=_usage_callbacks(p),
         )
 
     elif p == "rits":
@@ -242,6 +283,7 @@ def create_llm(
             base_url=base_url,
             api_key=resolved_key,
             temperature=0,
+            callbacks=_usage_callbacks(p),
         )
 
     elif p == "watsonx":
@@ -268,6 +310,7 @@ def create_llm(
             project_id=project_id,
             temperature=0,
             max_tokens=16000,
+            callbacks=_usage_callbacks(p),
         )
 
     elif p == "anthropic":
@@ -282,6 +325,7 @@ def create_llm(
             model=m or "claude-sonnet-4-6",
             api_key=resolved_key,
             temperature=0,
+            callbacks=_usage_callbacks(p),
         )
 
     elif p == "litellm":
@@ -291,6 +335,7 @@ def create_llm(
             api_base=os.getenv("LITELLM_BASE_URL") or os.getenv("OPENAI_BASE_URL"),
             api_key=os.getenv("LITELLM_API_KEY") or os.getenv("OPENAI_API_KEY"),
             temperature=0,
+            callbacks=_usage_callbacks(p),
         )
 
     elif p == "ollama":
@@ -302,6 +347,7 @@ def create_llm(
                 base_url=base_url,
                 temperature=0,
                 num_ctx=65536,
+                callbacks=_usage_callbacks(p),
             )
         except ImportError:
             from langchain_openai import ChatOpenAI
@@ -311,6 +357,7 @@ def create_llm(
                 base_url=f"{base_url.rstrip('/')}/v1",
                 api_key="ollama",
                 temperature=0,
+                callbacks=_usage_callbacks(p),
             )
 
     else:

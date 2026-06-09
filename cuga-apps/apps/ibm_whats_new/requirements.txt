@@ -1,5 +1,8 @@
 # ibm_whats_new — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

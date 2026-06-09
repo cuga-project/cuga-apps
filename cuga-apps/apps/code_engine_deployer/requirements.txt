@@ -1,8 +1,11 @@
 # code_engine_deployer — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
 #
 # Inline tools only — shells out to host `ibmcloud` and `docker`. Run from
 # a workstation, not inside the apps container.
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

@@ -1,0 +1,33 @@
+# build/docker-compose.yml — bring up the all-in-one image locally.
+#
+#   cd build
+#   cp .env.example .env        # fill in your LLM provider + key
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# Build context is the repo root so the image can COPY cuga-apps/{apps,mcp_servers,
+# ui,requirements.apps.txt} and build/. Requires BuildKit (default in modern
+# Docker) so build/Dockerfile.dockerignore is honored.
+#
+# The MCP servers are bundled INTO the image and run on loopback, so there are
+# no sibling services here — the whole environment is this one container.
+# CUGA_TARGET stays at the image default (local); do not override it to `ce`,
+# which would try to redirect the apps to a hosted MCP deployment.
+services:
+  cuga-agent-apps:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile
+      # Build under the host's network namespace so apt/npm use the host's
+      # working DNS resolver. The default bridge inherits an IBM Cloud VPC
+      # resolv.conf whose first nameservers (9.0.0.x) are unreachable from
+      # inside a container, so name resolution to deb.debian.org / npm
+      # registry fails ("Temporary failure resolving 'deb.debian.org'").
+      network: host
+    image: cuga-apps-allinone:latest
+    container_name: cuga-agent-apps
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    restart: unless-stopped

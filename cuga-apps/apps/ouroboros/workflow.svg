@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1640" width="1280" height="1640" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,sans-serif">
+  <!-- Ouroboros workflow diagram — 3-phase cascade + outputs -->
+
+  <defs>
+    <!-- Arrow marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#58a6ff"/>
+    </marker>
+    <marker id="arrowLoop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="1640" fill="#0d1117"/>
+
+  <!-- Title -->
+  <text x="640" y="48" text-anchor="middle" font-size="24" font-weight="700" fill="#e6edf3">Ouroboros — workflow</text>
+  <text x="640" y="74" text-anchor="middle" font-size="13" fill="#8b949e">A user request OR a loop fire enters the same `_handle_full_turn` and runs the 3-phase cascade.</text>
+
+  <!-- ─────────────────────────── ENTRY: Browser ─────────────────────────── -->
+  <g>
+    <rect x="80" y="120" width="500" height="92" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+    <text x="100" y="148" font-size="13" font-weight="700" fill="#58a6ff">👤 Browser — user request</text>
+    <text x="100" y="172" font-size="12" fill="#8b949e">User types a question, optionally clicks 🔁 Schedule</text>
+    <text x="100" y="190" font-size="11" font-family="ui-monospace,monospace" fill="#e6edf3">POST /ask &#123;question, thread_id&#125;</text>
+  </g>
+
+  <g>
+    <rect x="700" y="120" width="500" height="92" rx="10" fill="#161b22" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="720" y="148" font-size="13" font-weight="700" fill="#a78bfa">🔁 CUGA Loops scheduler — loop fire</text>
+    <text x="720" y="172" font-size="12" fill="#8b949e">APScheduler tick · fires registered _loop_invoke</text>
+    <text x="720" y="190" font-size="11" font-family="ui-monospace,monospace" fill="#e6edf3">runner.fire_loop(loop_id) → _loop_invoke(prompt, thread_id)</text>
+  </g>
+
+  <!-- Arrows merging into _handle_full_turn -->
+  <line x1="330" y1="212" x2="500" y2="278" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="950" y1="212" x2="780" y2="278" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowLoop)"/>
+
+  <!-- ─────────────────────────── _handle_full_turn ─────────────────────────── -->
+  <g>
+    <rect x="320" y="280" width="640" height="92" rx="10" fill="#1a2332" stroke="#58a6ff" stroke-width="2"/>
+    <text x="640" y="308" text-anchor="middle" font-size="14" font-weight="700" fill="#58a6ff">_handle_full_turn(question, thread_id, source, loop_id)</text>
+    <text x="640" y="330" text-anchor="middle" font-size="12" fill="#8b949e">Single entry point — both paths converge here. Stamps `source = 'user' | 'loop'` on every saved run.</text>
+    <text x="640" y="354" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#e6edf3">augmented = _TASK_PRELUDE + question + session_brief + thread_tag</text>
+  </g>
+
+  <line x1="640" y1="372" x2="640" y2="430" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrowAccent)"/>
+
+  <!-- ─────────────────────────── Supervisor invoke ─────────────────────────── -->
+  <g>
+    <rect x="120" y="430" width="1040" height="68" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+    <text x="640" y="458" text-anchor="middle" font-size="14" font-weight="700" fill="#e6edf3">await supervisor.invoke(augmented, thread_id=thread_id)</text>
+    <text x="640" y="480" text-anchor="middle" font-size="11" fill="#8b949e">CugaSupervisor (RITS gpt-oss-120b, 100-step cap, enable_loops=True). Planner reasons in `delegate_to_&lt;X&gt;` calls.</text>
+  </g>
+
+  <line x1="640" y1="498" x2="640" y2="540" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ─────────────────────────── Phase 1: Scout ─────────────────────────── -->
+  <g>
+    <rect x="120" y="540" width="1040" height="120" rx="10" fill="#0f1820" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="148" y="568" font-size="13" font-weight="700" fill="#58a6ff">PHASE 1 · scout — geographic recon</text>
+    <text x="148" y="590" font-size="12" fill="#e6edf3">scout_result = await delegate_to_scout(task=user_question)</text>
+    <text x="148" y="610" font-size="11" font-family="ui-monospace,monospace" fill="#8b949e">geocode(place) → Nominatim · find_local_businesses(lat, lon, category) → Overpass / OSM</text>
+    <text x="148" y="634" font-size="12" fill="#e6edf3">↓ candidates = [...]   top = candidates[:3]   enrichments = &#123;i: &#123;"candidate": c&#125; for i, c in enumerate(top)&#125;</text>
+  </g>
+
+  <line x1="640" y1="660" x2="640" y2="700" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ─────────────────────────── Phase 2: 5 specialist sweeps ─────────────────────────── -->
+  <g>
+    <rect x="120" y="700" width="1040" height="280" rx="10" fill="#0f1820" stroke="#facc15" stroke-width="1.5"/>
+    <text x="148" y="728" font-size="13" font-weight="700" fill="#facc15">PHASE 2 · five sweeps over the top 3 candidates</text>
+    <text x="148" y="750" font-size="12" fill="#8b949e">Each sweep WRITES into enrichments[i][&lt;key&gt;] for every candidate. Skipped candidates store "" so the slot exists.</text>
+
+    <!-- Sweeps grid: 5 specialists × 3 candidates -->
+    <g transform="translate(160,772)">
+      <!-- header row: candidate columns -->
+      <text x="200" y="14" text-anchor="middle" font-size="10" fill="#8b949e">candidate 0</text>
+      <text x="430" y="14" text-anchor="middle" font-size="10" fill="#8b949e">candidate 1</text>
+      <text x="660" y="14" text-anchor="middle" font-size="10" fill="#8b949e">candidate 2</text>
+
+      <!-- Row template: name, 3 cells -->
+      <!-- Row 1: voc -->
+      <rect x="0"   y="22" width="160" height="32" rx="6" fill="#1a1530" stroke="#a78bfa" stroke-width="1"/>
+      <text x="80"  y="42" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">voice_of_customer</text>
+      <rect x="170" y="22" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="200" y="42" text-anchor="middle" font-size="10" fill="#a78bfa">voc</text>
+      <rect x="400" y="22" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="430" y="42" text-anchor="middle" font-size="10" fill="#a78bfa">voc</text>
+      <rect x="630" y="22" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="660" y="42" text-anchor="middle" font-size="10" fill="#a78bfa">voc</text>
+      <text x="700" y="42" font-size="11" fill="#8b949e">→ Tavily reviews search</text>
+
+      <!-- Row 2: site_auditor -->
+      <rect x="0"   y="62" width="160" height="32" rx="6" fill="#0f2030" stroke="#3fb950" stroke-width="1"/>
+      <text x="80"  y="82" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">site_auditor</text>
+      <rect x="170" y="62" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="200" y="82" text-anchor="middle" font-size="10" fill="#3fb950">audit</text>
+      <rect x="400" y="62" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="430" y="82" text-anchor="middle" font-size="10" fill="#3fb950">audit</text>
+      <rect x="630" y="62" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="660" y="82" text-anchor="middle" font-size="10" fill="#3fb950">audit</text>
+      <text x="700" y="82" font-size="11" fill="#8b949e">→ httpx fetch + 17 signal checks</text>
+
+      <!-- Row 3: revenue_estimator -->
+      <rect x="0"   y="102" width="160" height="32" rx="6" fill="#2d1530" stroke="#ec4899" stroke-width="1"/>
+      <text x="80"  y="122" text-anchor="middle" font-size="11" font-weight="700" fill="#ec4899">revenue_estimator</text>
+      <rect x="170" y="102" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="200" y="122" text-anchor="middle" font-size="10" fill="#ec4899">revenue</text>
+      <rect x="400" y="102" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="430" y="122" text-anchor="middle" font-size="10" fill="#ec4899">revenue</text>
+      <rect x="630" y="102" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="660" y="122" text-anchor="middle" font-size="10" fill="#ec4899">revenue</text>
+      <text x="700" y="122" font-size="11" fill="#8b949e">→ size signals → coarse ARR band</text>
+
+      <!-- Row 4: person_finder -->
+      <rect x="0"   y="142" width="160" height="32" rx="6" fill="#2d2510" stroke="#facc15" stroke-width="1"/>
+      <text x="80"  y="162" text-anchor="middle" font-size="11" font-weight="700" fill="#facc15">person_finder</text>
+      <rect x="170" y="142" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="200" y="162" text-anchor="middle" font-size="10" fill="#facc15">person</text>
+      <rect x="400" y="142" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="430" y="162" text-anchor="middle" font-size="10" fill="#facc15">person</text>
+      <rect x="630" y="142" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="660" y="162" text-anchor="middle" font-size="10" fill="#facc15">person</text>
+      <text x="700" y="162" font-size="11" fill="#8b949e">→ owner search + email pattern guess</text>
+
+      <!-- Row 5: stack_scanner -->
+      <rect x="0"   y="182" width="160" height="32" rx="6" fill="#0f2528" stroke="#14b8a6" stroke-width="1"/>
+      <text x="80"  y="202" text-anchor="middle" font-size="11" font-weight="700" fill="#14b8a6">stack_scanner</text>
+      <rect x="170" y="182" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="200" y="202" text-anchor="middle" font-size="10" fill="#14b8a6">stack</text>
+      <rect x="400" y="182" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="430" y="202" text-anchor="middle" font-size="10" fill="#14b8a6">stack</text>
+      <rect x="630" y="182" width="60" height="32" rx="4" fill="#161b22" stroke="#30363d"/>
+      <text x="660" y="202" text-anchor="middle" font-size="10" fill="#14b8a6">stack</text>
+      <text x="700" y="202" font-size="11" fill="#8b949e">→ regex fingerprint of 33 third-parties</text>
+    </g>
+  </g>
+
+  <line x1="640" y1="980" x2="640" y2="1020" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ─────────────────────────── Phase 3: Writer synthesis ─────────────────────────── -->
+  <g>
+    <rect x="120" y="1020" width="1040" height="120" rx="10" fill="#0f1820" stroke="#3fb950" stroke-width="1.5"/>
+    <text x="148" y="1048" font-size="13" font-weight="700" fill="#3fb950">PHASE 3 · pitch_email_writer — synthesis (no tools)</text>
+    <text x="148" y="1070" font-size="12" fill="#e6edf3">enriched_list = [enrichments[i] for i in range(len(top))]</text>
+    <text x="148" y="1090" font-size="12" fill="#e6edf3">final = await delegate_to_pitch_email_writer(task = "Build the lead board…" + json contexts)</text>
+    <text x="148" y="1114" font-size="11" font-family="ui-monospace,monospace" fill="#8b949e">→ fenced ```json``` { "leads": [...] } + 2-paragraph summary (enforced by leads_board_formatter policy)</text>
+  </g>
+
+  <line x1="640" y1="1140" x2="640" y2="1180" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ─────────────────────────── Outputs (4 channels) ─────────────────────────── -->
+  <g>
+    <rect x="120" y="1180" width="1040" height="50" rx="6" fill="#1a2332" stroke="#58a6ff" stroke-width="1"/>
+    <text x="640" y="1212" text-anchor="middle" font-size="13" font-weight="700" fill="#58a6ff">_extract_leads_json + _normalize_leads_obj — tolerant parser handles writer drift</text>
+  </g>
+
+  <line x1="640" y1="1230" x2="640" y2="1270" stroke="#8b949e" stroke-width="1" stroke-dasharray="4 3"/>
+
+  <!-- 4 output columns -->
+  <g>
+    <!-- 1: UI right panel -->
+    <rect x="80" y="1280" width="280" height="160" rx="10" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="220" y="1310" text-anchor="middle" font-size="13" font-weight="700" fill="#58a6ff">UI · Lead board</text>
+    <text x="220" y="1334" text-anchor="middle" font-size="11" fill="#8b949e">session[thread_id]["leads"]</text>
+    <text x="220" y="1352" text-anchor="middle" font-size="11" fill="#e6edf3">Right panel polls /session/...</text>
+    <text x="220" y="1372" text-anchor="middle" font-size="11" fill="#e6edf3">renders ranked leads + scores</text>
+    <text x="220" y="1392" text-anchor="middle" font-size="11" fill="#e6edf3">+ email-draft buttons</text>
+    <text x="220" y="1418" text-anchor="middle" font-size="10" fill="#8b949e">(both user runs + loop fires)</text>
+  </g>
+
+  <g>
+    <!-- 2: runs/<thread>/<ts>.json -->
+    <rect x="380" y="1280" width="280" height="160" rx="10" fill="#161b22" stroke="#facc15" stroke-width="1.5"/>
+    <text x="520" y="1310" text-anchor="middle" font-size="13" font-weight="700" fill="#facc15">Run history · disk</text>
+    <text x="520" y="1334" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#e6edf3">runs/&lt;thread&gt;/&lt;ts&gt;.json</text>
+    <text x="520" y="1356" text-anchor="middle" font-size="11" fill="#8b949e">_save_run() — full record:</text>
+    <text x="520" y="1374" text-anchor="middle" font-size="10" fill="#e6edf3">timestamp · question · leads</text>
+    <text x="520" y="1390" text-anchor="middle" font-size="10" fill="#e6edf3">agent_trace · supervisor_state</text>
+    <text x="520" y="1408" text-anchor="middle" font-size="10" fill="#a78bfa">source · loop_id</text>
+    <text x="520" y="1428" text-anchor="middle" font-size="10" fill="#8b949e">→ shows in Past runs drawer</text>
+  </g>
+
+  <g>
+    <!-- 3: Email send -->
+    <rect x="680" y="1280" width="280" height="160" rx="10" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+    <text x="820" y="1310" text-anchor="middle" font-size="13" font-weight="700" fill="#3fb950">✉️ Email send</text>
+    <text x="820" y="1334" text-anchor="middle" font-size="11" fill="#8b949e">_maybe_send_email_for_run()</text>
+    <text x="820" y="1354" text-anchor="middle" font-size="11" fill="#e6edf3">asyncio.create_task → smtplib</text>
+    <text x="820" y="1374" text-anchor="middle" font-size="11" fill="#e6edf3">Subject prefix:</text>
+    <text x="820" y="1392" text-anchor="middle" font-size="10" fill="#8b949e">👤 USER REQUEST · …</text>
+    <text x="820" y="1408" text-anchor="middle" font-size="10" fill="#a78bfa">🔁 LOOP FIRE · …</text>
+    <text x="820" y="1428" text-anchor="middle" font-size="10" fill="#8b949e">Gate: recipient + SMTP creds</text>
+  </g>
+
+  <g>
+    <!-- 4: Optional loop schedule -->
+    <rect x="980" y="1280" width="220" height="160" rx="10" fill="#161b22" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="1090" y="1310" text-anchor="middle" font-size="13" font-weight="700" fill="#a78bfa">🔁 Loop schedule</text>
+    <text x="1090" y="1330" text-anchor="middle" font-size="10" fill="#8b949e">(optional — only if</text>
+    <text x="1090" y="1346" text-anchor="middle" font-size="10" fill="#8b949e">user said "watch every X")</text>
+    <text x="1090" y="1370" text-anchor="middle" font-size="11" fill="#e6edf3">supervisor calls</text>
+    <text x="1090" y="1388" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="#e6edf3">schedule_recurring(...)</text>
+    <text x="1090" y="1408" text-anchor="middle" font-size="10" fill="#8b949e">→ APScheduler arms job</text>
+    <text x="1090" y="1428" text-anchor="middle" font-size="10" fill="#a78bfa">→ next fire re-enters top</text>
+  </g>
+
+  <!-- Output column connectors from the parser -->
+  <line x1="640" y1="1270" x2="220" y2="1280" stroke="#8b949e" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="640" y1="1270" x2="520" y2="1280" stroke="#8b949e" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="640" y1="1270" x2="820" y2="1280" stroke="#8b949e" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="640" y1="1270" x2="1090" y2="1280" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- Loop feedback arrow: loop schedule → re-enter -->
+  <path d="M 1200,1360 Q 1250,1360 1250,1100 Q 1250,180 950,180" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrowLoop)"/>
+  <text x="1255" y="700" text-anchor="middle" font-size="10" fill="#a78bfa" transform="rotate(-90 1255,700)">on next fire — re-enters as 🔁 loop</text>
+
+  <!-- Footer key -->
+  <g transform="translate(80,1480)">
+    <text x="0" y="0" font-size="11" font-weight="700" fill="#8b949e">LEGEND</text>
+    <rect x="0"   y="10" width="14" height="12" fill="none" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="20" y="20" font-size="11" fill="#e6edf3">user-driven</text>
+    <rect x="120" y="10" width="14" height="12" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <text x="140" y="20" font-size="11" fill="#e6edf3">loop-driven</text>
+    <rect x="240" y="10" width="14" height="12" fill="none" stroke="#facc15" stroke-width="1.5"/>
+    <text x="260" y="20" font-size="11" fill="#e6edf3">phase 2 — fan-out</text>
+    <rect x="400" y="10" width="14" height="12" fill="none" stroke="#3fb950" stroke-width="1.5"/>
+    <text x="420" y="20" font-size="11" fill="#e6edf3">synthesis / output</text>
+
+    <text x="0" y="50" font-size="10" fill="#8b949e">• Specialists run sequentially in the supervisor's planner code blocks (phase 2 = 5 sweeps × N candidates).</text>
+    <text x="0" y="68" font-size="10" fill="#8b949e">• `_handle_full_turn` is the single entry point — both POST /ask (source='user') and APScheduler fires (source='loop') hit it.</text>
+    <text x="0" y="86" font-size="10" fill="#8b949e">• Each fire re-enters the top of the diagram, so a recurring loop produces a new lead board + run + email per tick.</text>
+  </g>
+
+  <!-- Footer file ref -->
+  <text x="640" y="1620" text-anchor="middle" font-size="10" fill="#6b7280">apps/ouroboros/workflow.svg · referenced from ARCHITECTURE.md</text>
+</svg>

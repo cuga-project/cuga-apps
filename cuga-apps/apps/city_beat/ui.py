@@ -13,26 +13,30 @@ _HTML = r"""<!DOCTYPE html>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>City Beat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:       #0f1117;
-    --card:     #1a1a2e;
-    --border:   #2d2d4a;
-    --accent:   #38bdf8;   /* sky blue */
-    --accent2:  #a78bfa;   /* violet */
-    --accent3:  #facc15;   /* sun yellow */
-    --text:     #e2e8f0;
-    --muted:    #8892a4;
-    --danger:   #f87171;
-    --success:  #4ade80;
+    /* Carbon White (g10) tokens mapped onto City Beat's variable names */
+    --bg:       #f4f4f4;
+    --card:     #ffffff;
+    --border:   #e0e0e0;
+    --accent:   #0f62fe;   /* IBM blue */
+    --accent2:  #8a3ffc;   /* purple-60 */
+    --accent3:  #f1c21b;   /* support-warning */
+    --text:     #161616;
+    --muted:    #6f6f6f;
+    --danger:   #da1e28;
+    --success:  #24a148;
   }
 
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-size: 14px;
     min-height: 100vh;
     display: flex;
@@ -65,8 +69,7 @@ _HTML = r"""<!DOCTYPE html>
   main {
     display: grid;
     grid-template-columns: 420px 1fr;
-    gap: 0; flex: 1; overflow: hidden;
-    height: calc(100vh - 57px);
+    gap: 0; flex: 1; min-height: 0; overflow: hidden;
   }
 
   /* Chat panel */
@@ -134,7 +137,7 @@ _HTML = r"""<!DOCTYPE html>
   .input-row input:focus { border-color: var(--accent); }
   .input-row input::placeholder { color: var(--muted); }
   .btn {
-    background: var(--accent); color: #06202b; border: none;
+    background: var(--accent); color: #fff; border: none;
     border-radius: 8px; padding: 9px 18px;
     font-size: 14px; font-weight: 700;
     cursor: pointer; transition: opacity 0.15s;
@@ -195,7 +198,7 @@ _HTML = r"""<!DOCTYPE html>
     font-size: 12px; color: var(--muted); margin-bottom: 10px;
   }
   .city-card .tagline {
-    font-size: 14px; color: #c0c8d8; line-height: 1.55;
+    font-size: 14px; color: var(--text); line-height: 1.55;
     border-left: 3px solid var(--accent); padding-left: 10px;
     margin-top: 10px; font-style: italic;
   }
@@ -219,7 +222,7 @@ _HTML = r"""<!DOCTYPE html>
     text-transform: uppercase; letter-spacing: 0.8px;
     color: var(--muted); margin-bottom: 8px;
   }
-  .block .body { font-size: 13px; line-height: 1.6; color: #d6deea; }
+  .block .body { font-size: 13px; line-height: 1.6; color: var(--text); }
   .block .body p { margin-bottom: 6px; }
   .block .body p:last-child { margin-bottom: 0; }
   .block .body a { color: var(--accent); text-decoration: none; }
@@ -264,6 +267,39 @@ _HTML = r"""<!DOCTYPE html>
     color: var(--accent2); cursor: pointer;
   }
   .watchlist .city-pill:hover { border-color: var(--accent2); }
+
+  /* ── Carbon polish: square structural corners, IBM-blue button, focus rings ── */
+  .city-card, .block, .msg, .msg.agent, .msg.user, .input-row input,
+  .btn, .empty-state .hint { border-radius: 0 !important; }
+  .msg.user { border-bottom-right-radius: 0 !important; color: #fff; }
+  .msg.agent { border-bottom-left-radius: 0 !important; }
+  .btn {
+    background: var(--accent); color: #fff; font-weight: 400;
+    transition: background .15s cubic-bezier(0.2,0,0.38,0.9);
+  }
+  .btn:hover { background: #0353e9; opacity: 1; }
+  .btn:focus-visible, .btn:focus {
+    outline: 2px solid var(--accent); outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px #fff;
+  }
+  .input-row input:focus { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: -2px; }
+  .city-card .tagline { font-style: normal; }
+
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 24px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .app-intro__blurb { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 48rem; }
+  .app-intro__blurb strong { color: var(--text); font-weight: 600; }
+  .app-intro__tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .app-intro__tools .tools-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-right: 4px; }
+  .tool-pill {
+    font-size: 11px; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -276,6 +312,20 @@ _HTML = r"""<!DOCTYPE html>
     <span id="statusText">Ready</span>
   </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>City Beat.</strong> Name a city and get a one-screen briefing — weather, today's news, background, nearby attractions, and an optional crypto spotlight, pulled live and pinned to the panel on the right.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📍 Geocoding · OSM</span>
+    <span class="tool-pill">☀ Weather</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+    <span class="tool-pill">📚 Wikipedia</span>
+    <span class="tool-pill">🪙 Crypto · CoinGecko</span>
+  </div>
+</div>
 
 <main>
   <div class="chat-panel">

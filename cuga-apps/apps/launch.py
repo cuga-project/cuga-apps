@@ -2,9 +2,9 @@
 """
 launch.py — start / stop all cuga-apps processes in one shot.
 
-In stage 1 this includes the 6 MCP servers + 4 reference apps. Other apps
-from the old stack will come online as they're ported in stage 2; their
-entries are commented out below.
+This brings up the full local stack: all 8 MCP servers plus every app
+(~34 apps + the usage_collector dashboard). Every entry below is live and
+uncommented; MCP servers start first so the MCP-backed apps can connect.
 
 Usage:
     python launch.py           # start everything (MCP servers + ready apps)
@@ -40,6 +40,48 @@ from _ports import APP_PORTS, MCP_PORTS  # noqa: E402
 PYTHON = sys.executable
 
 
+def _has_cuga(py: str) -> bool:
+    """True if interpreter `py` can find the `cuga` package. Uses find_spec
+    (locates without importing) — importing cuga is slow (~30s)."""
+    try:
+        r = subprocess.run(
+            [py, "-c", "import importlib.util,sys;"
+                       "sys.exit(0 if importlib.util.find_spec('cuga') else 1)"],
+            capture_output=True, timeout=30,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _resolve_python() -> Optional[str]:
+    """Pick an interpreter that has `cuga`. Order: $CUGA_PYTHON → the current
+    interpreter → any sibling `*/.venv/bin/python` near the repo. Returns None
+    if none has cuga (caller warns). Apps are spawned with the result, so
+    `python launch.py` works even when launched from a cuga-less Python."""
+    import glob
+    override = os.environ.get("CUGA_PYTHON")
+    if override and _has_cuga(override):
+        return override
+    if _has_cuga(PYTHON):
+        return PYTHON
+    patterns = [
+        str(REPO_ROOT / ".venv/bin/python"),
+        str(REPO_ROOT.parent / ".venv/bin/python"),
+        str(REPO_ROOT.parent / "*/.venv/bin/python"),
+        str(REPO_ROOT / "*/.venv/bin/python"),
+    ]
+    seen = set()
+    for pat in patterns:
+        for cand in sorted(glob.glob(pat)):
+            if cand in seen:
+                continue
+            seen.add(cand)
+            if _has_cuga(cand):
+                return cand
+    return None
+
+
 def _app_cmd(script: str = "main.py") -> Callable[[int, dict], list]:
     def _cmd(port: int, env: dict) -> list:
         return [PYTHON, script, "--port", str(port)]
@@ -64,7 +106,7 @@ def _mcp_cmd(name: str) -> Callable[[int, dict], list]:
 # path resolves. kind=app processes are launched from their own directory.
 
 PROCS: list[dict] = [
-    # MCP servers — stage 1 ships all six.
+    # MCP servers — all 8 ship (invocable_apis is local-dev-only).
     dict(name="mcp-web",       kind="mcp", port=MCP_PORTS["web"],       cwd=REPO_ROOT,         cmd=_mcp_cmd("web")),
     dict(name="mcp-knowledge", kind="mcp", port=MCP_PORTS["knowledge"], cwd=REPO_ROOT,         cmd=_mcp_cmd("knowledge")),
     dict(name="mcp-geo",       kind="mcp", port=MCP_PORTS["geo"],       cwd=REPO_ROOT,         cmd=_mcp_cmd("geo")),
@@ -74,7 +116,7 @@ PROCS: list[dict] = [
     dict(name="mcp-text",      kind="mcp", port=MCP_PORTS["text"],      cwd=REPO_ROOT,         cmd=_mcp_cmd("text")),
     dict(name="mcp-invocable_apis", kind="mcp", port=MCP_PORTS["invocable_apis"], cwd=REPO_ROOT, cmd=_mcp_cmd("invocable_apis")),
 
-    # Apps — all 23 are present after stage 2. Apps that delegate to MCP
+    # Apps — every app entry is live. Apps that delegate to MCP
     # servers share the mcp-* ports above; apps that kept inline tools are
     # genuinely self-contained (app-state or heavy/auth-specific).
     dict(name="web_researcher",     kind="app", port=APP_PORTS["web_researcher"],     cwd=HERE / "web_researcher",     cmd=_app_cmd()),
@@ -106,7 +148,40 @@ PROCS: list[dict] = [
     dict(name="code_engine_deployer", kind="app", port=APP_PORTS["code_engine_deployer"], cwd=HERE / "code_engine_deployer", cmd=_app_cmd()),
     dict(name="recipe_composer",    kind="app", port=APP_PORTS["recipe_composer"],    cwd=HERE / "recipe_composer",    cmd=_app_cmd()),
     dict(name="city_beat",          kind="app", port=APP_PORTS["city_beat"],          cwd=HERE / "city_beat",          cmd=_app_cmd()),
+    dict(name="ouroboros",          kind="app", port=APP_PORTS["ouroboros"],          cwd=HERE / "ouroboros",          cmd=_app_cmd()),
+    dict(name="github_trending",    kind="app", port=APP_PORTS["github_trending"],    cwd=HERE / "github_trending",    cmd=_app_cmd()),
+    dict(name="ai_labs_news",       kind="app", port=APP_PORTS["ai_labs_news"],       cwd=HERE / "ai_labs_news",       cmd=_app_cmd()),
+    dict(name="find_a_doctor",      kind="app", port=APP_PORTS["find_a_doctor"],      cwd=HERE / "find_a_doctor",      cmd=_app_cmd()),
+    dict(name="meetup_finder",      kind="app", port=APP_PORTS["meetup_finder"],      cwd=HERE / "meetup_finder",      cmd=_app_cmd()),
+    dict(name="usage_collector",    kind="app", port=APP_PORTS["usage_collector"],    cwd=HERE / "usage_collector",    cmd=_app_cmd()),
 ]
+
+# The 21 "ship-ready" apps (mirrors the umbrella UI: in usecases.ts and NOT in
+# Home.tsx's FOR_LATER_IDS / EXPLORATORY_IDS). Used by the --ship-ready flag so
+# you can start/stop/kill exactly this set, e.g.:
+#   python launch.py kill --ship-ready
+SHIP_READY = [
+    "stock_alert", "server_monitor", "newsletter", "web_researcher", "travel_planner",
+    "youtube_research", "arch_diagram", "hiking_research", "movie_recommender",
+    "webpage_summarizer", "paper_scout", "wiki_dive", "ibm_cloud_advisor", "ibm_docs_qa",
+    "recipe_composer", "city_beat", "ouroboros", "github_trending", "ai_labs_news",
+    "find_a_doctor", "meetup_finder",
+]
+
+# The MCP servers the ship-ready apps depend on — every one except
+# invocable_apis (BIRD-only; needs host data mounts and is used by no
+# ship-ready app). `--ship-ready` brings these up *with* the 21 apps so the
+# MCP-backed apps (travel_planner, city_beat, movie_recommender, …) can
+# actually reach their tools. Starting apps without these leaves them unable
+# to connect.
+SHIP_READY_MCP = [
+    "mcp-web", "mcp-knowledge", "mcp-geo", "mcp-finance",
+    "mcp-code", "mcp-local", "mcp-text",
+]
+
+# The full ship-ready stack = its MCP servers + the 21 apps. MCP first so the
+# apps can initialise against them (cmd_start already sorts mcp before app).
+SHIP_READY_STACK = SHIP_READY_MCP + SHIP_READY
 
 PID_FILE = HERE / ".launch_pids"
 
@@ -207,8 +282,35 @@ def _is_running(pid: int) -> bool:
 # ── Commands ───────────────────────────────────────────────────────────────
 
 def cmd_start(filter_names: Optional[list[str]], env_file: Path) -> None:
+    # Make sure apps are spawned with an interpreter that has `cuga` — the #1
+    # local gotcha is launching with a Python that lacks it (every cuga app
+    # then crashes at make_agent). _app_cmd/_mcp_cmd read the PYTHON global at
+    # call time, so reassigning it here fixes every spawned process.
+    global PYTHON
+    resolved = _resolve_python()
+    if resolved is None:
+        print(f"  [WARN] no interpreter with `cuga` found (launcher: {PYTHON}).")
+        print("         cuga-dependent apps WILL crash. Fix with one of:")
+        print("           • pip install cuga   (into this interpreter), or")
+        print("           • CUGA_PYTHON=/path/to/venv/bin/python python launch.py")
+    elif resolved != PYTHON:
+        print(f"  [PYTHON] launcher lacks cuga; spawning apps with:\n           {resolved}")
+        PYTHON = resolved
+    else:
+        print(f"  [PYTHON] {PYTHON}")
+
     dotenv = _load_env(env_file)
     merged_env = {**os.environ, **dotenv}
+
+    # Usage tracking: point every app at the local collector unless the user
+    # already set it (shell env or .env). This makes the dashboard work out of
+    # the box for `python launch.py` on a local machine. On Code Engine the
+    # apps don't run via launch.py — set USAGE_COLLECTOR_URL in the app-env
+    # secret to the collector's public URL there instead.
+    merged_env.setdefault(
+        "USAGE_COLLECTOR_URL",
+        f"http://127.0.0.1:{APP_PORTS['usage_collector']}/track",
+    )
 
     existing = {name: (port, pid) for name, port, pid in _read_pids() if _is_running(pid)}
     records = [r for r in _read_pids() if _is_running(r[2])]
@@ -269,6 +371,69 @@ def cmd_stop(filter_names: Optional[list[str]]) -> None:
     _write_pids(remaining)
 
 
+def _kill_pid(pid: int) -> bool:
+    """SIGTERM (process group, then bare pid), wait, then SIGKILL. Returns
+    True once the pid is gone. Verifies by polling the pid, NOT by a port
+    rebind (SO_REUSEADDR makes rebind a false 'free' against 0.0.0.0 listeners)."""
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        if not _is_running(pid):
+            return True
+        try:
+            os.killpg(os.getpgid(pid), sig)      # whole group (uvicorn + children)
+        except (ProcessLookupError, PermissionError):
+            try:
+                os.kill(pid, sig)
+            except ProcessLookupError:
+                return True
+            except PermissionError:
+                return False
+        for _ in range(15):                       # up to ~3s for graceful exit
+            if not _is_running(pid):
+                return True
+            time.sleep(0.2)
+    return not _is_running(pid)
+
+
+def _free_port(port: int, tries: int = 3) -> tuple[bool, list[int]]:
+    """Kill whatever is LISTENing on `port` until it's clear. Returns
+    (freed, pids_killed)."""
+    killed = []
+    for _ in range(tries):
+        pid = _pid_on_port(port)
+        if pid is None:
+            return True, killed
+        killed.append(pid)
+        _kill_pid(pid)
+    return _pid_on_port(port) is None, killed
+
+
+def cmd_kill(filter_names: Optional[list[str]]) -> None:
+    """Force-free the ports of the targeted processes — kills whatever is
+    LISTENing there, tracked by launch.py or not (catches orphans a plain
+    `stop` would miss), then verifies the port is actually clear."""
+    targets = [p for p in PROCS if (not filter_names or p["name"] in filter_names)]
+    if not targets:
+        print("  No matching processes.")
+        return
+    freed = 0
+    for proc in targets:
+        name, port = proc["name"], proc["port"]
+        if _pid_on_port(port) is None:
+            print(f"  [FREE]   {name:20s} port {port} — nothing listening")
+            continue
+        ok, pids = _free_port(port)
+        pid_str = ",".join(str(p) for p in pids)
+        if ok:
+            print(f"  [KILLED] {name:20s} port {port} (pid {pid_str})")
+            freed += 1
+        else:
+            print(f"  [FAIL]   {name:20s} port {port} still held (pid {pid_str}) — check perms")
+    # Drop the killed processes from the PID file so `status` stays accurate.
+    names = {p["name"] for p in targets}
+    _write_pids([r for r in _read_pids() if r[0] not in names])
+    print(f"\n  Freed {freed} of {len(targets)} target port(s).")
+
+
 def cmd_status() -> None:
     records = _read_pids()
     if not records:
@@ -298,18 +463,28 @@ def cmd_logs(filter_names: Optional[list[str]], tail: int = 30) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Start/stop cuga-apps MCP stack.")
     parser.add_argument("action", nargs="?", default="start",
-                        choices=["start", "stop", "status", "logs"])
+                        choices=["start", "stop", "kill", "status", "logs"])
     parser.add_argument("names", nargs="*", help="Optional process-name filter")
+    parser.add_argument("--ship-ready", action="store_true",
+                        help="Target the ship-ready stack: the 21 ship-ready "
+                             "apps + the 7 MCP servers they depend on")
     parser.add_argument("--env", type=Path, default=HERE / ".env")
     parser.add_argument("--tail", type=int, default=30)
     args = parser.parse_args()
 
-    filter_names = args.names or None
+    filter_names = list(args.names) if args.names else None
+    if args.ship_ready:
+        # The ship-ready stack is its MCP servers + the 21 apps; intersect with
+        # any explicit names the user also passed.
+        filter_names = (SHIP_READY_STACK if not filter_names
+                        else [n for n in filter_names if n in SHIP_READY_STACK])
     print(f"\n=== cuga-apps launcher — {args.action.upper()} ===\n")
     if args.action == "start":
         cmd_start(filter_names, args.env)
     elif args.action == "stop":
         cmd_stop(filter_names)
+    elif args.action == "kill":
+        cmd_kill(filter_names)
     elif args.action == "status":
         cmd_status()
     elif args.action == "logs":

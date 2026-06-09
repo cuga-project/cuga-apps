@@ -25,6 +25,12 @@ from mcp_servers._core.html import extract_readable_text, extract_links
 from mcp_servers._core.serve import make_server, run
 from apps._ports import MCP_WEB_PORT  # noqa: E402
 
+try:
+    from apps._usage import track_call
+except Exception:  # noqa: BLE001 — tracking is optional, never block the server
+    def track_call(*_a, **_k):  # type: ignore
+        pass
+
 mcp = make_server("mcp-web")
 
 
@@ -52,8 +58,10 @@ def web_search(query: str, max_results: int = 6) -> str:
     try:
         client = TavilyClient(api_key=api_key)
         raw = client.search(query, max_results=min(max_results, 20))
+        track_call("tavily", app="mcp-web")
         return tool_result(raw)
     except Exception as exc:
+        track_call("tavily", app="mcp-web", ok=False)
         return tool_error(f"Tavily search failed: {exc}", code="upstream")
 
 

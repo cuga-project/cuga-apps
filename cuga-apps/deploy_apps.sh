@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # =====================================================================
-# deploy_apps.sh — deploy 21 cuga-apps FastAPI apps to IBM Cloud Code Engine.
+# ⚠  LEGACY / DEPRECATED — NOT part of the current deployment model.
 #
-# All 21 apps run from one shared image (built by build_apps_image.sh).
+# This is the OLD per-app / per-UI fan-out CE deployment. It is SUPERSEDED
+# by the two current deployment sets:
+#   - build/             → all-in-one `cuga-agent-apps` (UI + apps + MCP)
+#   - build/mcp_servers/ → standalone `cuga-apps-mcp-*` servers
+# Kept for reference only; do not use for new deployments.
+# =====================================================================
+# deploy_apps.sh — deploy 27 cuga-apps FastAPI apps to IBM Cloud Code Engine.
+#
+# All 27 apps run from one shared image (built by build_apps_image.sh).
 # Each CE app picks which main.py to run via --command + --argument.
 #
 # MCP URL resolution is automatic: the apps' _mcp_bridge.py detects CE_APP
@@ -16,17 +24,20 @@
 # Prerequisites (NOT done by this script):
 #   - ibmcloud login + target region/RG + ce project select
 #   - ./build_apps_image.sh (image must exist in ICR)
-#   - 7 MCP servers + tool-explorer already deployed (./deploy_mcp.sh)
+#   - 7 MCP servers + tool-explorer already deployed
+#     (../build/mcp_servers/deploy_mcp.sh)
 #   - CE secrets `app-env` and `icr-secret-1` exist
 #
 # Usage:
-#   ./deploy_apps.sh                     # all 21
+#   ./deploy_apps.sh                     # all 27
 #   ./deploy_apps.sh web_researcher      # one
 #   ./deploy_apps.sh paper_scout code_reviewer api_doc_gen   # subset
 #   ./deploy_apps.sh recipe_composer city_beat               # the two new apps
+#   APP_MEM=4G ./deploy_apps.sh ouroboros       # heavy: CugaSupervisor + 7 specialists
+#   APP_MEM=4G ./deploy_apps.sh meetup_finder    # headless Chromium needs headroom
 #
 # Override defaults via env:
-#   REGION    (default: us-south)
+#   REGION    (default: us-east)
 #   NAMESPACE (default: routing_namespace)
 #   IMAGE_TAG (default: latest)
 #   APP_CPU   (default: 1)
@@ -35,7 +46,7 @@
 
 set -euo pipefail
 
-REGION="${REGION:-us-south}"
+REGION="${REGION:-us-east}"
 NAMESPACE="${NAMESPACE:-routing_namespace}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 REG="icr.io/${NAMESPACE}"
@@ -54,6 +65,9 @@ RETRY_BACKOFF_SECONDS=15
 #
 # Tier 1: stateless. min-scale 0 (cold-start on first request, save cost).
 # Tier 2: in-memory state. min-scale 1 (state persists between requests).
+#         meetup_finder is here so its reused headless Chromium stays warm.
+#         usage_collector is here (always-on) so it holds the cross-app usage
+#         dashboard + snapshot; the scale-to-zero apps report to it.
 
 TIER1=(
   "web_researcher     28798 arg"
@@ -75,10 +89,16 @@ TIER1=(
   "stock_alert        28801 arg"
   "recipe_composer    28820 arg"
   "city_beat          28821 arg"
+  "github_trending    28823 arg"
+  "ai_labs_news       28824 arg"
+  "find_a_doctor      28825 arg"
 )
 TIER2=(
   "newsletter         28793 arg"
   "server_monitor     28767 arg"
+  "ouroboros          28822 arg"
+  "meetup_finder      28826 arg"
+  "usage_collector    28827 arg"
 )
 
 # Tier 2 apps need min-scale 1 to keep their in-memory state alive

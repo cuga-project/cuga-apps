@@ -212,6 +212,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         symbol = req.symbol.strip().upper()
         asset  = "stock" if req.is_stock else "crypto"
         # Defense-in-depth: never silently fall back to the MCP server's env
@@ -263,6 +264,11 @@ def _web(port: int) -> None:
         return _WEB_HTML
 
     print(f"\n  Stock Alert · CugaAgent  →  http://127.0.0.1:{port}\n")
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -275,56 +281,81 @@ _WEB_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stock Alert · CugaAgent</title>
+<title>IBM Stock Alert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root{
+  /* Carbon White (g10) tokens — IBM Blue on white */
+  --bg:#f4f4f4; --layer:#ffffff; --layer-02:#f4f4f4; --field:#f4f4f4;
+  --border:#e0e0e0; --border-strong:#8d8d8d;
+  --text:#161616; --text-sec:#525252; --muted:#6f6f6f; --placeholder:#a8a8a8;
+  --blue:#0f62fe; --blue-hover:#0353e9; --blue-active:#002d9c;
+  --link:#0f62fe; --accent:#0f62fe;
+  --danger:#da1e28; --success:#24a148; --warn:#f1c21b;
+  --font-sans:'IBM Plex Sans',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f0f13;color:#e2e2e8;min-height:100vh;padding:40px 24px 80px}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);min-height:100vh;padding:40px 24px 80px;-webkit-font-smoothing:antialiased;letter-spacing:.16px}
 header{text-align:center;margin-bottom:32px}
-h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px}
-.sub{font-size:13px;color:#6b6b7e}.sub span{color:#7c7cf8;font-weight:500}
+h1{font-size:28px;font-weight:600;color:var(--text);margin-bottom:4px;letter-spacing:0}
+.sub{font-size:13px;color:var(--muted)}.sub span{color:var(--accent);font-weight:500}
 .layout{display:grid;grid-template-columns:280px 1fr;gap:20px;max-width:1020px;margin:0 auto;align-items:start}
 @media(max-width:720px){.layout{grid-template-columns:1fr}}
-.card{background:#1a1a24;border:1px solid #2e2e40;border-radius:12px;padding:18px;margin-bottom:16px}
+.card{background:var(--layer);border:1px solid var(--border);border-radius:0;padding:18px;margin-bottom:16px}
 .card:last-child{margin-bottom:0}
-.card-title{font-size:11px;font-weight:700;color:#6b6b7e;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
-.section-label{font-size:11px;font-weight:600;color:#4a4a60;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px;padding-top:16px;border-top:1px solid #1e1e2e}
+.card-title{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.section-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px;padding-top:16px;border-top:1px solid var(--border)}
 .section-label:first-child{margin-top:0;padding-top:0;border-top:none}
-label{display:block;font-size:11px;color:#6b6b7e;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
-input[type=text],input[type=number],input[type=password],select{width:100%;background:#0f0f13;border:1px solid #2e2e40;border-radius:7px;padding:8px 12px;font-size:13px;color:#e2e2e8;outline:none;transition:border-color .15s}
-input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-input::placeholder{color:#4a4a60}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:400;text-transform:uppercase;letter-spacing:.32px}
+input[type=text],input[type=number],input[type=password],select{width:100%;background:var(--field);border:none;border-bottom:1px solid var(--border-strong);border-radius:0;padding:10px 12px;font-size:13px;font-family:var(--font-sans);color:var(--text);outline:none;transition:outline .11s,background .11s}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-2px}
+input::placeholder{color:var(--placeholder)}
 .field{margin-bottom:10px}
 .field:last-of-type{margin-bottom:0}
 .row{display:flex;gap:8px;margin-top:10px}.row>*{flex:1}
 .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
-button{background:#6366f1;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap;width:100%;margin-top:10px}
-button:hover{background:#4f52d9}button:disabled{opacity:.45;cursor:default}
-button.danger{background:#7f1d1d;color:#fca5a5;margin-top:0}
-button.danger:hover{background:#991b1b}
-button.ghost{background:#1e1e2e;border:1px solid #2e2e40;color:#94a3b8}
-button.ghost:hover{background:#262636;color:#e2e8f0}
-.status-row{display:flex;align-items:center;gap:7px;margin-top:10px;padding:8px 12px;background:#0f0f13;border:1px solid #1e1e2e;border-radius:7px;font-size:12px}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.dot.on{background:#10b981;box-shadow:0 0 5px #10b981}
-.dot.off{background:#374151}
-.dot.warn{background:#f59e0b;box-shadow:0 0 5px #f59e0b}
-.dot.alert{background:#ef4444;box-shadow:0 0 5px #ef4444}
-.status-text{color:#6b6b7e;flex:1}.status-text strong{color:#e2e2e8}
+button{background:var(--blue);color:#fff;border:1px solid transparent;border-radius:0;padding:11px 16px;font-size:13px;font-weight:400;font-family:var(--font-sans);letter-spacing:.16px;cursor:pointer;transition:background .15s cubic-bezier(.2,0,.38,.9);white-space:nowrap;width:100%;margin-top:10px}
+button:hover{background:var(--blue-hover)}
+button:active{background:var(--blue-active)}
+button:focus-visible,button:focus{outline:2px solid var(--blue);outline-offset:-2px;box-shadow:inset 0 0 0 1px #fff}
+button:disabled{opacity:.45;cursor:default}
+button.danger{background:var(--danger);color:#fff;margin-top:0}
+button.danger:hover{background:#ba1b23}
+button.ghost{background:transparent;border:1px solid var(--border-strong);color:var(--text-sec)}
+button.ghost:hover{background:var(--layer-02);color:var(--text)}
+.status-row{display:flex;align-items:center;gap:7px;margin-top:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:0;font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.on{background:var(--success);box-shadow:0 0 5px var(--success)}
+.dot.off{background:var(--border-strong)}
+.dot.warn{background:var(--warn);box-shadow:0 0 5px var(--warn)}
+.dot.alert{background:var(--danger);box-shadow:0 0 5px var(--danger)}
+.status-text{color:var(--muted);flex:1}.status-text strong{color:var(--text)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{background:#111827;border:1px solid #1e293b;border-radius:6px;padding:5px 10px;font-size:12px;color:#94a3b8;cursor:pointer;transition:background .1s}
-.chip:hover{background:#1e293b;color:#e2e8f0}
-.result{margin-top:14px;padding:14px;background:#111827;border:1px solid #1e293b;border-radius:9px;font-size:14px;line-height:1.7;color:#e2e8f0;display:none}
+.chip{background:var(--bg);border:1px solid var(--border);border-radius:15px;padding:5px 11px;font-size:12px;color:var(--text-sec);cursor:pointer;transition:border-color .1s,background .1s}
+.chip:hover{border-color:var(--accent);color:var(--text)}
+.result{margin-top:14px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:0;font-size:14px;line-height:1.7;color:var(--text);display:none}
 .result.visible{display:block}
-.thinking{color:#6b6b7e;font-style:italic;font-size:13px}
-.spinner{display:inline-block;animation:spin .7s linear infinite}
-.alert-row{display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:#111827;border:1px solid #1e293b;border-radius:7px;margin-bottom:6px;font-size:12px}
-.alert-row.fired{border-color:#7f1d1d;background:#1c1216}
-.alert-row .ts{font-size:10px;color:#6b6b7e}
-.alert-row .body{color:#e2e8f0;line-height:1.5;white-space:pre-wrap}
-.muted{font-size:11px;color:#4a4a60;margin-top:6px}
+.thinking{color:var(--muted);font-style:normal;font-size:13px}
+.spinner{display:inline-block;animation:spin .7s linear infinite;color:var(--accent)}
+.alert-row{display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--danger);border-radius:0;margin-bottom:6px;font-size:12px}
+.alert-row.fired{border-color:var(--border);border-left-color:var(--danger);background:rgba(218,30,40,.08)}
+.alert-row .ts{font-size:10px;color:var(--muted);font-family:var(--font-mono)}
+.alert-row .body{color:var(--text);line-height:1.5;white-space:pre-wrap}
+.muted{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+.muted a{color:var(--link);text-decoration:none}.muted a:hover{text-decoration:underline;color:var(--blue-hover)}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .fadein{animation:fadein .2s ease}
+/* App intro band: one-line blurb + the tools this app uses */
+.app-intro{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;background:var(--layer);border-bottom:1px solid var(--border);max-width:1020px;margin:0 auto 24px}
+.app-intro__blurb{font-size:13px;color:var(--muted);line-height:1.5;max-width:48rem}
+.app-intro__blurb strong{color:var(--text);font-weight:600}
+.app-intro__tools{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.app-intro__tools .tools-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-right:4px}
+.tool-pill{font-size:11px;color:var(--text-sec);background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:3px 10px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -333,6 +364,17 @@ button.ghost:hover{background:#262636;color:#e2e8f0}
   <p class="sub">Powered by <span>CugaAgent</span> · live market data · browser-only alerts</p>
 </header>
 
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Stock Alert.</strong> Ask live price questions and set threshold watches on crypto and stocks; alerts fire as browser notifications and live only in your browser.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">🪙 Crypto · CoinGecko</span>
+    <span class="tool-pill">📈 Stocks · Alpha Vantage</span>
+  </div>
+</div>
+
 <div class="layout">
 
   <!-- ══ Left panel — settings ══ -->
@@ -340,7 +382,7 @@ button.ghost:hover{background:#262636;color:#e2e8f0}
 
     <div class="card">
 
-      <div class="section-label">Alpha Vantage Key <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#4a4a60">— per-user, stays in this browser</span></div>
+      <div class="section-label">Alpha Vantage Key <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">— per-user, stays in this browser</span></div>
       <div class="field">
         <input id="avKey" type="password" placeholder="get free key at alphavantage.co" />
       </div>
@@ -353,9 +395,9 @@ button.ghost:hover{background:#262636;color:#e2e8f0}
         except when sent on individual price requests, and is never persisted
         on the server. Crypto works without a key. <a
         href="https://www.alphavantage.co/support/#api-key"
-        target="_blank" style="color:#818cf8">Get a free key →</a></div>
+        target="_blank" style="color:var(--link)">Get a free key →</a></div>
 
-      <div class="muted" style="margin-top:14px;padding-top:14px;border-top:1px solid #1e1e2e">
+      <div class="muted" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
         Watches and alert history live only in this browser. A different user
         on a different browser sees their own watches.
       </div>
@@ -406,7 +448,7 @@ button.ghost:hover{background:#262636;color:#e2e8f0}
 
     <!-- Price Watch -->
     <div class="card">
-      <div class="card-title">Price Watch <span style="float:right;font-size:10px;color:#4a4a60" id="watchSummary"></span></div>
+      <div class="card-title">Price Watch <span style="float:right;font-size:10px;color:#8d8d8d" id="watchSummary"></span></div>
       <div class="row-3">
         <div>
           <label>Symbol</label>
@@ -501,7 +543,7 @@ async function ask() {
 
   if (isStock && !avKey) {
     result.className = 'result visible fadein'
-    result.style.color = '#fbbf24'
+    result.style.color = '#f1c21b'
     result.textContent = 'Stock quotes need an Alpha Vantage key. Paste yours in the left panel and click Save.'
     return
   }
@@ -521,7 +563,7 @@ async function ask() {
     const data = await res.json()
     result.innerHTML = renderAnswer(data.answer)
   } catch (err) {
-    result.style.color = '#f87171'
+    result.style.color = '#da1e28'
     result.textContent = 'Error: ' + err.message
   } finally {
     btn.disabled = false
@@ -532,8 +574,8 @@ function renderAnswer(text) {
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>')
-    .replace(/\\b(\\+?-?\\d+\\.?\\d*%)\\b/g, s => `<span style="color:${s.startsWith('-')?'#f87171':'#34d399'};font-weight:600">${s}</span>`)
-    .replace(/\\$[\\d,]+(?:\\.\\d+)?/g, s => `<span style="color:#818cf8;font-weight:600">${s}</span>`)
+    .replace(/\\b(\\+?-?\\d+\\.?\\d*%)\\b/g, s => `<span style="color:${s.startsWith('-')?'#da1e28':'#24a148'};font-weight:600">${s}</span>`)
+    .replace(/\\$[\\d,]+(?:\\.\\d+)?/g, s => `<span style="color:#0f62fe;font-weight:600">${s}</span>`)
     .replace(/\\n/g,'<br>')
 }
 
@@ -589,7 +631,7 @@ function renderWatches() {
       ? `last checked ${fmtAgo(w.lastCheckedAt)}`
       : 'not yet checked'
     const fired = w.lastTriggeredAt
-      ? ` · <span style="color:#f87171">fired ${fmtAgo(w.lastTriggeredAt)}</span>`
+      ? ` · <span style="color:#da1e28">fired ${fmtAgo(w.lastTriggeredAt)}</span>`
       : ''
     const dotCls = w.lastTriggeredAt ? 'alert' : (w.lastCheckedAt ? 'on' : 'warn')
     const key   = watchKey(w)
@@ -597,8 +639,8 @@ function renderWatches() {
       <span class="dot ${dotCls}" style="margin-top:4px"></span>
       <span class="status-text" style="line-height:1.5">
         <strong>${w.symbol}</strong> ${dir} $${Number(w.threshold).toLocaleString()}
-        <span style="color:#4a4a60">(${w.isStock?'stock':'crypto'})</span><br>
-        <span style="font-size:11px;color:#4a4a60">${last}${fired}</span>
+        <span style="color:#8d8d8d">(${w.isStock?'stock':'crypto'})</span><br>
+        <span style="font-size:11px;color:#8d8d8d">${last}${fired}</span>
       </span>
       <span style="display:flex;gap:6px;flex-shrink:0">
         <button class="ghost" onclick="manualCheck('${key}')" style="width:auto;margin:0;padding:4px 10px;font-size:11px">Check now</button>

@@ -1,6 +1,7 @@
 # cuga-apps (MCP edition)
 
-23 demo agent-apps, each a CugaAgent wrapped in a FastAPI UI. Every shared tool
+35 demo agent-apps in the tree (27 deployable · 21 ship-ready), each a CugaAgent
+wrapped in a FastAPI UI. Every shared tool
 primitive (web search, Wikipedia, arXiv, geocoding, document parsing,
 transcription, etc.) lives in a separate **MCP server**; apps connect via a
 LangChain↔MCP bridge. One umbrella UI tiles every app; one tool explorer lets
@@ -13,11 +14,11 @@ you browse and invoke every MCP tool.
                                     └────────────┬─────────────┘
                                                  ▼
    ┌─────────────────┐    streamable HTTP   ┌──────────────────────┐
-   │ 7 MCP servers   │ ◄──────────────────► │  23 FastAPI apps     │
+   │ 8 MCP servers   │ ◄──────────────────► │  35 FastAPI apps     │
    │ web/knowledge/  │   apps/_mcp_bridge   │  (CugaAgent inside)  │
    │ geo/finance/    │                      │  ports 28xxx         │
    │ code/local/text │                      │                      │
-   │ ports 29100-29106                      └──────────────────────┘
+   │ ports 29100-29107                      └──────────────────────┘
    └────────┬────────┘
             │
             ▼
@@ -50,7 +51,7 @@ cache. Pick whichever you prefer — they install the same packages.
 ```bash
 cd cuga-apps
 uv venv --python 3.13                            # creates ./.venv
-uv pip install -r requirements.apps.txt          # lite — covers 21 of 23 apps
+uv pip install -r requirements.apps.txt          # lite — covers 25 of 27 apps
 source .venv/bin/activate
 ```
 
@@ -60,7 +61,7 @@ source .venv/bin/activate
 cd cuga-apps
 python3.13 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.apps.txt             # lite — covers 21 of 23 apps
+pip install -r requirements.apps.txt             # lite — covers 25 of 27 apps
 ```
 
 The lite install **skips `chromadb` and `sentence-transformers`**. Only two
@@ -110,12 +111,33 @@ uv venv --python 3.13                            # this repo targets 3.13
 > seconds when wheels are cached. Reach for it only if you're chasing a
 > corrupted wheel or a stale resolver result.
 
-Once installed, launch any app via `apps/launch.py` (the MCP servers still
-need to be running — start them with `docker compose up -d` for the `mcp-*`
-services, or run `mcp_servers/run_all.py`).
+Once installed, the simplest path is **`apps/launch.py`** — it brings up the
+**8 MCP servers + every app + the usage dashboard** together, and spawns each
+process with an interpreter that has `cuga` (auto-detecting a `.venv` if you
+launched from a cuga-less Python; override with `CUGA_PYTHON`):
 
-The Docker image always installs both files, so `docker compose` users get
-the full stack regardless.
+```bash
+cd apps
+python launch.py                      # start MCP servers + all apps + usage_collector
+python launch.py status               # what's running
+python launch.py kill --ship-ready    # free the ports of just the 21 ship-ready apps
+python launch.py stop                 # stop everything it started
+```
+
+The usage dashboard is at <http://localhost:28827>. To start one app or a
+subset, pass names: `python launch.py start recipe_composer github_trending`.
+
+Alternatively, `start.sh` (the container entrypoint) launches all apps but
+**not** the MCP servers — for that route start the `mcp-*` services with
+`docker compose up -d` (or `mcp_servers/run_all.py`) first, then:
+
+```bash
+source .venv/bin/activate
+APP_DIR="$PWD/apps" ./start.sh
+```
+
+The Docker image always installs both requirement files, so `docker compose`
+users get the full stack regardless.
 
 To verify everything's healthy:
 
@@ -141,7 +163,7 @@ Read these in order if you're new:
 
 ```
 cuga-apps/
-├── mcp_servers/             7 MCP servers + shared _core
+├── mcp_servers/             8 MCP servers (7 hosted + invocable_apis) + shared _core
 │   ├── _core/               http, errors, html, FastMCP bootstrap
 │   ├── web/                 Tavily, fetch, RSS, YouTube
 │   ├── knowledge/           Wikipedia, arXiv, Semantic Scholar
@@ -150,11 +172,14 @@ cuga-apps/
 │   ├── code/                stdlib code analysis
 │   ├── local/               psutil, faster-whisper
 │   └── text/                docling, tiktoken, recursive chunking
-├── apps/                    23 FastAPI demo apps
+├── apps/                    35 FastAPI demo apps (27 deployable)
 │   ├── _mcp_bridge.py       LangChain↔MCP adapter
 │   ├── _llm.py              multi-provider LLM factory
 │   ├── _ports.py            single source of truth for ALL ports
-│   ├── launch.py            local-dev launcher
+│   ├── _ratelimit.py        shared rate limiting (install_rate_limit)
+│   ├── _usage.py            shared usage tracking (install_usage)
+│   ├── usage_collector/     cross-app usage dashboard (port 28827)
+│   ├── launch.py            local-dev launcher (start/stop/kill/status)
 │   └── <app>/               per-app code
 ├── mcp_tool_explorer/       browse + invoke MCP tools (port 28900)
 ├── ui/                      React/Vite umbrella (port 3001)
@@ -178,8 +203,8 @@ port is shifted into a non-overlapping range.
 | Component | Port range |
 |---|---|
 | Umbrella UI | **3001** |
-| Apps (23) | **28xxx** (28071, 28090, 28766–28814) |
-| MCP servers (7) | **29100–29106** |
+| Apps (35) | **28xxx** (28071, 28090, 28766–28814) |
+| MCP servers (8) | **29100–29107** (29107 = invocable_apis, local-only) |
 | Tool explorer | **28900** |
 
 See [apps/_ports.py](apps/_ports.py) for the authoritative registry.

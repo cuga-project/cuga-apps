@@ -1,0 +1,28 @@
+# Ouroboros — multi-agent edition
+#
+# CUGA is installed from PyPI (latest release):
+#   pip install -U cuga
+# 0.2.28+ ships CugaSupervisor + skills + policies on mainline, so the
+# old skills-branch editable install is no longer needed. (Loops /
+# scheduling were skills-branch-only and have been removed from this app.)
+#
+# Build with brew Python 3.12 — python.org's installer build of 3.11 lacks
+# loadable-sqlite-extension support, which sqlite-vec / CUGA policies require.
+
+cuga
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+httpx>=0.27
+
+# CUGA SDK pulls these in transitively, but listing them in case the venv
+# is built without the full cuga dependency set.
+langchain-core>=0.3
+langchain-mcp-adapters
+mcp>=1.0
+sqlite-vec>=0.1.6     # required for the policy embedding store
+
+# Pick one provider; cuga's _llm.py imports lazily.
+langchain-anthropic>=0.2
+# langchain-openai>=0.2
+# langchain-ibm>=0.3

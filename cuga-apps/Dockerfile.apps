@@ -2,10 +2,12 @@
 # =====================================================================
 # Dockerfile.apps — cuga-apps (MCP edition) app container.
 #
-# Stage 1 ships 4 reference apps (web_researcher, paper_scout,
-# travel_planner, code_reviewer). Dependencies here reflect that lean
-# set — heavy deps (faster-whisper, docling, chromadb, boxsdk, …) will
-# come back when the corresponding stage-2 apps are ported.
+# One shared image runs every cuga-app; each CE app picks its main.py via
+# --command/--argument (see deploy_apps.sh). Carries the union of app deps:
+# the LangChain/cuga stack, sqlite-vec (ouroboros policies), feedparser
+# (ai_labs_news), chromadb/sentence-transformers (video_qa, deck_forge —
+# requirements.apps.heavy.txt), and a headless Chromium for the one
+# browser-driven app (meetup_finder).
 # =====================================================================
 FROM python:3.13-slim
 
@@ -22,6 +24,13 @@ COPY requirements.apps.txt requirements.apps.heavy.txt ./
 # install so the whole stack works out of the box. Local dev can skip the
 # heavy file — see README.md.
 RUN pip install --no-cache-dir -r requirements.apps.txt -r requirements.apps.heavy.txt
+
+# Browser for the one browser-driven app (meetup_finder). `--with-deps`
+# pulls the OS libraries Chromium needs (libnss3, libatk, fonts, …) and the
+# Chromium build itself. Harmless for the API-only apps — they never import
+# playwright. The app launches Chromium with --no-sandbox in-container
+# (it detects CUGA_IN_DOCKER / CE_APP).
+RUN python -m playwright install --with-deps chromium
 
 # Mark the container so _mcp_bridge resolves service DNS automatically.
 ENV CUGA_IN_DOCKER=1

@@ -1,0 +1,1115 @@
+metadata:
+  name: cuga-allinone
+  namespace: 1gxwxi8kos9y
+  uid: 9e32e1a2-e3ef-438b-9a16-29a7ff643d6d
+  resourceVersion: "9795477217"
+  generation: 3
+  creationTimestamp: "2026-06-08T15:54:21Z"
+  annotations:
+    client.knative.dev/user-image: icr.io/routing_namespace/cuga-allinone:latest
+    serving.knative.dev/creator: system:serviceaccount:1gxwxi8kos9y:1gxwxi8kos9y-writer
+    serving.knative.dev/lastModifier: system:serviceaccount:1gxwxi8kos9y:1gxwxi8kos9y-writer
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "1"
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/scale-down-delay: 0s
+        client.knative.dev/updateTimestamp: "2026-06-08T16:10:05Z"
+    spec:
+      containers:
+      - name: user-container
+        image: icr.io/routing_namespace/cuga-allinone:latest
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        envFrom:
+        - secretRef:
+            name: cuga-allinone-env
+        env:
+        - name: CE_DOMAIN
+          value: us-east.codeengine.appdomain.cloud
+        - name: CE_REGION
+          value: us-east
+        - name: CE_API_BASE_URL
+          value: https://api.private.us-east.codeengine.cloud.ibm.com
+        - name: CE_SUBDOMAIN
+          value: 1gxwxi8kos9y
+        - name: CE_PROJECT_ID
+          value: e214613f-fc72-4d58-86cf-3f292756a743
+        - name: CE_APP
+          value: cuga-allinone
+        resources:
+          limits:
+            cpu: "12"
+            ephemeral-storage: 5G
+            memory: 48G
+          requests:
+            cpu: "12"
+            ephemeral-storage: 5G
+            memory: 48G
+        readinessProbe:
+          tcpSocket:
+            port: 0
+          successThreshold: 1
+        imagePullPolicy: Always
+      imagePullSecrets:
+      - name: icr-secret-1
+      enableServiceLinks: false
+      containerConcurrency: 100
+      timeoutSeconds: 300
+      responseStartTimeoutSeconds: 0
+  traffic:
+  - latestRevision: true
+    percent: 100
+status:
+  observedGeneration: 3
+  conditions:
+  - type: ConfigurationsReady
+    status: "True"
+    lastTransitionTime: "2026-06-08T16:12:42Z"
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2026-06-08T16:12:49Z"
+  - type: RoutesReady
+    status: "True"
+    lastTransitionTime: "2026-06-08T16:12:49Z"
+  latestReadyRevisionName: cuga-allinone-00003
+  latestCreatedRevisionName: cuga-allinone-00003
+  url: https://cuga-allinone.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud
+  address:
+    url: http://cuga-allinone.1gxwxi8kos9y.svc.cluster.local
+  traffic:
+  - revisionName: cuga-allinone-00003
+    latestRevision: true
+    percent: 100
+build: null
+buildRun: null
+events:
+- metadata:
+    name: cuga-allinone.18b72617d5e2aa3a
+    namespace: 1gxwxi8kos9y
+    uid: 95dadf9e-da5d-4c01-bc4e-306d593b2b01
+    resourceVersion: "9795347351"
+    creationTimestamp: "2026-06-08T15:54:21Z"
+  involvedObject:
+    namespace: 1gxwxi8kos9y
+    name: cuga-allinone
+    uid: 9e32e1a2-e3ef-438b-9a16-29a7ff643d6d
+    resourceVersion: "9795347334"
+  reason: Created
+  message: Created Configuration "cuga-allinone"
+  source:
+    component: service-controller
+  firstTimestamp: "2026-06-08T15:54:21Z"
+  lastTimestamp: "2026-06-08T15:54:21Z"
+  count: 1
+  type: Normal
+  eventTime: null
+  reportingComponent: service-controller
+  reportingInstance: ""
+- metadata:
+    name: cuga-allinone.18b72617d7c55345
+    namespace: 1gxwxi8kos9y
+    uid: 3ffc8779-e234-4a7e-9228-c096756e1bbb
+    resourceVersion: "9795347355"
+    creationTimestamp: "2026-06-08T15:54:21Z"
+  involvedObject:
+    namespace: 1gxwxi8kos9y
+    name: cuga-allinone
+    uid: 9e32e1a2-e3ef-438b-9a16-29a7ff643d6d
+    resourceVersion: "9795347334"
+  reason: Created
+  message: Created Route "cuga-allinone"
+  source:
+    component: service-controller
+  firstTimestamp: "2026-06-08T15:54:21Z"
+  lastTimestamp: "2026-06-08T15:54:21Z"
+  count: 1
+  type: Normal
+  eventTime: null
+  reportingComponent: service-controller
+  reportingInstance: ""
+instances:
+- metadata:
+    name: cuga-allinone-00003-deployment-5cbcd689c5-jpm9p
+    generateName: cuga-allinone-00003-deployment-5cbcd689c5-
+    namespace: 1gxwxi8kos9y
+    uid: 9e596851-57d1-4270-a751-83821d825906
+    resourceVersion: "9795476436"
+    generation: 1
+    creationTimestamp: "2026-06-08T16:10:06Z"
+    labels:
+      app: cuga-allinone-00003
+      codeengine.cloud.ibm.com/workload-class: volatile
+      pod-template-hash: 5cbcd689c5
+      security.istio.io/tlsMode: istio
+      service.istio.io/canonical-name: cuga-allinone
+      service.istio.io/canonical-revision: cuga-allinone-00003
+      serving.knative.dev/configuration: cuga-allinone
+      serving.knative.dev/configurationGeneration: "3"
+      serving.knative.dev/configurationUID: 51f6430f-b6f6-4b15-8e1d-1c92725fd770
+      serving.knative.dev/revision: cuga-allinone-00003
+      serving.knative.dev/revisionUID: 0ae8dfd5-cb55-4150-8757-3ca4946060bd
+      serving.knative.dev/service: cuga-allinone
+      serving.knative.dev/serviceUID: 9e32e1a2-e3ef-438b-9a16-29a7ff643d6d
+    annotations:
+      client.knative.dev/updateTimestamp: "2026-06-08T16:10:05Z"
+      cni.projectcalico.org/containerID: 20fcf87e74f047656d2f52e6cc1e2f0a45e80aba94dd3d510fb7f96345d2dacb
+      cni.projectcalico.org/podIP: 172.30.80.83/32
+      cni.projectcalico.org/podIPs: 172.30.80.83/32
+      codeengine.cloud.ibm.com/project-crn: "crn:v1:bluemix:public:codeengine:us-east:a/045077ab9f1a4dcfafa2c58389d3d639:e214613f-fc72-4d58-86cf-3f292756a743::"
+      istio.io/rev: default
+      kubectl.kubernetes.io/default-container: user-container
+      kubectl.kubernetes.io/default-logs-container: user-container
+      kubernetes.io/limit-ranger: "LimitRanger plugin set: ephemeral-storage request for container istio-proxy; ephemeral-storage limit for container istio-proxy; ephemeral-storage request for init container istio-validation; ephemeral-storage limit for init container istio-validation"
+      prometheus.io/path: /stats/prometheus
+      prometheus.io/port: "15020"
+      prometheus.io/scrape: "true"
+      serving.knative.dev/creator: system:serviceaccount:1gxwxi8kos9y:1gxwxi8kos9y-writer
+      sidecar.istio.io/interceptionMode: REDIRECT
+      sidecar.istio.io/status: "{\"initContainers\":[\"istio-validation\"],\"containers\":[\"istio-proxy\"],\"volumes\":[\"workload-socket\",\"credential-socket\",\"workload-certs\",\"istio-envoy\",\"istio-data\",\"istio-podinfo\",\"istio-token\",\"istiod-ca-cert\",\"istio-ca-crl\"],\"imagePullSecrets\":null,\"revision\":\"default\"}"
+      traffic.sidecar.istio.io/excludeInboundPorts: "15020"
+      traffic.sidecar.istio.io/includeInboundPorts: "*"
+      traffic.sidecar.istio.io/includeOutboundIPRanges: "*"
+    ownerReferences:
+    - apiVersion: ""
+      kind: ""
+      name: cuga-allinone-00003-deployment-5cbcd689c5
+      uid: ebb4c79f-ed45-40d1-b712-6f74e8af8ac4
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    volumes:
+    - name: workload-socket
+      emptyDir: {}
+    - name: credential-socket
+      emptyDir: {}
+    - name: workload-certs
+      emptyDir: {}
+    - name: istio-envoy
+      emptyDir:
+        medium: Memory
+    - name: istio-data
+      emptyDir: {}
+    - name: istio-podinfo
+      downwardAPI:
+        items:
+        - path: labels
+          fieldRef:
+            fieldPath: metadata.labels
+        - path: annotations
+          fieldRef:
+            fieldPath: metadata.annotations
+        defaultMode: 420
+    - name: istio-token
+      projected:
+        sources:
+        - serviceAccountToken:
+            audience: istio-ca
+            expirationSeconds: 43200
+            path: istio-token
+        defaultMode: 420
+    - name: istiod-ca-cert
+      configMap:
+        name: istio-ca-root-cert
+        defaultMode: 420
+    - name: istio-ca-crl
+      configMap:
+        name: istio-ca-crl
+        defaultMode: 420
+        optional: true
+    - name: kube-api-access-xvbk8
+      projected:
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            name: kube-root-ca.crt
+            items:
+            - key: ca.crt
+              path: ca.crt
+        - downwardAPI:
+            items:
+            - path: namespace
+              fieldRef:
+                fieldPath: metadata.namespace
+        defaultMode: 420
+    initContainers:
+    - name: istio-validation
+      image: private.icr.io/obs/codeengine/istio/proxyv2:1.29.3-build.165
+      args:
+      - istio-iptables
+      - -p
+      - "15001"
+      - -z
+      - "15006"
+      - -u
+      - "1337"
+      - -m
+      - REDIRECT
+      - -i
+      - "*"
+      - -x
+      - ""
+      - -b
+      - "*"
+      - -d
+      - 15090,15021,15020
+      - --log_output_level=default:info
+      - --run-validation
+      - --skip-rule-apply
+      resources:
+        limits:
+          cpu: 200m
+          ephemeral-storage: 400M
+          memory: 512Mi
+        requests:
+          cpu: 10m
+          ephemeral-storage: 400M
+          memory: 100Mi
+      volumeMounts:
+      - name: kube-api-access-xvbk8
+        readOnly: true
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        runAsUser: 1337
+        runAsGroup: 1337
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        seccompProfile:
+          type: RuntimeDefault
+        appArmorProfile:
+          type: RuntimeDefault
+    containers:
+    - name: istio-proxy
+      image: private.icr.io/obs/codeengine/istio/proxyv2:1.29.3-build.165
+      args:
+      - proxy
+      - sidecar
+      - --domain
+      - $(POD_NAMESPACE).svc.cluster.local
+      - --proxyLogLevel=warning
+      - --proxyComponentLogLevel=misc:error
+      - --log_output_level=default:info
+      ports:
+      - name: http-envoy-prom
+        containerPort: 15090
+        protocol: TCP
+      env:
+      - name: PILOT_CERT_PROVIDER
+        value: istiod
+      - name: CA_ADDR
+        value: istiod.istio-system.svc:15012
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: INSTANCE_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+      - name: SERVICE_ACCOUNT
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.serviceAccountName
+      - name: HOST_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.hostIP
+      - name: ISTIO_CPU_LIMIT
+        valueFrom:
+          resourceFieldRef:
+            resource: limits.cpu
+            divisor: "1"
+      - name: PROXY_CONFIG
+        value: "{\"holdApplicationUntilProxyStarts\":true}\n"
+      - name: ISTIO_META_POD_PORTS
+        value: "[\n    {\"name\":\"user-port\",\"containerPort\":8080,\"protocol\":\"TCP\"}\n    ,{\"name\":\"http-autometric\",\"containerPort\":9090,\"protocol\":\"TCP\"}\n    ,{\"name\":\"http-usermetric\",\"containerPort\":9091,\"protocol\":\"TCP\"}\n    ,{\"name\":\"queue-port\",\"containerPort\":8012,\"protocol\":\"TCP\"}\n    ,{\"name\":\"https-port\",\"containerPort\":8112,\"protocol\":\"TCP\"}\n]"
+      - name: ISTIO_META_APP_CONTAINERS
+        value: user-container,queue-proxy
+      - name: GOMEMLIMIT
+        valueFrom:
+          resourceFieldRef:
+            resource: limits.memory
+            divisor: "1"
+      - name: GOMAXPROCS
+        valueFrom:
+          resourceFieldRef:
+            resource: limits.cpu
+            divisor: "1"
+      - name: ISTIO_META_CLUSTER_ID
+        value: Kubernetes
+      - name: ISTIO_META_NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+      - name: ISTIO_META_INTERCEPTION_MODE
+        value: REDIRECT
+      - name: ISTIO_META_WORKLOAD_NAME
+        value: cuga-allinone-00003-deployment
+      - name: ISTIO_META_OWNER
+        value: kubernetes://apis/apps/v1/namespaces/1gxwxi8kos9y/deployments/cuga-allinone-00003-deployment
+      - name: ISTIO_META_MESH_ID
+        value: cluster.local
+      - name: TRUST_DOMAIN
+        value: cluster.local
+      - name: ISTIO_KUBE_APP_PROBERS
+        value: "{\"/app-health/queue-proxy/readyz\":{\"httpGet\":{\"path\":\"/\",\"port\":8012,\"scheme\":\"HTTP\",\"httpHeaders\":[{\"name\":\"K-Network-Probe\",\"value\":\"queue\"}]},\"timeoutSeconds\":1},\"/app-lifecycle/user-container/prestopz\":{\"httpGet\":{\"path\":\"/wait-for-drain\",\"port\":8022,\"scheme\":\"HTTP\"}}}"
+      resources:
+        limits:
+          cpu: 200m
+          ephemeral-storage: 400M
+          memory: 512Mi
+        requests:
+          cpu: 10m
+          ephemeral-storage: 400M
+          memory: 100Mi
+      volumeMounts:
+      - name: workload-socket
+        mountPath: /var/run/secrets/workload-spiffe-uds
+      - name: credential-socket
+        mountPath: /var/run/secrets/credential-uds
+      - name: workload-certs
+        mountPath: /var/run/secrets/workload-spiffe-credentials
+      - name: istiod-ca-cert
+        mountPath: /var/run/secrets/istio
+      - name: istio-ca-crl
+        mountPath: /var/run/secrets/istio/crl
+      - name: istio-data
+        mountPath: /var/lib/istio/data
+      - name: istio-envoy
+        mountPath: /etc/istio/proxy
+      - name: istio-token
+        mountPath: /var/run/secrets/tokens
+      - name: istio-podinfo
+        mountPath: /etc/istio/pod
+      - name: kube-api-access-xvbk8
+        readOnly: true
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      readinessProbe:
+        httpGet:
+          path: /healthz/ready
+          port: 15021
+          scheme: HTTP
+        timeoutSeconds: 3
+        periodSeconds: 15
+        successThreshold: 1
+        failureThreshold: 4
+      startupProbe:
+        httpGet:
+          path: /healthz/ready
+          port: 15021
+          scheme: HTTP
+        timeoutSeconds: 3
+        periodSeconds: 1
+        successThreshold: 1
+        failureThreshold: 600
+      lifecycle:
+        postStart:
+          exec:
+            command:
+            - pilot-agent
+            - wait
+        preStop:
+          exec:
+            command:
+            - prestop-hook
+            - --timeout
+            - "295"
+            - --initial-delay
+            - "5"
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        runAsUser: 1337
+        runAsGroup: 1337
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        seccompProfile:
+          type: RuntimeDefault
+        appArmorProfile:
+          type: RuntimeDefault
+    - name: user-container
+      image: icr.io/routing_namespace/cuga-allinone@sha256:6dee229a52db600ed5e3d5fb9e6ae2d865169a13a09a4b7d04d25174b9d8257d
+      ports:
+      - name: user-port
+        containerPort: 8080
+        protocol: TCP
+      envFrom:
+      - secretRef:
+          name: cuga-allinone-env
+      env:
+      - name: CE_DOMAIN
+        value: us-east.codeengine.appdomain.cloud
+      - name: CE_REGION
+        value: us-east
+      - name: CE_API_BASE_URL
+        value: https://api.private.us-east.codeengine.cloud.ibm.com
+      - name: CE_SUBDOMAIN
+        value: 1gxwxi8kos9y
+      - name: CE_PROJECT_ID
+        value: e214613f-fc72-4d58-86cf-3f292756a743
+      - name: CE_APP
+        value: cuga-allinone
+      - name: PORT
+        value: "8080"
+      - name: K_REVISION
+        value: cuga-allinone-00003
+      - name: K_CONFIGURATION
+        value: cuga-allinone
+      - name: K_SERVICE
+        value: cuga-allinone
+      resources:
+        limits:
+          cpu: "12"
+          ephemeral-storage: 5G
+          memory: 48G
+        requests:
+          cpu: "12"
+          ephemeral-storage: 5G
+          memory: 48G
+      volumeMounts:
+      - name: kube-api-access-xvbk8
+        readOnly: true
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      lifecycle:
+        preStop:
+          httpGet:
+            path: /app-lifecycle/user-container/prestopz
+            port: 15020
+            scheme: HTTP
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      imagePullPolicy: Always
+      securityContext:
+        capabilities:
+          drop:
+          - AUDIT_CONTROL
+          - AUDIT_READ
+          - AUDIT_WRITE
+          - BLOCK_SUSPEND
+          - BPF
+          - CHECKPOINT_RESTORE
+          - DAC_READ_SEARCH
+          - FSETID
+          - IPC_LOCK
+          - IPC_OWNER
+          - KILL
+          - LEASE
+          - LINUX_IMMUTABLE
+          - MAC_ADMIN
+          - MAC_OVERRIDE
+          - MKNOD
+          - NET_ADMIN
+          - NET_BROADCAST
+          - NET_RAW
+          - PERFMONN
+          - SETPCAP
+          - SYSLOG
+          - SYS_ADMIN
+          - SYS_BOOT
+          - SYS_CHROOT
+          - SYS_MODULE
+          - SYS_NICE
+          - SYS_PACCT
+          - SYS_PTRACE
+          - SYS_RAWIO
+          - SYS_RESOURCE
+          - SYS_TIME
+          - SYS_TTY_CONFIG
+          - WAKE_ALARM
+        allowPrivilegeEscalation: false
+        appArmorProfile:
+          type: RuntimeDefault
+    - name: queue-proxy
+      image: private.icr.io/obs/codeengine/serving/queue:v0.48.2-build.4-v0.48.2@sha256:5ab62789aeb03b9aa077891f84be1e2cc352ebd2748b6a30d0d32f419c7cf0db
+      ports:
+      - name: http-autometric
+        containerPort: 9090
+        protocol: TCP
+      - name: http-usermetric
+        containerPort: 9091
+        protocol: TCP
+      - name: queue-port
+        containerPort: 8012
+        protocol: TCP
+      - name: https-port
+        containerPort: 8112
+        protocol: TCP
+      env:
+      - name: SERVING_NAMESPACE
+        value: 1gxwxi8kos9y
+      - name: SERVING_SERVICE
+        value: cuga-allinone
+      - name: SERVING_CONFIGURATION
+        value: cuga-allinone
+      - name: SERVING_REVISION
+        value: cuga-allinone-00003
+      - name: QUEUE_SERVING_PORT
+        value: "8012"
+      - name: QUEUE_SERVING_TLS_PORT
+        value: "8112"
+      - name: CONTAINER_CONCURRENCY
+        value: "100"
+      - name: REVISION_TIMEOUT_SECONDS
+        value: "300"
+      - name: REVISION_RESPONSE_START_TIMEOUT_SECONDS
+        value: "0"
+      - name: REVISION_IDLE_TIMEOUT_SECONDS
+        value: "0"
+      - name: SERVING_POD
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: SERVING_POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+      - name: SERVING_LOGGING_CONFIG
+      - name: SERVING_LOGGING_LEVEL
+      - name: USER_PORT
+        value: "8080"
+      - name: SYSTEM_NAMESPACE
+        value: knative-serving
+      - name: SERVING_READINESS_PROBE
+        value: "{\"tcpSocket\":{\"port\":8080,\"host\":\"127.0.0.1\"},\"successThreshold\":1}"
+      - name: HOST_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.hostIP
+      - name: ENABLE_HTTP2_AUTO_DETECTION
+        value: "false"
+      - name: ENABLE_HTTP_FULL_DUPLEX
+        value: "false"
+      - name: ROOT_CA
+      - name: QUEUE_PROXY_TLS_MIN_VERSION
+      - name: QUEUE_PROXY_TLS_MAX_VERSION
+      - name: QUEUE_PROXY_TLS_CIPHER_SUITES
+      - name: QUEUE_PROXY_TLS_CURVE_PREFERENCES
+      - name: ENABLE_MULTI_CONTAINER_PROBES
+        value: "false"
+      - name: OBSERVABILITY_CONFIG
+        value: "{\"tracing\":{\"protocol\":\"none\"},\"metrics\":{\"protocol\":\"prometheus\"},\"runtime\":{\"profiling\":\"disabled\",\"exportInterval\":15000000000},\"requestMetrics\":{\"protocol\":\"none\"},\"requestLogTemplate\":\"{\\\"httpRequest\\\": {\\\"requestMethod\\\": \\\"{{.Request.Method}}\\\", \\\"requestUrl\\\": \\\"{{js .Request.RequestURI}}\\\", \\\"requestSize\\\": \\\"{{.Request.ContentLength}}\\\", \\\"status\\\": {{.Response.Code}}, \\\"responseSize\\\": \\\"{{.Response.Size}}\\\", \\\"userAgent\\\": \\\"{{js .Request.UserAgent}}\\\", \\\"remoteIp\\\": \\\"{{js .Request.RemoteAddr}}\\\", \\\"serverIp\\\": \\\"{{.Revision.PodIP}}\\\", \\\"referer\\\": \\\"{{js .Request.Referer}}\\\", \\\"latency\\\": \\\"{{.Response.Latency}}s\\\", \\\"protocol\\\": \\\"{{.Request.Proto}}\\\"}, \\\"traceId\\\": \\\"{{.TraceID}}\\\"}\"}"
+      resources:
+        limits:
+          cpu: "1"
+          ephemeral-storage: 1Gi
+          memory: 800Mi
+        requests:
+          cpu: 10m
+          ephemeral-storage: 512Mi
+          memory: 40M
+      volumeMounts:
+      - name: kube-api-access-xvbk8
+        readOnly: true
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      readinessProbe:
+        httpGet:
+          path: /app-health/queue-proxy/readyz
+          port: 15020
+          scheme: HTTP
+          httpHeaders:
+          - name: K-Network-Probe
+            value: queue
+        timeoutSeconds: 1
+        periodSeconds: 10
+        successThreshold: 1
+        failureThreshold: 3
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      imagePullPolicy: IfNotPresent
+      securityContext:
+        capabilities:
+          drop:
+          - ALL
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        seccompProfile:
+          type: RuntimeDefault
+        appArmorProfile:
+          type: RuntimeDefault
+    restartPolicy: Always
+    terminationGracePeriodSeconds: 300
+    dnsPolicy: ClusterFirst
+    nodeSelector:
+      codeengine.cloud.ibm.com/node-connectivity: "true"
+      codeengine.cloud.ibm.com/worker-pool-type: user
+      serving.codeengine.cloud.ibm.com/node-ready: "true"
+    serviceAccountName: default
+    serviceAccount: default
+    nodeName: 192.168.5.79
+    securityContext:
+      seccompProfile:
+        type: RuntimeDefault
+      appArmorProfile:
+        type: RuntimeDefault
+    imagePullSecrets:
+    - name: icr-secret-1
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          preference:
+            matchExpressions:
+            - key: image-6dee229a52db600ed5e3d5fb9e6ae2d865169a13a09a4b7d04d25174b
+              operator: In
+              values:
+              - "true"
+      podAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                codeengine.cloud.ibm.com/workload-class: volatile
+            topologyKey: kubernetes.io/hostname
+            namespaceSelector: {}
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              codeengine.cloud.ibm.com/workload-class: isolation
+          topologyKey: kubernetes.io/hostname
+          namespaceSelector: {}
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                serving.knative.dev/revision: cuga-allinone-00003
+            topologyKey: topology.kubernetes.io/zone
+    schedulerName: default-scheduler
+    tolerations:
+    - key: node.kubernetes.io/not-ready
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 600
+    - key: node.kubernetes.io/unreachable
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 600
+    - key: codeengine.cloud.ibm.com/worker-pool-type
+      operator: Equal
+      value: user
+      effect: NoSchedule
+    priority: 0
+    dnsConfig:
+      options:
+      - name: ndots
+        value: "1"
+    enableServiceLinks: false
+    preemptionPolicy: PreemptLowerPriority
+  status:
+    observedGeneration: 1
+    phase: Running
+    conditions:
+    - type: PodReadyToStartContainers
+      observedGeneration: 1
+      status: "True"
+      lastProbeTime: null
+      lastTransitionTime: "2026-06-08T16:10:08Z"
+    - type: Initialized
+      observedGeneration: 1
+      status: "True"
+      lastProbeTime: null
+      lastTransitionTime: "2026-06-08T16:10:08Z"
+    - type: Ready
+      observedGeneration: 1
+      status: "True"
+      lastProbeTime: null
+      lastTransitionTime: "2026-06-08T16:12:42Z"
+    - type: ContainersReady
+      observedGeneration: 1
+      status: "True"
+      lastProbeTime: null
+      lastTransitionTime: "2026-06-08T16:12:42Z"
+    - type: PodScheduled
+      observedGeneration: 1
+      status: "True"
+      lastProbeTime: null
+      lastTransitionTime: "2026-06-08T16:10:06Z"
+    hostIP: 192.168.5.79
+    hostIPs:
+    - ip: 192.168.5.79
+    podIP: 172.30.80.83
+    podIPs:
+    - ip: 172.30.80.83
+    startTime: "2026-06-08T16:10:06Z"
+    initContainerStatuses:
+    - name: istio-validation
+      state:
+        terminated:
+          exitCode: 0
+          reason: Completed
+          startedAt: "2026-06-08T16:10:07Z"
+          finishedAt: "2026-06-08T16:10:07Z"
+          containerID: containerd://fce805dede5fb7591d8bebab27ebba5ec7de322187aa3b686f4451b3c50029f3
+      lastState: {}
+      ready: true
+      restartCount: 0
+      image: private.icr.io/obs/codeengine/istio/proxyv2:1.29.3-build.165
+      imageID: private.icr.io/obs/codeengine/istio/proxyv2@sha256:bee13720821f3029eb34ef3e382e18ac128f87465204dec5eee760ca7f5ab63f
+      containerID: containerd://fce805dede5fb7591d8bebab27ebba5ec7de322187aa3b686f4451b3c50029f3
+      started: false
+      allocatedResources:
+        cpu: 10m
+        ephemeral-storage: 400M
+        memory: 100Mi
+      resources:
+        limits:
+          cpu: 200m
+          ephemeral-storage: 400M
+          memory: 512Mi
+        requests:
+          cpu: 10m
+          ephemeral-storage: 400M
+          memory: 100Mi
+      volumeMounts:
+      - name: kube-api-access-xvbk8
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        readOnly: true
+        recursiveReadOnly: Disabled
+      user:
+        linux:
+          uid: 1337
+          gid: 1337
+          supplementalGroups:
+          - 1337
+    containerStatuses:
+    - name: istio-proxy
+      state:
+        running:
+          startedAt: "2026-06-08T16:10:08Z"
+      lastState: {}
+      ready: true
+      restartCount: 0
+      image: private.icr.io/obs/codeengine/istio/proxyv2:1.29.3-build.165
+      imageID: private.icr.io/obs/codeengine/istio/proxyv2@sha256:bee13720821f3029eb34ef3e382e18ac128f87465204dec5eee760ca7f5ab63f
+      containerID: containerd://9e43d516876cadd179515118df6aab9a541800dd4d1496feb58a029f53e1910c
+      started: true
+      allocatedResources:
+        cpu: 10m
+        ephemeral-storage: 400M
+        memory: 100Mi
+      resources:
+        limits:
+          cpu: 200m
+          ephemeral-storage: 400M
+          memory: 512Mi
+        requests:
+          cpu: 10m
+          ephemeral-storage: 400M
+          memory: 100Mi
+      volumeMounts:
+      - name: workload-socket
+        mountPath: /var/run/secrets/workload-spiffe-uds
+      - name: credential-socket
+        mountPath: /var/run/secrets/credential-uds
+      - name: workload-certs
+        mountPath: /var/run/secrets/workload-spiffe-credentials
+      - name: istiod-ca-cert
+        mountPath: /var/run/secrets/istio
+      - name: istio-ca-crl
+        mountPath: /var/run/secrets/istio/crl
+      - name: istio-data
+        mountPath: /var/lib/istio/data
+      - name: istio-envoy
+        mountPath: /etc/istio/proxy
+      - name: istio-token
+        mountPath: /var/run/secrets/tokens
+      - name: istio-podinfo
+        mountPath: /etc/istio/pod
+      - name: kube-api-access-xvbk8
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        readOnly: true
+        recursiveReadOnly: Disabled
+      user:
+        linux:
+          uid: 1337
+          gid: 1337
+          supplementalGroups:
+          - 1337
+    - name: queue-proxy
+      state:
+        running:
+          startedAt: "2026-06-08T16:12:27Z"
+      lastState: {}
+      ready: true
+      restartCount: 0
+      image: sha256:bc9a09d9a877cedcbe9d541605f7dfdf0f1a3bbf422883cecbefc93ecb14be73
+      imageID: private.icr.io/obs/codeengine/serving/queue@sha256:5ab62789aeb03b9aa077891f84be1e2cc352ebd2748b6a30d0d32f419c7cf0db
+      containerID: containerd://b3989850009fecdc93c99703af1e3da44254454d861bbf09c14b0caa2306a2a4
+      started: true
+      allocatedResources:
+        cpu: 10m
+        ephemeral-storage: 512Mi
+        memory: 40M
+      resources:
+        limits:
+          cpu: "1"
+          ephemeral-storage: 1Gi
+          memory: 800Mi
+        requests:
+          cpu: 10m
+          ephemeral-storage: 512Mi
+          memory: 40M
+      volumeMounts:
+      - name: kube-api-access-xvbk8
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        readOnly: true
+        recursiveReadOnly: Disabled
+      user:
+        linux:
+          uid: 1000
+          gid: 0
+          supplementalGroups:
+          - 0
+    - name: user-container
+      state:
+        running:
+          startedAt: "2026-06-08T16:12:22Z"
+      lastState: {}
+      ready: true
+      restartCount: 0
+      image: sha256:b8d270a5be7461baf126c4040f5652e31dcdd44a6a53872b8727f74a2f56228e
+      imageID: icr.io/routing_namespace/cuga-allinone@sha256:6dee229a52db600ed5e3d5fb9e6ae2d865169a13a09a4b7d04d25174b9d8257d
+      containerID: containerd://44d3ae7adb85efc2bb5347feb78c91e49944d3f036e21991e0a129dc85f8937d
+      started: true
+      allocatedResources:
+        cpu: "12"
+        ephemeral-storage: 5G
+        memory: 48G
+      resources:
+        limits:
+          cpu: "12"
+          ephemeral-storage: 5G
+          memory: 46875000Ki
+        requests:
+          cpu: "12"
+          ephemeral-storage: 5G
+          memory: 48G
+      volumeMounts:
+      - name: kube-api-access-xvbk8
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        readOnly: true
+        recursiveReadOnly: Disabled
+      user:
+        linux:
+          uid: 0
+          gid: 0
+          supplementalGroups:
+          - 0
+    qosClass: Burstable
+runningRevisions:
+- metadata:
+    name: cuga-allinone-00002
+    namespace: 1gxwxi8kos9y
+    uid: 0cff7aad-fd2d-4ab5-92ef-180acdf3a5e0
+    resourceVersion: "9795479036"
+    generation: 1
+    creationTimestamp: "2026-06-08T15:54:36Z"
+    labels:
+      serving.knative.dev/configuration: cuga-allinone
+      serving.knative.dev/configurationGeneration: "2"
+      serving.knative.dev/configurationUID: 51f6430f-b6f6-4b15-8e1d-1c92725fd770
+      serving.knative.dev/routingState: reserve
+      serving.knative.dev/service: cuga-allinone
+      serving.knative.dev/serviceUID: 9e32e1a2-e3ef-438b-9a16-29a7ff643d6d
+    annotations:
+      autoscaling.knative.dev/maxScale: "1"
+      autoscaling.knative.dev/minScale: "1"
+      autoscaling.knative.dev/scale-down-delay: 0s
+      client.knative.dev/updateTimestamp: "2026-06-08T15:54:36Z"
+      serving.knative.dev/creator: system:serviceaccount:1gxwxi8kos9y:1gxwxi8kos9y-writer
+      serving.knative.dev/routingStateModified: "2026-06-08T16:12:49Z"
+    ownerReferences:
+    - apiVersion: ""
+      kind: ""
+      name: cuga-allinone
+      uid: 51f6430f-b6f6-4b15-8e1d-1c92725fd770
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    containers:
+    - name: user-container
+      image: icr.io/routing_namespace/cuga-allinone:latest
+      ports:
+      - containerPort: 8080
+        protocol: TCP
+      envFrom:
+      - secretRef:
+          name: cuga-allinone-env
+      env:
+      - name: CE_DOMAIN
+        value: us-east.codeengine.appdomain.cloud
+      - name: CE_REGION
+        value: us-east
+      - name: CE_API_BASE_URL
+        value: https://api.private.us-east.codeengine.cloud.ibm.com
+      - name: CE_SUBDOMAIN
+        value: 1gxwxi8kos9y
+      - name: CE_PROJECT_ID
+        value: e214613f-fc72-4d58-86cf-3f292756a743
+      - name: CE_APP
+        value: cuga-allinone
+      resources:
+        limits:
+          cpu: "4"
+          ephemeral-storage: 400M
+          memory: 16G
+        requests:
+          cpu: "4"
+          ephemeral-storage: 400M
+          memory: 16G
+      readinessProbe:
+        tcpSocket:
+          port: 0
+        successThreshold: 1
+      imagePullPolicy: Always
+    imagePullSecrets:
+    - name: icr-secret-1
+    enableServiceLinks: false
+    containerConcurrency: 100
+    timeoutSeconds: 300
+    responseStartTimeoutSeconds: 0
+  status:
+    observedGeneration: 1
+    conditions:
+    - type: Active
+      status: "False"
+      severity: Info
+      lastTransitionTime: "2026-06-08T16:13:06Z"
+      reason: PodAutoscalerUnavailable
+      message: Revision is not active.
+    - type: ContainerHealthy
+      status: "True"
+      lastTransitionTime: "2026-06-08T15:56:40Z"
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2026-06-08T15:56:40Z"
+    - type: ResourcesAvailable
+      status: "True"
+      lastTransitionTime: "2026-06-08T15:56:40Z"
+    containerStatuses:
+    - name: user-container
+      imageDigest: icr.io/routing_namespace/cuga-allinone@sha256:6dee229a52db600ed5e3d5fb9e6ae2d865169a13a09a4b7d04d25174b9d8257d
+    actualReplicas: 0
+    desiredReplicas: 0
+- metadata:
+    name: cuga-allinone-00003
+    namespace: 1gxwxi8kos9y
+    uid: 0ae8dfd5-cb55-4150-8757-3ca4946060bd
+    resourceVersion: "9795476467"
+    generation: 1
+    creationTimestamp: "2026-06-08T16:10:05Z"
+    labels:
+      serving.knative.dev/configuration: cuga-allinone
+      serving.knative.dev/configurationGeneration: "3"
+      serving.knative.dev/configurationUID: 51f6430f-b6f6-4b15-8e1d-1c92725fd770
+      serving.knative.dev/routingState: active
+      serving.knative.dev/service: cuga-allinone
+      serving.knative.dev/serviceUID: 9e32e1a2-e3ef-438b-9a16-29a7ff643d6d
+    annotations:
+      autoscaling.knative.dev/maxScale: "1"
+      autoscaling.knative.dev/minScale: "1"
+      autoscaling.knative.dev/scale-down-delay: 0s
+      client.knative.dev/updateTimestamp: "2026-06-08T16:10:05Z"
+      serving.knative.dev/creator: system:serviceaccount:1gxwxi8kos9y:1gxwxi8kos9y-writer
+      serving.knative.dev/routes: cuga-allinone
+      serving.knative.dev/routingStateModified: "2026-06-08T16:10:05Z"
+    ownerReferences:
+    - apiVersion: ""
+      kind: ""
+      name: cuga-allinone
+      uid: 51f6430f-b6f6-4b15-8e1d-1c92725fd770
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    containers:
+    - name: user-container
+      image: icr.io/routing_namespace/cuga-allinone:latest
+      ports:
+      - containerPort: 8080
+        protocol: TCP
+      envFrom:
+      - secretRef:
+          name: cuga-allinone-env
+      env:
+      - name: CE_DOMAIN
+        value: us-east.codeengine.appdomain.cloud
+      - name: CE_REGION
+        value: us-east
+      - name: CE_API_BASE_URL
+        value: https://api.private.us-east.codeengine.cloud.ibm.com
+      - name: CE_SUBDOMAIN
+        value: 1gxwxi8kos9y
+      - name: CE_PROJECT_ID
+        value: e214613f-fc72-4d58-86cf-3f292756a743
+      - name: CE_APP
+        value: cuga-allinone
+      resources:
+        limits:
+          cpu: "12"
+          ephemeral-storage: 5G
+          memory: 48G
+        requests:
+          cpu: "12"
+          ephemeral-storage: 5G
+          memory: 48G
+      readinessProbe:
+        tcpSocket:
+          port: 0
+        successThreshold: 1
+      imagePullPolicy: Always
+    imagePullSecrets:
+    - name: icr-secret-1
+    enableServiceLinks: false
+    containerConcurrency: 100
+    timeoutSeconds: 300
+    responseStartTimeoutSeconds: 0
+  status:
+    observedGeneration: 1
+    conditions:
+    - type: Active
+      status: "True"
+      severity: Info
+      lastTransitionTime: "2026-06-08T16:12:42Z"
+    - type: ContainerHealthy
+      status: "True"
+      lastTransitionTime: "2026-06-08T16:12:42Z"
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2026-06-08T16:12:42Z"
+    - type: ResourcesAvailable
+      status: "True"
+      lastTransitionTime: "2026-06-08T16:12:42Z"
+    containerStatuses:
+    - name: user-container
+      imageDigest: icr.io/routing_namespace/cuga-allinone@sha256:6dee229a52db600ed5e3d5fb9e6ae2d865169a13a09a4b7d04d25174b9d8257d
+    actualReplicas: 1
+    desiredReplicas: 1
+serviceBindings: null
+serviceBindingResourceNames: null
+conditionSummary: Application deployed successfully

@@ -1,105 +1,155 @@
 """
 IBM Cloud Architecture Advisor UI — self-contained HTML page served by FastAPI.
+
+Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
+`_carbon` foundation. Layout: left use-case input column, right architecture
+recommendation panel. Behavior, ids, fetch routes and copy are unchanged.
 """
 
-_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IBM Cloud Architecture Advisor</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#0f1117;color:#e2e8f0;min-height:100vh}
+from _carbon import carbon_head, carbon_css
 
-header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
-  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-header h1{font-size:16px;font-weight:700;color:#fff}
-.ibm-logo{font-size:13px;font-weight:800;color:#1d4ed8;letter-spacing:.04em}
-.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
-.badge-blue{background:#1e3a5f;color:#60a5fa}
-.spacer{flex:1}
-.hdr-hint{font-size:11px;color:#4b5563}
+_APP_CSS = """<style>
+  body { background: var(--cds-background); display: flex; flex-direction: column; min-height: 100vh; }
 
-.layout{display:grid;grid-template-columns:380px 1fr;gap:20px;
-  max-width:1400px;margin:0 auto;padding:20px 24px;
-  height:calc(100vh - 57px);overflow:hidden}
-@media(max-width:900px){.layout{grid-template-columns:1fr;height:auto;overflow:visible}}
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
+  }
 
-.panel{display:flex;flex-direction:column;gap:16px;overflow:hidden}
+  .layout {
+    display: grid; grid-template-columns: 380px 1fr; gap: var(--cds-sp-06);
+    max-width: 1400px; margin: 0 auto; width: 100%;
+    padding: var(--cds-sp-06) var(--cds-sp-06);
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; flex: none; overflow: visible; } }
 
-.card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;overflow:hidden}
-.card-header{padding:12px 16px;border-bottom:1px solid #2d2d4a;
-  display:flex;align-items:center;gap:8px}
-.card-header h2{font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;
-  text-transform:uppercase}
-.card-body{padding:16px}
+  .panel { display: flex; flex-direction: column; gap: var(--cds-sp-05); overflow: hidden; }
 
-/* Chips */
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
-.chip{padding:4px 10px;border-radius:12px;font-size:11px;background:#111827;
-  border:1px solid #1e293b;color:#94a3b8;cursor:pointer;transition:all .15s;
-  line-height:1.4}
-.chip:hover{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+  .card {
+    background: var(--cds-layer-01);
+    border: 1px solid var(--cds-border-subtle);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: var(--cds-sp-04) var(--cds-sp-05);
+    border-bottom: 1px solid var(--cds-border-subtle);
+    display: flex; align-items: center; gap: var(--cds-sp-03);
+  }
+  .card-header h2 {
+    font-size: 0.75rem; font-weight: 600; color: var(--cds-text-secondary);
+    letter-spacing: 0.32px; text-transform: uppercase;
+  }
+  .card-body { padding: var(--cds-sp-05); }
 
-/* Input row */
-.chat-row{display:flex;gap:8px}
-.chat-input{flex:1;padding:9px 13px;border-radius:7px;font-size:13px;
-  background:#0f1117;border:1px solid #374151;color:#e2e8f0;outline:none;
-  transition:border-color .15s}
-.chat-input:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
-.chat-input::placeholder{color:#4b5563}
-.send-btn{padding:9px 18px;border-radius:7px;font-size:13px;font-weight:600;
-  cursor:pointer;border:none;background:#1d4ed8;color:#fff;white-space:nowrap;
-  transition:background .15s}
-.send-btn:hover{background:#1e40af}
-.send-btn:disabled{background:#374151;color:#6b7280;cursor:default}
+  /* Chips */
+  .chips { display: flex; flex-wrap: wrap; gap: var(--cds-sp-03); margin-bottom: var(--cds-sp-04); }
+  .chip {
+    padding: var(--cds-sp-02) var(--cds-sp-04); border-radius: 0.9375rem;
+    font-size: 0.75rem; background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle); color: var(--cds-text-secondary);
+    cursor: pointer; line-height: 1.4;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive);
+  }
+  .chip:hover { background: var(--cds-interactive); border-color: var(--cds-interactive); color: #fff; }
 
-/* Status message */
-.status-msg{font-size:12px;color:#6b7280;margin-top:8px;min-height:18px;
-  display:flex;align-items:center;gap:6px}
-.spinner{width:12px;height:12px;border:2px solid #374151;border-top-color:#60a5fa;
-  border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
+  /* Input row */
+  .chat-row { display: flex; gap: 0; }
+  .chat-input { flex: 1; border-bottom: 1px solid var(--cds-border-strong); }
+  .send-btn { flex: none; min-width: 6rem; justify-content: center; text-align: center; }
 
-/* Right panel — architecture output */
-.result-wrap{flex:1;overflow-y:auto;padding:0}
-.result-empty{padding:48px 24px;text-align:center;color:#4b5563;font-size:13px;
-  line-height:1.8}
-.result-empty strong{display:block;color:#6b7280;font-size:15px;margin-bottom:6px}
-.arch-card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;
-  padding:20px;margin-bottom:16px}
+  /* Status message */
+  .status-msg {
+    font-size: 0.75rem; color: var(--cds-text-helper); margin-top: var(--cds-sp-03);
+    min-height: 18px; display: flex; align-items: center; gap: var(--cds-sp-03);
+  }
 
-/* Markdown rendering */
-.md h1,.md h2,.md h3{color:#f1f5f9;font-weight:700;margin:14px 0 6px}
-.md h1{font-size:16px}.md h2{font-size:14px}.md h3{font-size:13px}
-.md p{color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:10px}
-.md ul,.md ol{padding-left:18px;margin-bottom:10px}
-.md li{color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:4px}
-.md strong{color:#e2e8f0;font-weight:600}
-.md em{color:#94a3b8}
-.md a{color:#60a5fa;text-decoration:none}
-.md a:hover{text-decoration:underline}
-.md code{background:#0f1117;color:#93c5fd;padding:1px 5px;border-radius:4px;
-  font-size:12px;font-family:"JetBrains Mono","Fira Code",monospace}
-.md pre{background:#0a0a14;border:1px solid #1e293b;border-radius:8px;
-  padding:14px 16px;margin:10px 0;overflow-x:auto}
-.md pre code{background:none;color:#e2e8f0;padding:0;font-size:12px;line-height:1.6}
-.md hr{border:none;border-top:1px solid #2d2d4a;margin:14px 0}
-.md blockquote{border-left:3px solid #1d4ed8;padding-left:12px;margin:8px 0;
-  color:#94a3b8;font-size:13px}
-</style>
-</head>
-<body>
+  /* Right panel — architecture output */
+  .result-wrap { flex: 1; overflow-y: auto; padding: 0; }
+  .result-empty {
+    padding: var(--cds-sp-09) var(--cds-sp-06); text-align: center;
+    color: var(--cds-text-placeholder); font-size: 0.875rem; line-height: 1.8;
+  }
+  .result-empty strong { display: block; color: var(--cds-text-secondary); font-size: 0.9375rem; margin-bottom: var(--cds-sp-02); }
+  .arch-card {
+    background: var(--cds-layer-02);
+    border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-06); margin: var(--cds-sp-05);
+  }
 
-<header>
-  <span class="ibm-logo">IBM</span>
-  <h1>Cloud Architecture Advisor</h1>
-  <span class="badge badge-blue">Global Catalog API</span>
-  <div class="spacer"></div>
-  <span class="hdr-hint">Real IBM services · ibmcloud CLI</span>
+  /* Markdown rendering */
+  .md h1, .md h2, .md h3 { color: var(--cds-text-primary); font-weight: 600; margin: var(--cds-sp-05) 0 var(--cds-sp-03); }
+  .md h1 { font-size: 1.125rem; }
+  .md h2 { font-size: 1rem; }
+  .md h3 { font-size: 0.875rem; color: var(--cds-link-primary); }
+  .md p { color: var(--cds-text-secondary); font-size: 0.875rem; line-height: 1.7; margin-bottom: var(--cds-sp-04); }
+  .md ul, .md ol { padding-left: var(--cds-sp-06); margin-bottom: var(--cds-sp-04); }
+  .md li { color: var(--cds-text-secondary); font-size: 0.875rem; line-height: 1.7; margin-bottom: var(--cds-sp-02); }
+  .md strong { color: var(--cds-text-primary); font-weight: 600; }
+  .md em { color: var(--cds-text-secondary); }
+  .md a { color: var(--cds-link-primary); text-decoration: none; }
+  .md a:hover { color: var(--cds-link-hover); text-decoration: underline; }
+  .md code {
+    background: var(--cds-layer-accent); color: var(--cds-link-primary);
+    padding: 1px 5px; font-size: 0.75rem; font-family: var(--cds-font-mono);
+  }
+  .md pre {
+    background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-05); margin: var(--cds-sp-04) 0; overflow-x: auto;
+  }
+  .md pre code { background: none; color: var(--cds-text-primary); padding: 0; font-size: 0.75rem; line-height: 1.6; }
+  .md hr { border: none; border-top: 1px solid var(--cds-border-subtle); margin: var(--cds-sp-05) 0; }
+  .md blockquote {
+    border-left: 3px solid var(--cds-interactive); padding-left: var(--cds-sp-04);
+    margin: var(--cds-sp-03) 0; color: var(--cds-text-secondary); font-size: 0.875rem;
+  }
+</style>"""
+
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Cloud&nbsp;Architecture&nbsp;Advisor</div>
+  <span class="cds-tag cds-tag--blue">Global Catalog API</span>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Real IBM services · ibmcloud CLI</span>
+  </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>IBM Cloud Architecture Advisor.</strong> Describe what you want to build
+    and get a recommended IBM Cloud architecture — real services, how they connect,
+    and ready-to-run ibmcloud CLI commands.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📦 IBM Global Catalog API</span>
+    <span class="tool-pill">🔎 Web search · Tavily</span>
+    <span class="tool-pill">⌨ ibmcloud CLI commands</span>
+  </div>
+</div>
 
 <div class="layout">
 
@@ -119,10 +169,10 @@ header h1{font-size:16px;font-weight:700;color:#fff}
           <span class="chip" onclick="ask(this.textContent)">Show Terraform for a Kubernetes workload on IBM Cloud</span>
         </div>
         <div class="chat-row">
-          <input class="chat-input" id="chat-input" type="text"
+          <input class="cds-input chat-input" id="chat-input" type="text"
             placeholder="Describe what you want to build…"
             onkeydown="if(event.key==='Enter')ask()">
-          <button class="send-btn" id="send-btn" onclick="ask()">Ask</button>
+          <button class="cds-btn send-btn" id="send-btn" onclick="ask()">Ask</button>
         </div>
         <div class="status-msg" id="status-msg"></div>
       </div>
@@ -199,7 +249,7 @@ async function ask(question) {
   inp.value = '';
   btn.disabled = true;
   btn.textContent = '…';
-  stat.innerHTML = '<div class="spinner"></div> Searching IBM catalog…';
+  stat.innerHTML = '<div class="cds-spinner cds-spinner--sm"></div> Searching IBM catalog…';
 
   try {
     const r = await fetch('/ask', {
@@ -211,7 +261,7 @@ async function ask(question) {
     renderResult(q, d.answer || d.error || '(no response)');
     stat.innerHTML = '';
   } catch(e) {
-    stat.innerHTML = `<span style="color:#f87171">Error: ${esc(e.message)}</span>`;
+    stat.innerHTML = `<span style="color:var(--cds-support-error)">Error: ${esc(e.message)}</span>`;
   }
   btn.disabled = false;
   btn.textContent = 'Ask';
@@ -221,12 +271,21 @@ function renderResult(question, answer) {
   const wrap = document.getElementById('result-wrap');
   wrap.innerHTML = `
     <div class="arch-card">
-      <p style="font-size:11px;color:#4b5563;margin-bottom:12px;font-style:italic">
+      <p style="font-size:0.75rem;color:var(--cds-text-helper);margin-bottom:12px;font-style:italic">
         Q: ${esc(question)}
       </p>
       <div class="md">${mdToHtml(answer)}</div>
     </div>`;
 }
 </script>
-</body>
-</html>"""
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("IBM Cloud Architecture Advisor")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)

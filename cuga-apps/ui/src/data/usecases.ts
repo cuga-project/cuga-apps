@@ -129,7 +129,7 @@ new Notification("Stock Alert — BTC", { body: ... })
       'Is this a good entry point compared to recent range?',
       'Compare BTC and ETH — which is performing better today?',
       'Give me a quick bull or bear read on SOL right now.',
-      'Add Watch: BTC above $90,000 — fires a browser notification when crossed',
+      'Add Watch: BTC above $90,000 — surfaces in Recent Alerts when crossed',
       'Add Watch: AAPL below $180',
     ],
     appUrl: 'http://localhost:28801',
@@ -2087,6 +2087,295 @@ Right panel: hero card + weather + news (linked) + Wikipedia + (optional)
       'set_current_city', 'add_focus_topic', 'clear_focus_topics',
       'set_crypto_spotlight', 'get_session_state', 'save_briefing',
     ],
+  },
+  {
+    id: 'ouroboros',
+    name: 'Ouroboros',
+    tagline: 'Name a location — get a ranked board of local businesses that need a CUGA agent, with pitches and cold emails',
+    type: 'other',
+    surface: 'gateway',
+    description:
+      'CUGA finds its next client. Type a location and (optionally) a category — "find restaurants in pleasantville NY", "salons in brooklyn that need appointment booking" — and the app produces a ranked board of independent local businesses that would benefit from a CUGA-powered conversational agent, each with a tailored pitch and (for the top 3) a drafted cold email. Built on a CugaSupervisor orchestrating 7 specialist CugaAgents, each backed by a declarative skill (SKILL.md + tools.py): scout (geocode + Overpass/OSM), site_auditor, voice_of_customer, person_finder, stack_scanner, revenue_estimator, and pitch_email_writer. Three policies (intent_guard, tool_guide, output_formatter) attach once at startup. The writer emits a fenced JSON board that the dark two-panel UI parses and renders; a request runs scout → 5 specialist sweeps → writer (~15 LLM round-trips, 1–3 min).',
+    category: 'enterprise',
+    status: 'partial',
+    channels: [],
+    tools: [
+      'CugaSupervisor', 'scout', 'site_auditor', 'voice_of_customer',
+      'person_finder', 'stack_scanner', 'revenue_estimator', 'pitch_email_writer',
+    ],
+    demoPath: 'apps/ouroboros',
+    howToRun: {
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'AGENT_SETTING_CONFIG', 'RITS_API_KEY', 'CUGA_TARGET'],
+      setup: [
+        'cd apps/ouroboros',
+        '/opt/homebrew/bin/python3.12 -m venv .venv   # brew Python 3.12 — needs sqlite enable_load_extension',
+        ".venv/bin/pip install -U 'cuga>=0.2.28'",
+        '.venv/bin/pip install -r requirements.txt',
+      ],
+      command: '.venv/bin/python main.py --port 28822',
+    },
+    architecture:
+      'FastAPI serves a dark two-panel UI. POST /ask builds (lazily) a CugaSupervisor over 7 specialist CugaAgents, each loaded from one skill folder under skills/ (SKILL.md frontmatter + tools.py exporting TOOLS). A prescriptive 3-phase task prelude drives the cascade: scout geocodes the location and pulls candidate businesses from Overpass/OSM; phase 2 runs 5 specialist sweeps (site_auditor, voice_of_customer, person_finder, stack_scanner, revenue_estimator) over the top candidates; the pitch_email_writer consolidates everything into a fenced JSON leads board. The server defensively extracts the JSON (fenced, bare, or balanced-brace) and stores it per thread_id; the right panel polls /session/{thread_id} every 8s. Three policies attach exactly once. The LocalExecutor per-block timeout is monkey-patched up to 180s because specialist delegations regularly take 30–60s.',
+    diagram: `.venv/bin/python main.py --port 28822  →  http://127.0.0.1:28822
+
+User: "find restaurants in pleasantville NY"
+   │  POST /ask
+   ▼
+CugaSupervisor  (planner delegates to specialists)
+   ├─ scout              → geocode + Overpass/OSM candidate list
+   │
+   ├─ phase 2 sweeps (per top candidate):
+   │    ├─ site_auditor        → capability + freshness signals
+   │    ├─ voice_of_customer   → review-snippet friction mining
+   │    ├─ person_finder       → owner + email-pattern guesses
+   │    ├─ stack_scanner       → third-party widget fingerprint
+   │    └─ revenue_estimator   → size signals → coarse ARR band
+   │
+   └─ pitch_email_writer  → fenced JSON leads board (pitch + top-3 emails)
+                                   │
+                                   ▼
+   server _extract_leads_json → per-thread session
+                                   │
+                                   ▼
+   Right panel polls /session/{thread_id} every 8s → ranked lead cards`,
+    cugaContribution: [
+      'CugaSupervisor A2A orchestration — one planner delegates to 7 specialist CugaAgents, each running in its own bounded plan/execute context',
+      'Skills are declarative: each specialist is a SKILL.md + tools.py folder host-loaded at startup; adding an 8th specialist is a factory + one list entry',
+      'Three policies (intent_guard, tool_guide, output_formatter) attach once and shape every specialist call',
+      'Defensive leads-JSON extraction tolerates the planner re-emitting the writer\'s fence in four different shapes — fenced, bare, balanced-brace first/last',
+    ],
+    examples: [
+      'Find leads in Westchester, NY',
+      'Restaurants in HSR Layout, Bangalore — pitch order bots',
+      'Salons in Brooklyn that need appointment booking',
+      'Independent hotels in Lisbon — concierge agent angle',
+      'Clinics in Austin — patient FAQ + intake',
+    ],
+    appUrl: 'http://localhost:28822',
+    mcpUsage: [],
+    inlineTools: [],
+  },
+  {
+    id: 'github-trending',
+    name: 'GitHub Trending',
+    tagline: 'Ask what\'s trending on GitHub — and what each repo actually offers',
+    type: 'other',
+    surface: 'gateway',
+    description:
+      'Ask what\'s trending on GitHub — overall, by language, or by topic — and the agent returns a ranked board of repositories, each with a plain-English summary of what the project offers: what it\'s for, who it\'s for, and why it\'s gaining attention. Live data comes from GitHub\'s public REST API via direct httpx calls — no MCP servers, no keys (set GITHUB_TOKEN to raise the rate limit). "Trending" is approximated as recently-created repos gaining the most stars in a daily/weekly/monthly window. The agent finds the repos, reads the top READMEs and language breakdowns, writes a summary + an "offers" bullet list + a why-trending line per repo, and renders them as cards in the right panel.',
+    category: 'personal',
+    status: 'working',
+    channels: [],
+    tools: [
+      'set_filters()', 'find_trending_repos()', 'get_repo_readme()',
+      'get_repo_languages()', 'save_repos()',
+    ],
+    demoPath: 'apps/github_trending',
+    howToRun: {
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'GITHUB_TOKEN'],
+      setup: [
+        'cd apps/github_trending',
+        'pip install -r requirements.txt',
+      ],
+      command: 'python main.py --port 28823',
+    },
+    architecture:
+      'FastAPI serves the single-page UI. POST /ask → CugaAgent records any language/since/topic filter (set_filters), then find_trending_repos hits the GitHub Search API (created:>DATE sort=stars) for a ranked list. For the top repos it calls get_repo_readme (raw) and optionally get_repo_languages, writes a grounded summary + offers + why_trending per repo, and save_repos pushes the structured cards to the right-panel poll (/session/{thread_id}). All tools are inline @tool defs over httpx; the only external dependency is the public GitHub API.',
+    diagram: `python main.py  →  http://127.0.0.1:28823
+
+User: "New LLM agent repos trending this week"
+      │  POST /ask
+      ▼
+CugaAgent
+      ├─ set_filters(topic="llm", since="weekly")
+      ├─ find_trending_repos()      → GitHub Search API (created:>DATE, sort=stars)
+      ├─ get_repo_readme(owner/repo) × top N
+      ├─ get_repo_languages(owner/repo)   (optional, for the stack)
+      ├─ save_repos([{full_name, stars, summary, offers[], why_trending}, …])
+      ▼
+Right panel: ranked repo cards w/ summary + what each offers`,
+    cugaContribution: [
+      'Approximates GitHub\'s key-free "trending" via the Search API (created:>DATE, sort=stars) — surfaces new repos rising fast, no scraping',
+      'Reads each repo\'s README to ground the summary in what the project actually does, instead of echoing the one-line description',
+      'Per-repo "offers" bullets + a why-trending line make the board scannable',
+      'Returns a rate_limited code the agent surfaces plainly (suggesting GITHUB_TOKEN) instead of failing silently',
+    ],
+    examples: [
+      "What's trending this week?",
+      'Trending Python repos',
+      'New Rust CLI tools',
+      'New LLM agent frameworks gaining stars',
+      'Trending this month in the devtools topic',
+    ],
+    appUrl: 'http://localhost:28823',
+    mcpUsage: [],
+    inlineTools: [
+      'set_filters', 'find_trending_repos', 'get_repo_readme',
+      'get_repo_languages', 'save_repos',
+    ],
+  },
+  {
+    id: 'ai-labs-news',
+    name: 'AI Labs News',
+    tagline: 'A live digest of the latest posts from the major AI labs',
+    type: 'event-driven',
+    surface: 'gateway',
+    description:
+      'A curated, glanceable digest of the latest posts from the major AI labs and research groups — OpenAI, Anthropic, Google DeepMind, Google Research, Microsoft Research, IBM Research, Meta AI, Hugging Face, and Berkeley AI Research. Ask broadly ("what\'s new in AI this week?") or narrowly ("latest from Anthropic and OpenAI on agents"), and the agent pulls each lab\'s blog feed, merges newest-first, spots cross-lab themes, and summarizes. Live data comes from each lab\'s public RSS/Atom feed via httpx + feedparser — no MCP servers, no keys. Each lab has fallback feed URLs, so a moved/broken feed is reported rather than faked.',
+    category: 'personal',
+    status: 'working',
+    channels: [],
+    tools: ['list_labs()', 'set_focus()', 'fetch_lab_news()', 'fetch_all_news()', 'save_digest()'],
+    demoPath: 'apps/ai_labs_news',
+    howToRun: {
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL'],
+      setup: [
+        'cd apps/ai_labs_news',
+        'pip install -r requirements.txt',
+      ],
+      command: 'python main.py --port 28824',
+    },
+    architecture:
+      'FastAPI serves the single-page UI. POST /ask → CugaAgent optionally narrows to specific labs/topics (set_focus), then fetch_all_news fetches each lab\'s RSS/Atom feed (httpx, browser UA) and parses it with feedparser, trying fallback URLs per lab until one yields entries. Entries are tag-stripped, truncated, and merged newest-first. The agent identifies 2–4 cross-lab themes, writes a headline, and save_digest persists the structured digest the right panel renders (/session/{thread_id}). All tools are inline @tool defs; the lab registry (_LABS) is the single place to add a lab or fix a feed URL.',
+    diagram: `python main.py  →  http://127.0.0.1:28824
+
+User: "Latest from OpenAI, Anthropic, and Google DeepMind"
+      │  POST /ask
+      ▼
+CugaAgent
+      ├─ set_focus(labs="openai,anthropic,google-deepmind")
+      ├─ fetch_all_news()    → per-lab RSS/Atom (httpx + feedparser, fallback URLs)
+      │                        merge + sort newest-first; report any unreachable feed
+      ├─ (identify 2–4 cross-lab themes; write a headline)
+      ├─ save_digest({headline, themes[], items[{lab,title,url,published,summary,tags}]})
+      ▼
+Right panel: headline + theme chips + per-post cards grouped by lab`,
+    cugaContribution: [
+      'Resilient feed loading: multiple fallback URLs per lab; an unreachable feed is reported (labs_failed), never invented',
+      'Cross-lab synthesis — themes + a one-line "state of AI this week" headline, not just a flat list',
+      'Summaries are the feeds\' own descriptions, tag-stripped and truncated — the agent does not embellish them',
+      'Adding a lab or fixing a moved feed is a one-entry change in the _LABS registry',
+    ],
+    examples: [
+      "What's new in AI this week?",
+      'Latest from OpenAI and Anthropic',
+      'Recent Microsoft Research and IBM Research posts',
+      'AI agent news across the labs',
+      'Which labs do you cover?',
+    ],
+    appUrl: 'http://localhost:28824',
+    mcpUsage: [],
+    inlineTools: ['list_labs', 'set_focus', 'fetch_lab_news', 'fetch_all_news', 'save_digest'],
+  },
+  {
+    id: 'find-a-doctor',
+    name: 'Find a Doctor',
+    tagline: 'Name a location + specialty — get ranked doctors with review-grounded pros & cons',
+    type: 'other',
+    surface: 'gateway',
+    description:
+      'Give a location and (optionally) a specialty or preference — "find a cardiologist in Boston", "a really experienced pediatric dentist in Austin who\'s good with kids" — and the agent assembles a ranked board of doctors with a review-grounded summary of pros and cons. Same spirit as Ouroboros (geocode → discover → enrich → synthesize) but with inline tools only. Keyless live data: Nominatim (OpenStreetMap) geocoding, Overpass (OpenStreetMap) for nearby listings, and DuckDuckGo HTML for review snippets from trusted health sites (Healthgrades, Vitals, Zocdoc, WebMD, RateMDs, Yelp, …). Two discovery paths are merged — structured OSM listings plus web search for named, well-regarded doctors — then per-candidate reviews drive the pros/cons. Informational only: every pro/con must trace to a real retrieved snippet; nothing is invented.',
+    category: 'personal',
+    status: 'partial',
+    channels: [],
+    tools: ['set_search()', 'geocode_location()', 'find_doctors()', 'web_search()', 'fetch_reviews()', 'save_doctors()'],
+    demoPath: 'apps/find_a_doctor',
+    howToRun: {
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL'],
+      setup: [
+        'cd apps/find_a_doctor',
+        'pip install -r requirements.txt',
+      ],
+      command: 'python main.py --port 28825',
+    },
+    architecture:
+      'FastAPI serves the single-page UI. POST /ask → CugaAgent records the location/specialty/preferences (set_search), geocodes via Nominatim (geocode_location), then discovers candidates two ways and merges them: find_doctors queries Overpass for amenity=doctors / healthcare=doctor|clinic within a radius (structured address/phone/website), and web_search hits DuckDuckGo HTML to surface named, well-regarded doctors. For the top candidates it calls fetch_reviews, which filters DuckDuckGo results to trusted health-review domains, then synthesizes a rating_summary + pros/cons + sources per doctor and ranks them. save_doctors persists the board the right panel renders. All tools are inline @tool defs over httpx; DuckDuckGo HTML is parsed with a small regex (no bs4).',
+    diagram: `python main.py  →  http://127.0.0.1:28825
+
+User: "A really experienced pediatric dentist in Austin who's good with kids"
+      │  POST /ask
+      ▼
+CugaAgent
+      ├─ set_search(location="Austin", specialty="pediatric dentist",
+      │             preferences="very experienced, good with kids")
+      ├─ geocode_location()        → Nominatim (lat/lon + display name)
+      ├─ find_doctors()            → Overpass (OSM listings: address/phone/site)
+      ├─ web_search("best pediatric dentist in Austin")   → discover named doctors
+      ├─ fetch_reviews(name) × top candidates  → DuckDuckGo → trusted health sites
+      ├─ save_doctors([{name, rating_summary, pros[], cons[], sources[]}, …])
+      ▼
+Right panel: ranked doctor cards w/ pros/cons + sources + disclaimer`,
+    cugaContribution: [
+      'Two discovery paths merged — structured OSM listings (address/phone) + web search for named, well-regarded doctors — covers gaps in either source',
+      'Reviews are filtered to trusted health domains; every pro/con must trace to a real retrieved snippet (no invented ratings or credentials)',
+      'Nuanced asks ("really experienced", a sub-specialty) bias the search queries and the ranking',
+      'Keyless end-to-end: Nominatim + Overpass + DuckDuckGo HTML (regex-parsed) — no places/reviews API key',
+    ],
+    examples: [
+      'Find a cardiologist in Boston',
+      "A really experienced pediatric dentist in Austin who's good with kids",
+      'Top-rated orthopedic surgeon near San Mateo, CA',
+      'An OB-GYN in Chicago accepting new patients',
+      'Dermatologist in Seattle with good reviews',
+    ],
+    appUrl: 'http://localhost:28825',
+    mcpUsage: [],
+    inlineTools: ['set_search', 'geocode_location', 'find_doctors', 'web_search', 'fetch_reviews', 'save_doctors'],
+  },
+  {
+    id: 'meetup-finder',
+    name: 'Meetup Finder',
+    tagline: 'Name a city + interests — the agent browses Meetup, Luma & Eventbrite and ranks the events',
+    type: 'other',
+    surface: 'gateway',
+    description:
+      'Give a location and your interests (tech/AI by default) — "AI meetups in San Francisco this week", "LLM and data-eng events near Austin this weekend" — and the agent returns a ranked board of upcoming events with date, venue, host, and an RSVP link. This is the app that exercises CUGA\'s browser capability: Meetup, Luma, and Eventbrite all deprecated their public search APIs but render rich, structured event pages, so the agent drives a real headless Chromium via Playwright, opens each discovery page, and extracts events from the page\'s embedded JSON-LD / Next.js data. Playwright is wrapped as inline @tool defs and the CugaAgent planner orchestrates them (same pattern as chief_of_staff\'s browser-runner) — no MCP servers, no API keys. CUGA policies (tool_guide + output_formatter) keep it honest and lock the board contract.',
+    category: 'personal',
+    status: 'partial',
+    channels: [],
+    tools: ['set_search()', 'build_event_urls()', 'fetch_events() [Playwright]', 'save_events()'],
+    demoPath: 'apps/meetup_finder',
+    howToRun: {
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'MEETUP_HEADLESS'],
+      setup: [
+        'cd apps/meetup_finder',
+        'pip install -r requirements.txt',
+        'python -m playwright install chromium   # one-time: fetch the browser',
+      ],
+      command: 'python main.py --port 28826',
+    },
+    architecture:
+      'FastAPI serves the single-page UI. POST /ask → CugaAgent records the search (set_search), builds Meetup/Luma/Eventbrite discovery URLs (build_event_urls, computed in Python), then for each URL calls fetch_events — which opens the page in a lazily-launched, reused headless Chromium (Playwright async API, one browser, a fresh context per fetch under an asyncio lock, mirroring chief_of_staff/browser_runner/executor.py) and extracts events from the page\'s embedded JSON-LD and __NEXT_DATA__ blobs. The agent merges/dedupes/filters by date, ranks by interest fit, and save_events persists the board the right panel polls (/session/{thread_id}). A tool_guide policy enforces "only report what fetch_events returned" and an output_formatter locks the save+reply contract. Browser-dependent, so it is local-only (not on the shared no-browser deploy image).',
+    diagram: `python main.py  →  http://127.0.0.1:28826   (headless Chromium via Playwright)
+
+User: "AI agent meetups in San Francisco this week"
+      │  POST /ask
+      ▼
+CugaAgent
+      ├─ set_search(interests="AI agents", location="San Francisco", when="this week")
+      ├─ build_event_urls()   → [meetup find, lu.ma/sf, eventbrite /d/…]
+      ├─ fetch_events(url) × each      ──► Playwright: launch Chromium → goto →
+      │                                    extract JSON-LD + __NEXT_DATA__ events
+      ├─ (merge + dedupe + filter to this week + rank by fit)
+      ├─ save_events([{title, url, start, venue, host, source, why}, …])
+      ▼
+Right panel: ranked event cards (date chip, venue, host, RSVP link)`,
+    cugaContribution: [
+      'Exercises CUGA\'s browser capability — drives a real headless Chromium over no-search-API event sites, the use case browser automation exists for',
+      'Robust extraction from embedded JSON-LD / Next.js data instead of brittle CSS scraping; empty pages degrade gracefully and are reported, never faked',
+      'One lazily-launched browser reused across requests, a fresh context per fetch under a lock (the chief_of_staff browser-runner pattern)',
+      'Policies keep it grounded: a tool_guide forbids inventing events; an output_formatter locks the ranked-board save + reply',
+    ],
+    examples: [
+      'AI agent meetups in San Francisco this week',
+      'LLM and data engineering events near New York',
+      'Startup / founder events in London this month',
+      'ML research talks in Boston this weekend',
+      'Developer conferences in Seattle',
+    ],
+    appUrl: 'http://localhost:28826',
+    mcpUsage: [],
+    inlineTools: ['set_search', 'build_event_urls', 'fetch_events', 'get_session_state', 'save_events'],
   },
 ]
 

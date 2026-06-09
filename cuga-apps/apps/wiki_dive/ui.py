@@ -1,114 +1,167 @@
 """
 Wiki Dive UI — self-contained HTML page served by FastAPI.
+
+Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
+`_carbon` foundation. Layout: left input/history/help column, right results panel.
 """
 
-_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Wiki Dive</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:#0f1117;color:#e2e2e8;min-height:100vh}
+from _carbon import carbon_head, carbon_css
 
-header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
-  display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-header h1{font-size:17px;font-weight:700;color:#fff}
-.sub{font-size:12px;color:#6b6b7e}.sub span{color:#0d9488;font-weight:600}
-.spacer{flex:1}
-.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;
-  background:#042f2e;color:#5eead4}
+_APP_CSS = """<style>
+  body { background: var(--cds-background); display: flex; flex-direction: column; min-height: 100vh; }
 
-.layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;
-  max-width:1200px;margin:0 auto;padding:20px 24px;height:calc(100vh - 57px)}
-@media(max-width:800px){.layout{grid-template-columns:1fr;height:auto}}
+  /* App intro band: one-line blurb + the tools this app uses */
+  .app-intro {
+    display: flex; align-items: center; gap: var(--cds-sp-05);
+    flex-wrap: wrap;
+    padding: var(--cds-sp-04) var(--cds-sp-06);
+    background: var(--cds-layer-01);
+    border-bottom: 1px solid var(--cds-border-subtle);
+  }
+  .app-intro__blurb {
+    font-size: 0.8125rem; color: var(--cds-text-secondary);
+    line-height: 1.5; max-width: 48rem;
+  }
+  .app-intro__blurb strong { color: var(--cds-text-primary); font-weight: 600; }
+  .app-intro__tools {
+    margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--cds-sp-03);
+    align-items: center;
+  }
+  .app-intro__tools .tools-label {
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px;
+    color: var(--cds-text-helper); margin-right: var(--cds-sp-02);
+  }
+  .tool-pill {
+    font-size: 0.6875rem; color: var(--cds-text-secondary);
+    background: var(--cds-layer-accent); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-01) var(--cds-sp-04);
+    white-space: nowrap;
+  }
 
-.panel{display:flex;flex-direction:column;gap:16px;overflow:hidden}
-.card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:12px;padding:18px}
-.card-title{font-size:11px;font-weight:700;color:#6b6b7e;letter-spacing:.08em;
-  text-transform:uppercase;margin-bottom:14px}
+  .layout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-sp-06);
+    max-width: 80rem; width: 100%; margin: 0 auto;
+    padding: var(--cds-sp-06) var(--cds-sp-06);
+    flex: 1; min-height: 0;
+  }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; flex: none; } }
 
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.chip{background:#111827;border:1px solid #1e293b;border-radius:6px;
-  padding:5px 10px;font-size:12px;color:#94a3b8;cursor:pointer;transition:all .15s}
-.chip:hover{background:#0d9488;border-color:#0d9488;color:#fff}
+  .panel { display: flex; flex-direction: column; gap: var(--cds-sp-05); overflow: hidden; }
 
-.chat-row{display:flex;gap:8px}
-.chat-input{flex:1;padding:9px 14px;border-radius:8px;font-size:14px;
-  background:#0f1117;border:1px solid #2d2d4a;color:#e2e2e8;outline:none;
-  transition:border-color .15s}
-.chat-input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.15)}
-.chat-input::placeholder{color:#4a4a60}
-button.send{background:#0d9488;color:#fff;border:none;border-radius:8px;
-  padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;
-  transition:background .15s;white-space:nowrap}
-button.send:hover{background:#0f766e}
-button.send:disabled{opacity:.45;cursor:default}
+  .card-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--cds-text-secondary);
+    letter-spacing: 0.32px; text-transform: uppercase; margin-bottom: var(--cds-sp-04);
+  }
 
-.result-panel{flex:1;overflow-y:auto;background:#1a1a2e;border:1px solid #2d2d4a;
-  border-radius:12px;padding:18px}
-.result-empty{color:#4a4a60;font-size:13px;text-align:center;padding:40px 0;
-  font-style:italic}
-.result-content{font-size:14px;line-height:1.85;color:#e2e8f0}
-.result-content a{color:#5eead4;text-decoration:none}
-.result-content a:hover{text-decoration:underline}
-.result-content strong{color:#fff}
-.result-content hr{border:none;border-top:1px solid #2d2d4a;margin:14px 0}
-.thinking{color:#6b6b7e;font-style:italic;font-size:13px;text-align:center;
-  padding:20px 0}
-.spinner{display:inline-block;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.fadein{animation:fadein .25s ease}
+  .chips { display: flex; flex-wrap: wrap; gap: var(--cds-sp-03); margin-bottom: var(--cds-sp-04); }
+  .chip {
+    background: var(--cds-layer-02); border: 1px solid var(--cds-border-subtle);
+    border-radius: 0.9375rem; padding: var(--cds-sp-02) var(--cds-sp-04);
+    font-size: 0.75rem; color: var(--cds-text-secondary); cursor: pointer;
+    transition: all var(--cds-dur-mod) var(--cds-ease-productive);
+  }
+  .chip:hover { background: var(--cds-interactive); border-color: var(--cds-interactive); color: #fff; }
 
-.history-list{max-height:220px;overflow-y:auto}
-.history-item{padding:8px 12px;border-radius:7px;cursor:pointer;
-  font-size:12px;color:#94a3b8;border:1px solid transparent;margin-bottom:4px;
-  transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.history-item:hover{background:#111827;border-color:#2d2d4a;color:#e2e2e8}
-.history-empty{font-size:12px;color:#4a4a60;font-style:italic}
-</style>
-</head>
-<body>
+  .chat-row { display: flex; gap: 0; }
+  .chat-input { flex: 1; border-bottom: 1px solid var(--cds-border-strong); }
+  .chat-row .cds-btn { flex: none; justify-content: center; }
 
-<header>
-  <h1>Wiki Dive</h1>
-  <p class="sub">Deep Wikipedia Research · Powered by <span>CugaAgent</span></p>
-  <div class="spacer"></div>
-  <span class="badge">No API keys required</span>
+  .result-panel {
+    flex: 1; overflow-y: auto;
+    background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle);
+    padding: var(--cds-sp-06);
+  }
+  .result-empty {
+    color: var(--cds-text-placeholder); font-size: 0.875rem;
+    text-align: center; padding: var(--cds-sp-09) 0;
+  }
+  .result-content { font-size: 0.875rem; line-height: 1.7; color: var(--cds-text-primary); }
+  .result-content a { color: var(--cds-link-primary); }
+  .result-content a:hover { color: var(--cds-link-hover); text-decoration: underline; }
+  .result-content strong { color: var(--cds-text-primary); font-weight: 600; }
+  .result-content hr { border: none; border-top: 1px solid var(--cds-border-subtle); margin: var(--cds-sp-05) 0; }
+
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .fadein { animation: fadein 0.25s ease; }
+
+  .thinking {
+    color: var(--cds-text-secondary); font-size: 0.875rem; text-align: center;
+    padding: var(--cds-sp-07) 0; display: flex; flex-direction: column;
+    align-items: center; gap: var(--cds-sp-05);
+  }
+
+  .history-list { max-height: 14rem; overflow-y: auto; }
+  .history-item {
+    padding: var(--cds-sp-03) var(--cds-sp-04); cursor: pointer;
+    font-size: 0.75rem; color: var(--cds-text-secondary);
+    border-left: 2px solid transparent; margin-bottom: var(--cds-sp-02);
+    transition: all var(--cds-dur-fast) var(--cds-ease-productive);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .history-item:hover { background: var(--cds-layer-hover); border-left-color: var(--cds-interactive); color: var(--cds-text-primary); }
+  .history-empty { font-size: 0.75rem; color: var(--cds-text-placeholder); }
+
+  .help { font-size: 0.8125rem; color: var(--cds-text-secondary); line-height: 1.6; }
+  .help strong { color: var(--cds-text-primary); }
+
+  .md-h3 { font-size: 0.875rem; font-weight: 600; color: var(--cds-link-primary); margin: var(--cds-sp-05) 0 var(--cds-sp-03); }
+  .md-h2 { font-size: 1rem; font-weight: 600; color: var(--cds-text-primary); margin: var(--cds-sp-06) 0 var(--cds-sp-03); padding-bottom: var(--cds-sp-03); border-bottom: 1px solid var(--cds-border-subtle); }
+  .md-h1 { font-size: 1.125rem; font-weight: 600; color: var(--cds-text-primary); margin: 0 0 var(--cds-sp-04); }
+  .md-li { padding-left: var(--cds-sp-05); margin: var(--cds-sp-02) 0; }
+  .md-code { background: var(--cds-layer-accent); color: var(--cds-link-primary); padding: 1px 5px; font-family: var(--cds-font-mono); font-size: 0.75rem; }
+</style>"""
+
+_BODY = r"""
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Wiki&nbsp;Dive</div>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Deep Wikipedia Research · Powered by CugaAgent</span>
+    <span class="cds-tag cds-tag--green">No API keys required</span>
+  </div>
 </header>
+
+<div class="app-intro">
+  <div class="app-intro__blurb">
+    <strong>Wiki Dive.</strong> Goes beyond a Wikipedia search — reads articles section by section, follows related links, and synthesises a structured report with citations and cross-article connections.
+  </div>
+  <div class="app-intro__tools">
+    <span class="tools-label">Tools</span>
+    <span class="tool-pill">📚 Wikipedia search</span>
+    <span class="tool-pill">📄 Article sections</span>
+    <span class="tool-pill">🔗 Related articles</span>
+    <span class="tool-pill">🌐 Wikipedia REST API</span>
+  </div>
+</div>
 
 <div class="layout">
 
   <!-- Left panel: input -->
   <div class="panel">
-    <div class="card">
+    <div class="cds-tile">
       <div class="card-title">Research any topic in depth</div>
       <div class="chips" id="chips"></div>
       <div class="chat-row">
-        <input class="chat-input" id="chatInput" type="text"
+        <input class="cds-input chat-input" id="chatInput" type="text"
           placeholder="Topic, concept, historical event, person…"
           onkeydown="if(event.key==='Enter')send()">
-        <button class="send" id="sendBtn" onclick="send()">Dive in</button>
+        <button class="cds-btn" id="sendBtn" onclick="send()" style="min-width:8rem">Dive in</button>
       </div>
     </div>
 
-    <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+    <div class="cds-tile" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
       <div class="card-title">Search History</div>
       <div class="history-list" id="historyList">
         <div class="history-empty">No searches yet.</div>
       </div>
     </div>
 
-    <div class="card" style="font-size:12px;color:#6b6b7e;line-height:1.7">
+    <div class="cds-tile help">
       <div class="card-title">How it works</div>
       The agent goes beyond a Wikipedia search — it reads articles
-      <strong style="color:#e2e2e8">section by section</strong>, follows
-      <strong style="color:#e2e2e8">See Also</strong> links to pull related
+      <strong>section by section</strong>, follows
+      <strong>See Also</strong> links to pull related
       concepts, and synthesises a structured report with
-      <strong style="color:#e2e2e8">citations</strong> and cross-article
+      <strong>citations</strong> and cross-article
       connections.<br><br>
       Great for: understanding complex topics from first principles, building
       mental models, or preparing to read primary sources.
@@ -158,7 +211,7 @@ async function send() {
   if (!q) return
 
   btn.disabled = true; btn.textContent = 'Reading…'
-  panel.innerHTML = '<div class="thinking"><span class="spinner">⟳</span> Reading Wikipedia articles section by section… this may take 20–40 seconds.</div>'
+  panel.innerHTML = '<div class="thinking"><div class="cds-spinner"></div> Reading Wikipedia articles section by section… this may take 20–40 seconds.</div>'
 
   try {
     const r = await fetch('/ask', {
@@ -174,7 +227,7 @@ async function send() {
     panel.innerHTML = '<div class="result-content fadein">' + renderMd(data.answer) + '</div>'
     addHistory(q)
   } catch(err) {
-    panel.innerHTML = '<div style="color:#f87171;padding:16px">Error: ' + esc(err.message) + '</div>'
+    panel.innerHTML = '<div class="cds-notification cds-notification--error">Error: ' + esc(err.message) + '</div>'
   } finally {
     btn.disabled = false; btn.textContent = 'Dive in'
   }
@@ -193,12 +246,12 @@ function renderMd(text) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/^### (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:#5eead4;margin:16px 0 6px">$1</div>')
-    .replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:#fff;margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid #2d2d4a">$1</div>')
-    .replace(/^# (.+)$/gm, '<div style="font-size:16px;font-weight:700;color:#fff;margin:0 0 12px">$1</div>')
-    .replace(/^- (.+)$/gm, '<div style="padding-left:16px;margin:4px 0">• $1</div>')
-    .replace(/^\d+\. (.+)$/gm, '<div style="padding-left:16px;margin:4px 0">$1</div>')
-    .replace(/`([^`]+)`/g, '<code style="background:#042f2e;color:#5eead4;padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
+    .replace(/^### (.+)$/gm, '<div class="md-h3">$1</div>')
+    .replace(/^## (.+)$/gm, '<div class="md-h2">$1</div>')
+    .replace(/^# (.+)$/gm, '<div class="md-h1">$1</div>')
+    .replace(/^- (.+)$/gm, '<div class="md-li">• $1</div>')
+    .replace(/^\d+\. (.+)$/gm, '<div class="md-li">$1</div>')
+    .replace(/`([^`]+)`/g, '<code class="md-code">$1</code>')
     .replace(/---/g, '<hr>')
     .replace(/\\n/g, '<br>').replace(/\n/g, '<br>')
 }
@@ -209,6 +262,14 @@ function esc(s) {
 
 initChips()
 </script>
-</body>
-</html>
 """
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Wiki Dive")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)

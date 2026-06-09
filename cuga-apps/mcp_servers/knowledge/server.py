@@ -28,7 +28,6 @@ from apps._ports import MCP_KNOWLEDGE_PORT  # noqa: E402
 mcp = make_server("mcp-knowledge")
 
 # ── Wikipedia ──────────────────────────────────────────────────────────
-_WIKI_REST = "https://en.wikipedia.org/api/rest_v1"
 _WIKI_ACTION = "https://en.wikipedia.org/w/api.php"
 
 
@@ -65,8 +64,8 @@ def search_wikipedia(query: str, max_results: int = 6) -> str:
 def get_wikipedia_article(title: str, full: bool = False) -> str:
     """Fetch a Wikipedia article by exact title.
 
-    If full=False (default), returns the REST lead summary (a few paragraphs).
-    If full=True, returns the full plain-text extract via the action API.
+    If full=False (default), returns the lead summary (a few paragraphs).
+    If full=True, returns the full plain-text extract. Both use the Action API.
 
     Args:
         title: Exact Wikipedia article title (case-sensitive, spaces allowed).
@@ -76,29 +75,38 @@ def get_wikipedia_article(title: str, full: bool = False) -> str:
 
 
 def _wiki_article(title: str, full: bool) -> str:
+    # Both summary and full text go through the Action API (/w/api.php). The
+    # REST /page/summary/ endpoint is aggressively rate-limited (429s, badly so
+    # from shared cloud egress IPs); the Action API has far higher limits,
+    # follows redirects ("india" -> "India"), and returns the canonical URL +
+    # thumbnail in one call. exintro=1 limits the extract to the lead section.
     try:
-        if not full:
-            data = get_json(f"{_WIKI_REST}/page/summary/{title.replace(' ', '_')}")
-            return tool_result({
-                "title":   data.get("title"),
-                "summary": data.get("extract"),
-                "url":     (data.get("content_urls", {}).get("desktop", {}) or {}).get("page", ""),
-                "thumbnail": (data.get("thumbnail") or {}).get("source"),
-            })
-        data = get_json(_WIKI_ACTION, params={
+        params = {
             "action": "query",
-            "prop": "extracts",
+            "prop": "extracts|info|pageimages",
             "explaintext": 1,
+            "inprop": "url",
+            "piprop": "thumbnail",
+            "pithumbsize": 320,
+            "redirects": 1,
             "titles": title,
             "format": "json",
-        })
+        }
+        if not full:
+            params["exintro"] = 1  # lead section only
+        data = get_json(_WIKI_ACTION, params=params)
         pages = data.get("query", {}).get("pages", {})
         page = next(iter(pages.values())) if pages else {}
-        return tool_result({
-            "title":   page.get("title"),
-            "extract": page.get("extract", ""),
-            "url":     f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}",
-        })
+        if "pageid" not in page:  # missing/invalid title → Action API sets no pageid
+            return tool_error(f"Wikipedia article not found: {title}", code="not_found")
+        result = {
+            "title":     page.get("title"),
+            "url":       page.get("fullurl") or f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}",
+            "thumbnail": (page.get("thumbnail") or {}).get("source"),
+        }
+        # Preserve the per-mode field name callers already expect.
+        result["extract" if full else "summary"] = page.get("extract", "")
+        return tool_result(result)
     except Exception as exc:
         return tool_error(f"Wikipedia fetch failed: {exc}", code="upstream")
 

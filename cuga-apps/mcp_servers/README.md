@@ -1,5 +1,10 @@
 # MCP servers — local dev guide
 
+> Running the **whole** MCP stack (Docker) or **deploying** these servers to
+> Code Engine? See [../../build/mcp_servers/](../../build/mcp_servers/) — the
+> MCP-only compose, `build_mcp_image.sh`, and `deploy_mcp.sh` live there. This
+> guide is for running a **single** server from source for development.
+
 There are **8 MCP server packages** here. They share a single image (`Dockerfile.mcp`) and a single bundled requirements file ([requirements.mcp.txt](../requirements.mcp.txt)) — there are **no per-server requirements files**. This README documents the per-server deps so you can install the minimum you need to run **one** server locally without Docker.
 
 ## The servers

@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -148,8 +149,9 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         try:
-            result = await agent.invoke(req.question, thread_id="chat")
+            result = await agent.invoke(req.question, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
         except Exception as exc:
             log.exception("Agent error")
@@ -159,6 +161,11 @@ def _web(port: int) -> None:
     async def ui():
         return HTMLResponse(_HTML)
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 

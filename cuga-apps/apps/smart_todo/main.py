@@ -41,6 +41,8 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from _carbon import carbon_head, carbon_css  # noqa: E402
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -277,6 +279,7 @@ def _web(port: int) -> None:
 
     @app.post("/ask")
     async def api_ask(req: AskReq):
+        from _usage import track_utterance; track_utterance(req.question)
         try:
             result = await agent.invoke(req.question, thread_id="chat")
             return {"answer": result.answer}
@@ -304,6 +307,11 @@ def _web(port: int) -> None:
     async def ui():
         return HTMLResponse(_HTML)
 
+    # Public deployment: layered, in-memory rate limiting on POST.
+    from _ratelimit import install_rate_limit
+    install_rate_limit(app)
+    from _usage import install_usage
+    install_usage(app)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -311,112 +319,92 @@ def _web(port: int) -> None:
 # HTML UI
 # ---------------------------------------------------------------------------
 
-_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Smart Todo</title>
-<style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:#0f1117;color:#e2e8f0;min-height:100vh}
+_APP_CSS = """<style>
+  body { background: var(--cds-background); }
 
-  header{background:#1a1a2e;border-bottom:1px solid #2d2d4a;padding:14px 28px;
-    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-  header h1{font-size:16px;font-weight:700;color:#fff}
-  .badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
-  .badge-blue{background:#1e3a5f;color:#60a5fa}
-  .spacer{flex:1}
-  .hdr-stat{font-size:11px;color:#4b5563}
+  .layout{display:grid;grid-template-columns:360px 1fr;gap:var(--cds-sp-06);
+    max-width:1280px;margin:0 auto;padding:var(--cds-sp-06) var(--cds-sp-06)}
+  @media (max-width:820px){ .layout{grid-template-columns:1fr} }
 
-  .layout{display:grid;grid-template-columns:360px 1fr;gap:20px;
-    max-width:1280px;margin:0 auto;padding:20px 24px}
-
-  .card{background:#1a1a2e;border:1px solid #2d2d4a;border-radius:10px;
-    overflow:hidden;margin-bottom:16px}
-  .card-header{padding:12px 16px 10px;border-bottom:1px solid #2d2d4a;
-    display:flex;align-items:center;gap:8px}
-  .card-header h2{font-size:13px;font-weight:600;color:#c5cae9}
-  .card-body{padding:16px}
+  .card{background:var(--cds-layer-01);border:1px solid var(--cds-border-subtle);
+    overflow:hidden;margin-bottom:var(--cds-sp-05)}
+  .card-header{padding:var(--cds-sp-04) var(--cds-sp-05);
+    border-bottom:1px solid var(--cds-border-subtle);
+    display:flex;align-items:center;gap:var(--cds-sp-03)}
+  .card-header h2{font-size:0.875rem;font-weight:600;color:var(--cds-text-primary)}
+  .card-body{padding:var(--cds-sp-05)}
 
   /* Chat */
-  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
-  .chip{padding:4px 10px;border-radius:12px;font-size:11px;background:#1f2937;
-    border:1px solid #374151;color:#9ca3af;cursor:pointer;transition:all .15s}
-  .chip:hover{background:#2563eb;border-color:#2563eb;color:#fff}
-  .chat-row{display:flex;gap:8px}
-  .chat-input{flex:1;padding:8px 12px;border-radius:7px;font-size:13px;
-    background:#0f1117;border:1px solid #374151;color:#e2e8f0;outline:none}
-  .chat-input:focus{border-color:#2563eb}
-  .chat-send{padding:8px 16px;border-radius:7px;font-size:13px;cursor:pointer;
-    border:none;background:#2563eb;color:#fff;white-space:nowrap}
-  .chat-send:hover{background:#1d4ed8}
-  .chat-send:disabled{background:#374151;color:#6b7280;cursor:default}
-  .chat-result{margin-top:12px;padding:12px;border-radius:7px;background:#0f1117;
-    border:1px solid #2d2d4a;font-size:13px;line-height:1.6;color:#d1d5db;
+  .chips{display:flex;flex-wrap:wrap;gap:var(--cds-sp-02);margin-bottom:var(--cds-sp-04)}
+  .chip{padding:var(--cds-sp-02) var(--cds-sp-04);border-radius:0.9375rem;
+    font-size:0.75rem;background:var(--cds-layer-02);
+    border:1px solid var(--cds-border-subtle);color:var(--cds-text-secondary);
+    cursor:pointer;transition:all var(--cds-dur-mod) var(--cds-ease-productive)}
+  .chip:hover{background:var(--cds-interactive);border-color:var(--cds-interactive);color:#fff}
+  .chat-row{display:flex;gap:0}
+  .chat-input{flex:1}
+  .chat-row .cds-btn{flex:none}
+  .chat-result{margin-top:var(--cds-sp-04);padding:var(--cds-sp-04) var(--cds-sp-05);
+    background:var(--cds-field-01);border:1px solid var(--cds-border-subtle);
+    border-left:3px solid var(--cds-support-info);
+    font-size:0.875rem;line-height:1.6;color:var(--cds-text-primary);
     white-space:pre-wrap;display:none}
   .chat-result.vis{display:block}
 
-  /* Email settings */
-  .srow{display:flex;align-items:center;gap:8px;margin-bottom:9px}
-  .srow label{font-size:12px;color:#9ca3af;min-width:90px}
-  input[type=text],input[type=password],input[type=email]{flex:1;padding:5px 9px;
-    border-radius:5px;font-size:12px;background:#0f1117;
-    border:1px solid #374151;color:#e2e8f0;outline:none}
-  input:focus{border-color:#2563eb}
-  .btn{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:500;
-    cursor:pointer;border:none;background:#2563eb;color:#fff;transition:background .15s}
-  .btn:hover{background:#1d4ed8}
-  .btn-sm{padding:3px 10px;font-size:11px}
-  .btn-ghost{background:#1f2937;border:1px solid #374151;color:#9ca3af}
-  .btn-ghost:hover{background:#374151}
-  .save-ok{color:#4ade80;font-size:11px;margin-left:6px;display:none}
+  /* Tabs */
+  .tabs{display:flex;gap:var(--cds-sp-02);margin-bottom:var(--cds-sp-05)}
+  .tab{padding:var(--cds-sp-03) var(--cds-sp-05);font-size:0.8125rem;cursor:pointer;
+    background:var(--cds-layer-02);border:1px solid var(--cds-border-subtle);
+    color:var(--cds-text-secondary);
+    transition:all var(--cds-dur-fast) var(--cds-ease-productive)}
+  .tab:hover{background:var(--cds-layer-hover)}
+  .tab.active{background:var(--cds-interactive);border-color:var(--cds-interactive);color:#fff}
 
   /* Todo items */
-  .tabs{display:flex;gap:4px;margin-bottom:14px}
-  .tab{padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;
-    background:#1f2937;border:1px solid #374151;color:#9ca3af}
-  .tab.active{background:#2563eb;border-color:#2563eb;color:#fff}
-
-  .todo-item{padding:10px 12px;border:1px solid #2d2d4a;border-radius:7px;
-    margin-bottom:7px;display:flex;align-items:flex-start;gap:10px}
-  .todo-item:hover{background:#1f2937}
-  .todo-check{width:16px;height:16px;border-radius:4px;border:2px solid #374151;
-    cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s}
-  .todo-check:hover{border-color:#4ade80}
+  .todo-item{padding:var(--cds-sp-04);border:1px solid var(--cds-border-subtle);
+    margin-bottom:var(--cds-sp-03);display:flex;align-items:flex-start;gap:var(--cds-sp-04);
+    background:var(--cds-layer-02);
+    transition:background var(--cds-dur-fast) var(--cds-ease-productive)}
+  .todo-item:hover{background:var(--cds-layer-hover)}
+  .todo-check{width:18px;height:18px;border:1px solid var(--cds-border-strong);
+    cursor:pointer;flex-shrink:0;margin-top:2px;
+    transition:all var(--cds-dur-fast) var(--cds-ease-productive)}
+  .todo-check:hover{border-color:var(--cds-interactive);background:var(--cds-support-info-bg)}
   .todo-body{flex:1;min-width:0}
-  .todo-content{font-size:13px;color:#e2e8f0;line-height:1.4}
-  .todo-meta{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}
-  .meta-pill{font-size:10px;padding:1px 7px;border-radius:8px}
-  .pill-todo{background:#1e3a5f;color:#60a5fa}
-  .pill-reminder{background:#451a03;color:#fb923c}
-  .pill-note{background:#1c2e1c;color:#86efac}
-  .pill-high{background:#7f1d1d;color:#f87171}
-  .pill-medium{background:#1e3a5f;color:#93c5fd}
-  .pill-low{background:#1a2e1a;color:#86efac}
-  .pill-tag{background:#1f2937;color:#6b7280}
-  .todo-due{font-size:10px;color:#f59e0b}
-  .todo-done{opacity:.4}
+  .todo-content{font-size:0.875rem;color:var(--cds-text-primary);line-height:1.4}
+  .todo-meta{display:flex;gap:var(--cds-sp-03);margin-top:var(--cds-sp-02);flex-wrap:wrap}
+  .meta-pill{font-size:0.6875rem;padding:1px var(--cds-sp-03);border-radius:0.9375rem;
+    line-height:1.4;white-space:nowrap}
+  .pill-todo{background:var(--cds-support-info-bg);color:var(--cds-link-primary)}
+  .pill-reminder{background:var(--cds-support-warning-bg);color:var(--cds-text-primary)}
+  .pill-note{background:var(--cds-support-success-bg);color:var(--cds-support-success)}
+  .pill-high{background:var(--cds-support-error-bg);color:var(--cds-support-error)}
+  .pill-medium{background:var(--cds-support-info-bg);color:var(--cds-link-primary)}
+  .pill-low{background:var(--cds-support-success-bg);color:var(--cds-support-success)}
+  .pill-tag{background:var(--cds-layer-accent);color:var(--cds-text-secondary)}
+  .todo-due{font-size:0.6875rem;color:var(--cds-support-warning);align-self:center}
+  .todo-done{opacity:.45}
 
-  .empty-state{font-size:13px;color:#4b5563;text-align:center;padding:32px}
+  .empty-state{font-size:0.875rem;color:var(--cds-text-placeholder);
+    text-align:center;padding:var(--cds-sp-08)}
 
   /* Reminder log */
-  .fired-item{padding:9px 12px;border:1px solid #2d2d4a;border-radius:6px;
-    margin-bottom:6px;font-size:12px}
-  .fired-content{color:#e2e8f0;font-weight:500}
-  .fired-meta{font-size:10px;color:#6b7280;margin-top:3px}
-  .sent-badge{color:#4ade80;font-size:10px;background:#052e16;
-    padding:1px 6px;border-radius:8px;margin-left:6px}
-</style>
-</head>
-<body>
+  .fired-item{padding:var(--cds-sp-03) var(--cds-sp-04);
+    border:1px solid var(--cds-border-subtle);
+    border-left:3px solid var(--cds-support-warning);
+    background:var(--cds-layer-02);
+    margin-bottom:var(--cds-sp-03);font-size:0.8125rem}
+  .fired-content{color:var(--cds-text-primary);font-weight:500}
+  .fired-meta{font-size:0.6875rem;color:var(--cds-text-helper);margin-top:var(--cds-sp-02)}
+</style>"""
 
-<header>
-  <h1>✅ Smart Todo</h1>
-  <span class="badge badge-blue" id="count-badge">0 active</span>
-  <div class="spacer"></div>
-  <span class="hdr-stat">Reminder watcher running · checks every 60s</span>
+_BODY = """
+<header class="cds-header">
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Smart&nbsp;Todo</div>
+  <span class="cds-tag cds-tag--blue" id="count-badge">0 active</span>
+  <div class="cds-header__actions">
+    <span class="cds-helper-01">Reminder watcher running · checks every 60s</span>
+  </div>
 </header>
 
 <div class="layout">
@@ -440,10 +428,10 @@ _HTML = """<!DOCTYPE html>
           <span class="chip" onclick="ask(this.textContent)">Remind me tomorrow morning to review PR</span>
         </div>
         <div class="chat-row">
-          <input class="chat-input" id="chat-input" type="text"
+          <input class="cds-input chat-input" id="chat-input" type="text"
             placeholder="Add a task, set a reminder, ask a question…"
             onkeydown="if(event.key==='Enter')ask()">
-          <button class="chat-send" id="chat-send" onclick="ask()">Send</button>
+          <button class="cds-btn" id="chat-send" onclick="ask()" style="min-width:6rem">Send</button>
         </div>
         <div class="chat-result" id="chat-result"></div>
       </div>
@@ -453,7 +441,7 @@ _HTML = """<!DOCTYPE html>
     <div class="card">
       <div class="card-header">
         <h2>🔔 Recent Alerts</h2>
-        <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="loadFired()">↺</button>
+        <button class="cds-btn cds-btn--ghost cds-btn--sm cds-btn--icon" style="margin-left:auto" onclick="loadFired()" title="Refresh">↺</button>
       </div>
       <div class="card-body" id="fired-body">
         <div class="empty-state">No reminders fired yet — alerts appear here when a reminder comes due.</div>
@@ -467,7 +455,7 @@ _HTML = """<!DOCTYPE html>
     <div class="card">
       <div class="card-header">
         <h2>📋 Task Board</h2>
-        <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="loadTodos()">↺ Refresh</button>
+        <button class="cds-btn cds-btn--ghost cds-btn--sm" style="margin-left:auto" onclick="loadTodos()">↺ Refresh</button>
       </div>
       <div class="card-body">
         <div class="tabs">
@@ -609,8 +597,17 @@ function esc(s) {
 
 init();
 </script>
-</body>
-</html>"""
+"""
+
+_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head>"
+    + carbon_head("Smart Todo")
+    + carbon_css("light")
+    + _APP_CSS
+    + "</head><body>"
+    + _BODY
+    + "</body></html>"
+)
 
 
 # ---------------------------------------------------------------------------

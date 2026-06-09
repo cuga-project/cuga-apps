@@ -1,0 +1,15 @@
+# cuga-skills-ui — standalone, in-process agent UI for cuga-skills.
+#
+# After `pip install -r requirements.txt`, also install the cuga package itself
+# from your local checkout so `from cuga import CugaAgent` resolves:
+#
+#     pip install -e /path/to/cuga-agent-skills-branch
+#
+# CUGA does NOT need to be running as a separate server — this UI builds a
+# CugaAgent in-process. OpenSandbox/Docker are not required.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+python-dotenv>=1.0
+pyyaml>=6.0
