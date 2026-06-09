@@ -125,7 +125,7 @@ Ouroboros, the lead-gen app from earlier makes this pattern concrete. It has a s
 
 ## Governed by construction
 
-What kind of thing CUGA is shapes how the production story goes. A minimal agent library hands you good primitives and leaves the governance (policy, approvals, audit, identity) for you to assemble. CUGA takes the other path: policy, human-in-the-loop approval, the `.cuga` state folder, and self-hosting are part of the harness from the first line, not a layer you add later.
+Where governance lives in the stack shapes how the production story goes. A minimal agent library hands you good primitives and leaves the governance (policy, approvals, audit, identity) for you to assemble. CUGA takes the other path: policy, human-in-the-loop approval, the `.cuga` state folder, and self-hosting are part of the harness from the first line, not a layer you add later.
 
 That changes the direction of the work when you take an agent to production. You're not retrofitting controls onto something built for open access; the control plane is already there. The governed path is the default, and the ungoverned shortcuts are the ones you opt into. So the remaining job is narrow: tighten the sandbox around the few tools that actually touch the outside world, rather than invent the governance around them
 
