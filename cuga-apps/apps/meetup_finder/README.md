@@ -71,10 +71,10 @@ Then open <http://127.0.0.1:28826> and try:
 ## Notes & caveats
 
 - **Browser-dependent**: needs the `playwright` package **and** a Chromium
-  binary (`python -m playwright install chromium`). It is therefore *not* on
-  the shared `deploy_apps.sh` image or `start.sh` (which assume no browser) —
-  run it locally, or bake it into a Playwright-enabled image (see
-  `chief_of_staff`'s Dockerfile for a working browser image).
+  binary (`python -m playwright install chromium`). It is therefore *not* on a
+  standard browserless apps image or `start.sh` launcher — run it locally, or
+  bake it into a Playwright-enabled image (see `chief_of_staff`'s Dockerfile for
+  a working browser image).
 - Extraction relies on each site's embedded JSON-LD / Next.js data. Those
   layouts drift; `fetch_events` returns an empty list (with a note) rather than
   failing when a page changes, and the agent reports which sources came back

@@ -67,6 +67,10 @@ export USAGE_TOKEN=<same secret as the collector>     # if you set one
 
 ## Code Engine
 
+> **Note:** the per-app `deploy_apps.sh` flow below is **legacy** (the old
+> fan-out model). Apps now ship inside the all-in-one `cuga-agent-apps` image
+> ([../../../build/](../../../build/)); the steps here are kept for reference.
+
 1. Deploy it (it's Tier 2 / min-scale 1 in `deploy_apps.sh`):
    `./deploy_apps.sh usage_collector`
 2. Grab its public URL: `ibmcloud ce app get --name cuga-apps-usage-collector --output url`

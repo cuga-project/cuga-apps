@@ -4,9 +4,9 @@ Two scripts push the **single all-in-one image** to IBM Container Registry and
 run it as **one Code Engine service** — the umbrella UI + every ship-ready app +
 the 5 MCP servers + the stats dashboard, all in one instance behind port 8080.
 
-> One image, one CE application, one URL. No per-app fan-out (that's what the
-> repo-root `deploy_apps.sh` / `deploy_mcp.sh` do). This is the "one big
-> microservice" deployment.
+> One image, one CE application, one URL. No per-app fan-out (that's what
+> `cuga-apps/deploy_apps.sh` and [../mcp_servers/deploy_mcp.sh](../mcp_servers/deploy_mcp.sh)
+> do). This is the "one big microservice" deployment.
 
 | Script | What it does |
 | --- | --- |

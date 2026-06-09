@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 # =====================================================================
+# ⚠  LEGACY / DEPRECATED — NOT part of the current deployment model.
+#
+# This is the OLD per-app / per-UI fan-out CE deployment. It is SUPERSEDED
+# by the two current deployment sets:
+#   - build/             → all-in-one `cuga-agent-apps` (UI + apps + MCP)
+#   - build/mcp_servers/ → standalone `cuga-apps-mcp-*` servers
+# Kept for reference only; do not use for new deployments.
+# =====================================================================
 # build_ui_image.sh — build and push the umbrella UI image to Docker Hub.
 #
 # This image is published publicly on Docker Hub and consumed by the

@@ -1,5 +1,12 @@
 # Deploying `recipe_composer` and `city_beat`
 
+> ## ⚠ LEGACY — superseded by the all-in-one deployment
+>
+> This doc covers the **old per-app fan-out** model (deploying each app as its
+> own Code Engine service via `deploy_apps.sh`). Apps now ship inside the
+> all-in-one `cuga-agent-apps` image — see [../../build/](../../build/) and
+> [build/ce/README.md](../../build/ce/README.md). Kept for reference only.
+
 Step-by-step runbook for getting the two new apps from your laptop onto
 IBM Cloud Code Engine and lit up in the umbrella UI as ship-ready tiles.
 Both apps share the same image as the existing 19 cuga-apps, so the path

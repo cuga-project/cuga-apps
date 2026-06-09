@@ -3,7 +3,11 @@
 # deploy_mcp.sh — deploy the cuga-apps MCP servers + tool explorer to
 # IBM Cloud Code Engine.
 #
-# (Renamed from deploy.sh — sibling of deploy_apps.sh / deploy_ui.sh.)
+# Lives in build/mcp_servers/ (the consolidated MCP-server deployment home).
+# Pure ibmcloud-CLI orchestration — no Docker build context, so cwd doesn't
+# matter; run it from anywhere. Build the image first with the sibling
+# ./build_mcp_image.sh. The apps/ui deploy scripts (deploy_apps.sh /
+# deploy_ui.sh) remain in the inner cuga-apps/ source dir.
 #
 # Idempotent. Retries on transient registry pull errors. Continues past
 # per-service failures and reports a summary at the end.
@@ -12,7 +16,7 @@
 #   - ibmcloud login + target region/RG
 #   - ibmcloud ce project select --name <your-project>
 #   - ibmcloud cr region-set + cr namespace-add + cr login
-#   - shared MCP image already built + pushed to ICR
+#   - shared MCP image already built + pushed to ICR (./build_mcp_image.sh)
 #     (mcp-tool-explorer image too, if you'll deploy the explorer)
 #   - CE secrets `icr-secret-1` (registry pull) and `app-env` (env file) created
 #

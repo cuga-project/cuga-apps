@@ -57,7 +57,12 @@ if [[ ${#TARGETS[@]} -eq 0 ]]; then
   TARGETS=(mcp tool-explorer)
 fi
 
-cd "$(dirname "$0")"
+# This script lives in build/mcp_servers/, but the Docker build context must
+# be the inner source root (cuga-apps/) — that's where Dockerfile.mcp,
+# requirements.mcp.txt, apps/_ports.py, mcp_servers/, and mcp_tool_explorer/
+# live. Resolve and cd there so `docker build … .` sees the right context.
+SRC_DIR="$(cd "$(dirname "$0")/../../cuga-apps" && pwd)"
+cd "$SRC_DIR"
 
 require_cli() { command -v "$1" >/dev/null 2>&1 || { echo "ERROR: $1 not on PATH" >&2; exit 1; }; }
 require_cli docker

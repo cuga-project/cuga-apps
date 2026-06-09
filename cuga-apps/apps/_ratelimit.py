@@ -21,8 +21,8 @@ every 10s). Layers run cheap-first:
   5. Concurrency gate  — max simultaneous in-flight POSTs (each app is one CE
                          instance at --max-scale 1, so this is authoritative).
 
-Because each app runs as a single instance (deploy_apps.sh uses --max-scale 1),
-in-memory state is authoritative — no Redis/Memcached needed. Everything is
+Because the apps run as a single instance (the all-in-one build/ image deploys
+at --max-scale 1), in-memory state is authoritative — no Redis/Memcached needed. Everything is
 tunable via env vars, so you change limits by editing the CE `app-env` secret
 and restarting — no code change, no rebuild:
 
@@ -244,5 +244,5 @@ def install_rate_limit(app, **overrides) -> None:
 #   • API Gateway / app-id: require a key or auth in front of /ask if you want
 #     to gate to known users while keeping the read-only UI public.
 #   • Code Engine scaling: keep --max-scale modest so a flood can't fan out
-#     into unbounded concurrency/cost (deploy_apps.sh already pins max-scale 1).
+#     into unbounded concurrency/cost (the all-in-one build/ image pins max-scale 1).
 # ─────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 # =====================================================================
+# ⚠  LEGACY / DEPRECATED — NOT part of the current deployment model.
+#
+# This is the OLD per-app / per-UI fan-out CE deployment. It is SUPERSEDED
+# by the two current deployment sets:
+#   - build/             → all-in-one `cuga-agent-apps` (UI + apps + MCP)
+#   - build/mcp_servers/ → standalone `cuga-apps-mcp-*` servers
+# Kept for reference only; do not use for new deployments.
+# =====================================================================
 # deploy_apps.sh — deploy 27 cuga-apps FastAPI apps to IBM Cloud Code Engine.
 #
 # All 27 apps run from one shared image (built by build_apps_image.sh).
@@ -16,7 +24,8 @@
 # Prerequisites (NOT done by this script):
 #   - ibmcloud login + target region/RG + ce project select
 #   - ./build_apps_image.sh (image must exist in ICR)
-#   - 7 MCP servers + tool-explorer already deployed (./deploy_mcp.sh)
+#   - 7 MCP servers + tool-explorer already deployed
+#     (../build/mcp_servers/deploy_mcp.sh)
 #   - CE secrets `app-env` and `icr-secret-1` exist
 #
 # Usage:

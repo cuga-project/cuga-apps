@@ -1,9 +1,9 @@
 # MCP servers deployed to IBM Cloud Code Engine.
 #
-# Source of truth:
-#   - deploy_mcp.sh           (which servers, image, secrets, scaling)
-#   - apps/_ports.py          (container ports)
-#   - mcp_servers/<name>/     (server source)
+# Source of truth (this file is a declarative MIRROR — edit the scripts/source):
+#   - ./deploy_mcp.sh                        (which servers, image, secrets, scaling)
+#   - ../../cuga-apps/apps/_ports.py         (container ports)
+#   - ../../cuga-apps/mcp_servers/<name>/    (server source)
 #
 # Public URLs are assigned by Code Engine at deploy time. Fetch with:
 #   ibmcloud ce app get --name cuga-apps-mcp-<name> --output url
