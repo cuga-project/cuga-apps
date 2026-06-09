@@ -1,10 +1,11 @@
-# Build real agentic apps on CUGA: `CUGA-apps` two dozen working examples on a lightweight agent harness
+# Build real agentic apps on CUGA: two dozen working examples on a lightweight harness
 
-> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the open-source harness from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs governed in production without a rewrite.
+> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs governed in production without a rewrite.
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
-[CUGA](https://github.com/cuga-project/cuga-agent) inverts that. Short for Configurable Generalist Agent, it's the open-source agent harness from IBM Research that handles the planning, the execution loop, the tool calls, and the state plumbing for you, so the part you write shrinks to a list of tools and a system prompt. To show what that feels like in practice, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): 24 small, working apps, each a single FastAPI file wrapping one `CugaAgent`, from a movie recommender to an IBM Cloud architecture advisor. They exist to be read and copied.
+[CUGA](https://github.com/cuga-project/cuga-agent) inverts that. Short for Configurable Generalist Agent, it's the open-source agent harness from IBM that handles the planning, the execution loop, the tool calls, and the state plumbing for you. What's left is the part that's actually yours: which tools the agent can reach, and what you tell it to do. To show what that feels like in practice, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): two dozen small, working apps, each a single FastAPI file wrapping one `CugaAgent`, from a movie recommender to an IBM Cloud architecture advisor. They exist to be read and copied.
+
 
 This article walks through one of them, names what the harness takes off your plate, and shows where the same code goes when you need it governed for production. No new framework to learn first. If you've written a FastAPI route, you can read every line.
 
@@ -122,11 +123,11 @@ The other extension packages know-how rather than tools: Agent Skills, a folder 
 
 Ouroboros, the lead-gen app from earlier makes this pattern concrete. It has a supervisor over seven specialists (scout, site auditor, voice-of-customer, person finder, stack scanner, revenue estimator, and a pitch-email writer that synthesizes). Each specialist is one skill loaded into a `CugaAgent`, and the supervisor calls it through an auto-generated `delegate_to_<name>` tool. Adding an eighth is a one-line factory, not a coordinator rewrite. Read its `main.py` and `ARCHITECTURE.md` if you want the multi-agent shape end to end.
 
-## The moat: governed by construction
+## Governed by construction
 
-Where does CUGA sit relative to everything else you could build on? Most of the field splits two ways. Minimal developer libraries give you good primitives but leave you to assemble the governance — identity, audit, policy, approvals — yourself. Broad-access personal-agent runtimes demo fast precisely because they start with reach into your filesystem, shell, and browser, so the work becomes *constraining* access that already exists.
+What kind of thing CUGA is shapes how the production story goes. A minimal agent library hands you good primitives and leaves the governance (policy, approvals, audit, identity) for you to assemble. CUGA takes the other path: policy, human-in-the-loop approval, the `.cuga` state folder, and self-hosting are part of the harness from the first line, not a layer you add later.
 
-CUGA is a third category: an enterprise harness where policy-as-code, human-in-the-loop approval, durable state, self-hosting, and data residency are first-class from the first line. That flips the direction of the hard work. From a personal-agent runtime you *govern upward*, retrofitting controls onto something built for access — a brittle overlay or a long-lived fork, expensive forever. From CUGA you *harden downward*: the control plane is already there, so the remaining work is tightening the sandbox around the few side-effecting tools, not inventing the governance around them. That's the moat — the governed path is the default, and the ungoverned shortcuts are the ones you opt into. It's also why the same agent definition carries from a laptop to a locked-down deployment without a rewrite.
+That changes the direction of the work when you take an agent to production. You're not retrofitting controls onto something built for open access; the control plane is already there. The governed path is the default, and the ungoverned shortcuts are the ones you opt into. So the remaining job is narrow: tighten the sandbox around the few tools that actually touch the outside world, rather than invent the governance around them
 
 ## Where the same agent ends up
 
