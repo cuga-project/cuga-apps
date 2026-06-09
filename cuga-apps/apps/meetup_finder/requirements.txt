@@ -1,10 +1,13 @@
 # meetup_finder — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
 # Then fetch the browser once:  python -m playwright install chromium
 #
 # Browser automation via Playwright (CUGA's web capability), wrapped as inline
 # @tool defs — no MCP servers. Events extracted from each site's embedded
 # JSON-LD / Next.js data, so no API keys.
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

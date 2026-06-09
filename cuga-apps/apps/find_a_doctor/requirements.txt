@@ -1,11 +1,14 @@
 # find_a_doctor — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
 #
 # Inline tools only — no MCP servers. Live data via httpx:
 #   - Nominatim (OpenStreetMap) geocoding
 #   - Overpass (OpenStreetMap) nearby doctors/clinics
 #   - DuckDuckGo HTML for review snippets (parsed with regex — no bs4 needed)
 # All keyless.
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

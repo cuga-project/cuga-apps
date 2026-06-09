@@ -36,6 +36,13 @@ There are **three deployment targets**, built from the same source tree:
 - **Hugging Face** ([build/hf/](hf)) — a static umbrella UI that only *links*
   into the CE service. No backend of its own; the CE URL is baked into the build.
 
+> **The other deployment set.** This doc covers the **all-in-one** only. The
+> standalone `cuga-apps-mcp-*` MCP servers (what apps reach with
+> `CUGA_TARGET=ce` when run from source) are a **separate** deployment with
+> their own build/deploy scripts and compose — see
+> [build/mcp_servers/](mcp_servers/). The all-in-one bundles its own lean
+> 5-server MCP subset internally and does **not** depend on those.
+
 The CE and HF builds compile the UI **fresh from your working tree** inside their
 own build steps — so source edits are picked up automatically. You do **not**
 need to commit first, and a local rebuild is **not** a prerequisite for CE/HF.

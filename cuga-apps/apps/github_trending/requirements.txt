@@ -1,8 +1,11 @@
 # github_trending — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
 #
 # Inline tools only — no MCP servers. Live data via GitHub's public REST API
 # (httpx). Unauthenticated works; set GITHUB_TOKEN to raise the rate limit.
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

@@ -168,6 +168,21 @@ SHIP_READY = [
     "find_a_doctor", "meetup_finder",
 ]
 
+# The MCP servers the ship-ready apps depend on — every one except
+# invocable_apis (BIRD-only; needs host data mounts and is used by no
+# ship-ready app). `--ship-ready` brings these up *with* the 21 apps so the
+# MCP-backed apps (travel_planner, city_beat, movie_recommender, …) can
+# actually reach their tools. Starting apps without these leaves them unable
+# to connect.
+SHIP_READY_MCP = [
+    "mcp-web", "mcp-knowledge", "mcp-geo", "mcp-finance",
+    "mcp-code", "mcp-local", "mcp-text",
+]
+
+# The full ship-ready stack = its MCP servers + the 21 apps. MCP first so the
+# apps can initialise against them (cmd_start already sorts mcp before app).
+SHIP_READY_STACK = SHIP_READY_MCP + SHIP_READY
+
 PID_FILE = HERE / ".launch_pids"
 
 
@@ -451,14 +466,18 @@ def main() -> None:
                         choices=["start", "stop", "kill", "status", "logs"])
     parser.add_argument("names", nargs="*", help="Optional process-name filter")
     parser.add_argument("--ship-ready", action="store_true",
-                        help="Target exactly the 21 ship-ready apps")
+                        help="Target the ship-ready stack: the 21 ship-ready "
+                             "apps + the 7 MCP servers they depend on")
     parser.add_argument("--env", type=Path, default=HERE / ".env")
     parser.add_argument("--tail", type=int, default=30)
     args = parser.parse_args()
 
     filter_names = list(args.names) if args.names else None
     if args.ship_ready:
-        filter_names = SHIP_READY if not filter_names else [n for n in filter_names if n in SHIP_READY]
+        # The ship-ready stack is its MCP servers + the 21 apps; intersect with
+        # any explicit names the user also passed.
+        filter_names = (SHIP_READY_STACK if not filter_names
+                        else [n for n in filter_names if n in SHIP_READY_STACK])
     print(f"\n=== cuga-apps launcher — {args.action.upper()} ===\n")
     if args.action == "start":
         cmd_start(filter_names, args.env)

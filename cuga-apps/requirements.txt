@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Whole local stack — everything needed to run all MCP servers AND every app
+# from source in one virtualenv. This is the file to install if you want to
+# bring the full stack up locally with apps/launch.py.
+#
+#   python3.13 -m venv .venv && source .venv/bin/activate
+#   pip install -r requirements.txt
+#   cp apps/.env.example apps/.env      # then add your LLM + tool keys
+#   python apps/launch.py start --ship-ready   # 7 MCP servers + 21 ship-ready apps
+#
+# See docs/LOCAL_STACK.md for the full walkthrough. This file is just an
+# aggregate of the three component requirements files:
+# ─────────────────────────────────────────────────────────────────────────
+-r requirements.apps.txt        # cuga framework + all app deps + MCP client
+-r requirements.apps.heavy.txt  # chromadb + sentence-transformers (video_qa, deck_forge)
+-r requirements.mcp.txt         # the MCP servers' own deps (tavily, docling, whisper, …)

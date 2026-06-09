@@ -4,6 +4,9 @@
 # Central usage dashboard. Receives fire-and-forget pings from every app
 # (apps/_usage.py) and aggregates per-app, per-day counts. No LLM, no cuga.
 
+# cuga agent framework (every app builds a CugaAgent)
+cuga
+
 fastapi>=0.110
 uvicorn[standard]>=0.27
 

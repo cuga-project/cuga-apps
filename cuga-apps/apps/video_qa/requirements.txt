@@ -1,9 +1,12 @@
 # video_qa — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
 #
 # This app is one of two heavyweight ones (the other is deck_forge). It needs
 # chromadb + sentence-transformers + faster-whisper for local video RAG +
 # transcription — install will be ~+700 MB on top of the base cuga venv.
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

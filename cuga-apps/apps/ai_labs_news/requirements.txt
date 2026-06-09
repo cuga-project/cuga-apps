@@ -1,8 +1,11 @@
 # ai_labs_news — standalone Python deps.
-# Install: pip install -r requirements.txt && pip install cuga
+# Install: pip install -r requirements.txt
 #
 # Inline tools only — no MCP servers. Live data via each lab's public RSS/Atom
 # feed (httpx fetch + feedparser parse). No API keys.
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
 
 fastapi>=0.110
 uvicorn[standard]>=0.27
