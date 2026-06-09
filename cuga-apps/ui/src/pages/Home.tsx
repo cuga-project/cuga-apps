@@ -399,7 +399,7 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
           <tr className="border-b-2 border-tborder bg-tsurf2">
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-6 py-4 w-10">#</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4">Use Case</th>
-            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Examples</th>
+            <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell w-[13rem]">Examples</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden lg:table-cell">Category</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">Tools</th>
             <th className="text-left text-sm font-semibold text-t4 uppercase tracking-wider px-4 py-4 hidden xl:table-cell">ENV Vars</th>
@@ -442,12 +442,12 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
                   {(uc.examples?.length ?? 0) === 0 ? (
                     <span className="text-sm text-t4">—</span>
                   ) : (
-                    <div className="flex flex-col gap-1.5 max-w-[20rem]">
+                    <div className="flex flex-col gap-1.5 w-[13rem]">
                       {uc.examples!.slice(0, 2).map((ex) => (
                         <span
                           key={ex}
                           title={ex}
-                          className="bg-tsurf2 text-t2 border border-tborder rounded px-2 py-1 text-xs italic whitespace-normal break-words leading-snug"
+                          className="bg-tsurf2 text-t2 border border-tborder rounded px-2 py-1 text-xs italic whitespace-normal break-words leading-snug line-clamp-2"
                         >
                           “{ex}”
                         </span>
