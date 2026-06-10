@@ -1,0 +1,95 @@
+# Shared watsonx model config for the all-in-one deployment — gpt-oss-120b for
+# every CUGA internal node, instead of cuga's packaged llama-4-maverick default.
+#
+# build/.env points AGENT_SETTING_CONFIG at this file's in-image absolute path
+# (/app/apps/settings.watsonx.toml). AGENT_SETTING_CONFIG is read globally, so
+# every ship-ready app's internal nodes use this config. The outer LangChain
+# model is set to match via LLM_MODEL=openai/gpt-oss-120b in build/.env.
+#
+# If your watsonx instance exposes gpt-oss under a different id, change the
+# `model_name` values below (one per node).
+
+[agent.task_decomposition.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.shortlister.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.planner.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.chat.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.plan_controller.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.final_answer.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+api_version = "2024-08-06"
+temperature = 0.1
+max_tokens = 32000
+
+[agent.code.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.code_planner.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.qa.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 16000
+
+[agent.action.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 2000
+
+[memory.mem0.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 1000
+
+[memory.milvus.step_processing.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 1000
+
+[memory.milvus.fact_extraction.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 1000
+
+[memory.tips_extractor.model]
+platform = "watsonx"
+model_name = "openai/gpt-oss-120b"
+temperature = 0.1
+max_tokens = 5000

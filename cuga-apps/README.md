@@ -30,9 +30,20 @@ you browse and invoke every MCP tool.
 ## Quick start
 
 ```bash
-cp apps/.env.example apps/.env       # fill in keys (see docs/GETTING_STARTED.md)
+cp build/.env.example build/.env     # single source of truth — fill in keys
 docker compose up -d --build         # ~5-10 min on first build
 ```
+
+> **Config lives in `build/.env`.** That one file is the source of truth for
+> the LLM provider/model and all secrets, and it is shared by **every** way of
+> running the apps: the Code Engine deployment, the local Docker image, and
+> `python launch.py` (which now defaults to reading `build/.env`). Change the
+> model once there and it applies everywhere. The default is **watsonx +
+> `openai/gpt-oss-120b`** — `LLM_MODEL` sets the outer model and
+> `AGENT_SETTING_CONFIG=/app/apps/settings.watsonx.toml` points CUGA's internal
+> nodes at the bundled gpt-oss config (`launch.py` remaps that in-image path to
+> the local `apps/` dir automatically). A local `apps/.env`, if you create one,
+> overrides `build/.env`.
 
 Then open:
 - **Umbrella UI** — http://localhost:3001
@@ -272,7 +283,12 @@ Subsequent builds reuse the cached pip-install layer unless
 `requirements.apps.txt`, `requirements.apps.heavy.txt`, or
 `requirements.mcp.txt` change.
 
-Environment / secrets are read at runtime from `apps/.env` — see the Quick
-start at the top. They're mounted read-only as `/run/secrets/app.env` and
-sourced by `entrypoint.sh`, so they never appear in `docker inspect` or in
-the image itself.
+Environment / secrets are read at runtime from **`build/.env`** — the single
+source of truth shared by the Code Engine deployment, the local Docker image,
+and `python launch.py`. In the container they're mounted read-only as
+`/run/secrets/app.env` (or the CE `app-env` secret) and sourced by
+`entrypoint.sh`, so they never appear in `docker inspect` or in the image
+itself. `launch.py` reads the same `build/.env` directly (remapping the
+in-image `/app/apps/...` paths to this checkout). To change the model or keys
+for *all* run modes at once, edit `build/.env`; for Code Engine, also refresh
+the secret: `ibmcloud ce secret update --name app-env --from-env-file build/.env`.

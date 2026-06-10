@@ -39,6 +39,13 @@ from _ports import APP_PORTS, MCP_PORTS  # noqa: E402
 
 PYTHON = sys.executable
 
+# Single source of truth for runtime config is build/.env (the same file the
+# Code Engine / Docker image uses), so local `launch.py` and the deployment
+# stay in lock-step. A local apps/.env, if present, still wins as an override.
+BUILD_ENV = REPO_ROOT.parent / "build" / ".env"
+APPS_ENV = HERE / ".env"
+DEFAULT_ENV = APPS_ENV if APPS_ENV.exists() else BUILD_ENV
+
 
 def _has_cuga(py: str) -> bool:
     """True if interpreter `py` can find the `cuga` package. Uses find_spec
@@ -300,6 +307,16 @@ def cmd_start(filter_names: Optional[list[str]], env_file: Path) -> None:
         print(f"  [PYTHON] {PYTHON}")
 
     dotenv = _load_env(env_file)
+    if dotenv:
+        print(f"  [ENV]    loaded {len(dotenv)} vars from {env_file}")
+    # build/.env carries in-IMAGE absolute paths (e.g. AGENT_SETTING_CONFIG=
+    # /app/apps/settings.watsonx.toml). When launching from this checkout that
+    # path doesn't exist, so remap the /app/apps prefix to the local apps dir.
+    asc = dotenv.get("AGENT_SETTING_CONFIG", "")
+    if asc.startswith("/app/apps/"):
+        local = HERE / asc[len("/app/apps/"):]
+        dotenv["AGENT_SETTING_CONFIG"] = str(local)
+        print(f"  [ENV]    AGENT_SETTING_CONFIG → {local}")
     merged_env = {**os.environ, **dotenv}
 
     # Usage tracking: point every app at the local collector unless the user
@@ -468,7 +485,7 @@ def main() -> None:
     parser.add_argument("--ship-ready", action="store_true",
                         help="Target the ship-ready stack: the 21 ship-ready "
                              "apps + the 7 MCP servers they depend on")
-    parser.add_argument("--env", type=Path, default=HERE / ".env")
+    parser.add_argument("--env", type=Path, default=DEFAULT_ENV)
     parser.add_argument("--tail", type=int, default=30)
     args = parser.parse_args()
 

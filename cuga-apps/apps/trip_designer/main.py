@@ -191,7 +191,10 @@ Two requirements:
 
 2. **Cite real sources** — every claim about a place, time, cost, or fact
    must reference something a tool returned. Never invent attractions,
-   distances, prices, opening hours, or names.
+   distances, prices, opening hours, or names. A web-search result is a page
+   to *read*, not a fact in itself: only call something an event if you can
+   name it with an actual date and venue from the page content — never list a
+   calendar/listing/aggregator page (no single date or venue) as an event.
 
 If the user supplied hard constraints (budget caps, return-by times,
 must-include themes, mobility limits), respect them as constraints, not

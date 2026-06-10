@@ -58,9 +58,15 @@ os.environ.setdefault("CUGA_TARGET", "ce")
 # make_supervisor() is too late — by then specialists.py has already
 # imported cuga.sdk indirectly. So we resolve it here, before the first
 # cuga import in this process.
+# For watsonx we ship our OWN config (settings.watsonx.toml in this dir) that
+# pins every internal node to gpt-oss-120b instead of cuga's packaged
+# llama-4-maverick default. AGENT_SETTING_CONFIG accepts an absolute path
+# (cuga does os.path.join(MODELS_DIR, value); an absolute value wins), so we
+# point at the local file rather than editing site-packages.
+_WATSONX_TOML = str(_DIR / "settings.watsonx.toml")
 _AGENT_SETTING_CONFIG = {
     "rits":      "settings.rits.toml",
-    "watsonx":   "settings.watsonx.toml",
+    "watsonx":   _WATSONX_TOML,
     "openai":    "settings.openai.toml",
     "groq":      "settings.groq.toml",
     "litellm":   "settings.litellm.toml",
@@ -75,8 +81,25 @@ _AGENT_SETTING_CONFIG = {
 _provider = (os.getenv("LLM_PROVIDER") or "watsonx").lower()
 os.environ.setdefault(
     "AGENT_SETTING_CONFIG",
-    _AGENT_SETTING_CONFIG.get(_provider, "settings.watsonx.toml"),
+    _AGENT_SETTING_CONFIG.get(_provider, _WATSONX_TOML),
 )
+# Outer LangChain model (supervisor + specialists' conversational layer): on
+# watsonx default to gpt-oss-120b too, so both layers match. An explicit
+# LLM_MODEL still wins.
+if _provider == "watsonx":
+    os.environ.setdefault("LLM_MODEL", "openai/gpt-oss-120b")
+
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where that path doesn't exist. CUGA aborts on a missing file,
+# so remap a non-existent absolute config to a local file of the same name
+# (this app's dir, then the apps dir). Runs BEFORE the first cuga import below.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
 
 
 def _patch_executor_timeout(seconds: int = 180) -> None:

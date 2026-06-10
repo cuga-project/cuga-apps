@@ -1281,22 +1281,22 @@ _HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="chips">
-      <div class="chip" onclick="sendChip(this)">Find leads in Westchester, NY</div>
-      <div class="chip" onclick="sendChip(this)">Restaurants in HSR Layout, Bangalore — pitch order bots</div>
-      <div class="chip" onclick="sendChip(this)">Salons in Brooklyn that need appointment booking</div>
-      <div class="chip" onclick="sendChip(this)">Independent hotels in Lisbon — concierge agent angle</div>
-      <div class="chip" onclick="sendChip(this)">Clinics in Austin — patient FAQ + intake</div>
-      <div class="chip" onclick="sendChip(this)">Real estate offices in San Mateo — lead capture pitch</div>
-      <div class="chip" onclick="sendChip(this)">Boutiques in Williamsburg — product Q&A</div>
-      <div class="chip" onclick="sendChip(this)">Veterinary clinics near Berkeley — appointment + reminders</div>
-      <div class="chip" onclick="sendChip(this)">Tutoring centers in Mumbai Andheri — enrollment funnel</div>
+      <div class="chip" onclick="sendChip(this)">Boutiques in Williamsburg, Brooklyn — product Q&A & size/fit chat</div>
+      <div class="chip" onclick="sendChip(this)">Restaurants in Park Slope, Brooklyn — reservations + order bot</div>
+      <div class="chip" onclick="sendChip(this)">Cafés in the Mission District, San Francisco — order-ahead + loyalty</div>
+      <div class="chip" onclick="sendChip(this)">Restaurants in the North End, Boston — bookings + waitlist</div>
+      <div class="chip" onclick="sendChip(this)">Boutiques in Georgetown, Washington DC — product Q&A + styling</div>
+      <div class="chip" onclick="sendChip(this)">Boutiques on Abbot Kinney, Venice CA — product Q&A</div>
+      <div class="chip" onclick="sendChip(this)">Cafés in the Pearl District, Portland — mobile order-ahead</div>
+      <div class="chip" onclick="sendChip(this)">Restaurants in Fitzrovia, London — table bookings + menu concierge</div>
+      <div class="chip" onclick="sendChip(this)">Independent hotels in Lisbon — 24/7 concierge agent</div>
     </div>
 
     <div class="messages" id="messages"></div>
 
     <div class="input-row">
       <input type="text" id="userInput"
-        placeholder="Try: 'Find restaurants in HSR Layout that need an order bot'"
+        placeholder="Try: 'Restaurants in Park Slope, Brooklyn that need an order bot'"
         onkeydown="if(event.key==='Enter') sendMessage()" />
       <button class="btn" id="sendBtn" onclick="sendMessage()" title="Run the typed question once now">Hunt</button>
     </div>

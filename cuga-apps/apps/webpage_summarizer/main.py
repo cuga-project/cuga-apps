@@ -35,6 +35,17 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------

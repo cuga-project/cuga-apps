@@ -98,11 +98,23 @@ this research workflow before writing a single day of the plan:
 4. Call search_attractions(lat, lon, category) at least twice with different
    categories relevant to the traveller's interests (e.g. historic + cultural,
    or natural + amusements).
-5. Call web_search(query) for at least two practical queries:
+5. Call web_search(query) for practical, current facts. Each result is a
+   REFERENCE PAGE to read — its title/URL is a source, NOT an event or a fact in
+   itself. Run at least:
    - visa / entry requirements for international travellers
    - local transport options and approximate costs
-   - any notable events or festivals during the travel month
+   - notable events or festivals during the travel month
 6. Only after gathering all the above, write the itinerary.
+
+EVENTS — read this carefully. Only mention an event if you can name the SPECIFIC
+event WITH its actual dates and venue, taken from the content of a page you
+searched. A search frequently returns only calendar/aggregator/listing pages —
+e.g. "Events in <city> in <month>", a "things to do" roundup, an Instagram or
+social handle, a tour-operator blog. Those are NOT events: they have no single
+date or venue. NEVER list such a page as an event (a dead giveaway is a "date"
+like "June 2026" with no day, or a venue like "various venues"). If you cannot
+find a concrete, dated, named event, simply say you couldn't confirm specific
+events for that month and move on — do not pad the itinerary with listing pages.
 
 Itinerary format:
 - Brief destination intro (2–3 sentences)
