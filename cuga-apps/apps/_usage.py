@@ -270,3 +270,12 @@ def install_usage(app, app_name: str | None = None) -> None:
         return response
 
     app.state._usage_installed = True
+
+    # Shared UI chrome (privacy banner + model + MCP Tool Explorer link) on every
+    # app's HTML page — injected here so we touch one file, not ~33 app UIs.
+    # Best-effort; a chrome failure must never break usage tracking.
+    try:
+        from _chrome import install_chrome
+        install_chrome(app)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("chrome install skipped: %s", exc)

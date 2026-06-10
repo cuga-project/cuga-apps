@@ -202,9 +202,11 @@ const shipOrderIndex = (id: string) => {
 // distinctiveness. Genuinely partial / not-working entries sink to the bottom.
 // Ids not listed fall to the end, preserving source order.
 const ADDITIONAL_ORDER = [
-  'code-engine-deployer', 'deck-forge', 'code-reviewer', 'video-qa', 'bird-invocable-api',
-  'trip-designer', 'api-doc-gen', 'voice-journal', 'brief-budget', 'drop-summarizer',
-  'smart-todo', 'ibm-whats-new', 'chief-of-staff', 'box-qa',
+  'code-reviewer', 'video-qa', 'bird-invocable-api', 'trip-designer', 'api-doc-gen',
+  'voice-journal', 'brief-budget', 'drop-summarizer', 'smart-todo', 'ibm-whats-new',
+  'chief-of-staff', 'box-qa',
+  // Pinned to the bottom by request.
+  'deck-forge', 'code-engine-deployer',
 ]
 const additionalOrderIndex = (id: string) => {
   const i = ADDITIONAL_ORDER.indexOf(id)
