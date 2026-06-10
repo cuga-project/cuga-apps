@@ -186,7 +186,19 @@ async def _build_cuga_agent(llm) -> CugaAgent:
     if not os.environ.get("OPENAI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = "sk-placeholder-not-used"
 
-    agent = CugaAgent(model=llm, tools=TOOLS, special_instructions=SYSTEM_INSTRUCTIONS)
+    # enable_knowledge / auto_load_policies OFF: CUGA's policy DB is a shared
+    # global sqlite store, so without this an output-formatter persisted by
+    # another app (e.g. meetup_finder's save_events event board) auto-loads here
+    # and the model emits that board instead of an itinerary. cuga_folder keeps
+    # this app's own CUGA state isolated under its directory.
+    agent = CugaAgent(
+        model=llm,
+        tools=TOOLS,
+        special_instructions=SYSTEM_INSTRUCTIONS,
+        cuga_folder=str(Path(__file__).parent / ".cuga"),
+        enable_knowledge=False,
+        auto_load_policies=False,
+    )
     await agent.initialize()
     return agent
 

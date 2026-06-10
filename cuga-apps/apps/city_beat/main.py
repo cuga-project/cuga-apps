@@ -336,6 +336,13 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent — disable the persistent knowledge store
+        # and on-disk policy auto-load. CUGA's policy DB is a shared global
+        # sqlite store, so without this an output-formatter persisted by another
+        # app (e.g. meetup_finder's save_events event board) leaks in and the
+        # model emits that board instead of this app's answer.
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
