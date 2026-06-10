@@ -176,8 +176,31 @@ def _scrub(text: str) -> str:
     return _SECRET_RE.sub("«redacted»", text)
 
 
-def track_call(provider: str, *, app: str | None = None, ok: bool = True, n: int = 1) -> None:
+def classify_error(exc: object) -> str:
+    """Best-effort short failure code for a provider call: the HTTP status
+    ("429", "404", "503", …) when the exception carries a response, else a
+    coarse label ("timeout", "connection", or the exception class name)."""
+    try:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status:
+            return str(status)
+        name = type(exc).__name__.lower()
+        if "timeout" in name:
+            return "timeout"
+        if "connect" in name:
+            return "connection"
+        return name[:24] or "error"
+    except Exception:  # noqa: BLE001
+        return "error"
+
+
+def track_call(provider: str, *, app: str | None = None, ok: bool = True,
+               n: int = 1, code: str | None = None) -> None:
     """Count an external/provider API call (tavily, alpha_vantage, watsonx, …).
+
+    On failure pass `code` — an HTTP status ("429", "404") or short label — so
+    the dashboard can show *why* calls failed (e.g. how often a rate limit was
+    hit). Use classify_error(exc) to derive it from an exception.
 
     Fire-and-forget and safe from any context (async app handlers, sync MCP
     tools, LangChain callbacks). Never raises.
@@ -186,6 +209,8 @@ def track_call(provider: str, *, app: str | None = None, ok: bool = True, n: int
         event = {"kind": "call", "provider": str(provider)[:40],
                  "app": app or _detect_app_name(), "ok": bool(ok),
                  "n": int(n), "ts": time.time()}
+        if not ok and code:
+            event["code"] = str(code)[:24]
         utt = _CUR_UTT.get()
         if utt:                       # set only for in-process LLM calls
             event["utt"] = utt
@@ -245,3 +270,12 @@ def install_usage(app, app_name: str | None = None) -> None:
         return response
 
     app.state._usage_installed = True
+
+    # Shared UI chrome (privacy banner + model + MCP Tool Explorer link) on every
+    # app's HTML page — injected here so we touch one file, not ~33 app UIs.
+    # Best-effort; a chrome failure must never break usage tracking.
+    try:
+        from _chrome import install_chrome
+        install_chrome(app)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("chrome install skipped: %s", exc)

@@ -6,6 +6,9 @@ lightweight launcher UI. Everything here is consolidated from
 [build/hf/README.md](hf/README.md) — read those for deeper detail on any single
 target.
 
+> **Just want the map of what lives where + what builds it?** See
+> [CHEATSHEET.md](CHEATSHEET.md).
+
 ---
 
 ## What gets deployed

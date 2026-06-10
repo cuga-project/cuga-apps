@@ -3,13 +3,14 @@
 Tools:
   - geocode(place)                               Nominatim (OpenStreetMap)
   - find_hikes(lat, lon, radius_km, ...)         Overpass API (OSM)
-  - search_attractions(lat, lon, category, limit) OpenTripMap
+  - search_attractions(lat, lon, category, limit) Overpass API (OSM)
   - get_weather(city, travel_month)              wttr.in
 
-All free except search_attractions (OPENTRIPMAP_API_KEY, free tier 500/day).
+All free, no API keys required.
 """
 from __future__ import annotations
 
+import math
 import os
 import sys
 from pathlib import Path
@@ -27,8 +28,61 @@ mcp = make_server("mcp-geo")
 
 _NOMINATIM = "https://nominatim.openstreetmap.org/search"
 _OVERPASS  = "https://overpass-api.de/api/interpreter"
-_OPENTRIPMAP = "https://api.opentripmap.com/0.1/en/places/radius"
 _WTTR = "https://wttr.in"
+
+# OpenTripMap-compatible category names → OSM tag filters (key, value-regex).
+# Keyless: served from the same Overpass API that powers find_hikes. We keep
+# the public category vocabulary identical to the old OpenTripMap version so
+# callers (travel_planner, city_beat, hiking_research) need no changes.
+_ATTRACTION_TAGS: dict[str, list[tuple[str, str]]] = {
+    "interesting_places": [
+        ("tourism", "attraction|museum|gallery|viewpoint|artwork|theme_park|zoo|aquarium"),
+        ("historic", "monument|memorial|castle|ruins|archaeological_site|fort|monastery|tower"),
+        ("leisure",  "park|garden"),
+    ],
+    "cultural": [
+        ("tourism", "museum|gallery|artwork|arts_centre"),
+        ("amenity", "theatre|arts_centre"),
+        ("historic", "monument|memorial|monastery"),
+    ],
+    "historic": [
+        ("historic", "monument|memorial|castle|ruins|archaeological_site|fort|"
+                     "city_gate|tower|monastery|building|church|temple"),
+        ("tourism", "museum"),
+    ],
+    "natural": [
+        ("leisure", "park|nature_reserve|garden"),
+        ("natural", "peak|beach|waterfall|cave_entrance|spring"),
+        ("tourism", "viewpoint"),
+    ],
+    "architecture": [
+        ("tourism", "attraction"),
+        ("historic", "monument|castle|tower|city_gate|building"),
+        ("man_made", "tower|lighthouse|bridge"),
+    ],
+    "amusements": [
+        ("tourism", "theme_park|zoo|aquarium"),
+        ("leisure", "water_park|amusement_arcade"),
+    ],
+    "sport": [
+        ("leisure", "stadium|sports_centre|track|pitch|golf_course"),
+    ],
+    "foods": [
+        ("amenity", "marketplace"),
+        ("tourism", "attraction"),
+    ],
+}
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> int:
+    """Great-circle distance in meters between two lat/lon points."""
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    a = (math.sin(dphi / 2) ** 2
+         + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2)
+    return int(round(r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))))
 
 
 @mcp.tool()
@@ -135,54 +189,82 @@ def search_attractions(
     limit: int = 15,
     radius_m: int = 20000,
 ) -> str:
-    """Find top attractions near a coordinate via OpenTripMap.
+    """Find top attractions near a coordinate via OpenStreetMap (Overpass).
 
-    Use geocode first to obtain lat/lon. Categories:
+    Keyless — no API key required. Use geocode first to obtain lat/lon.
+    Categories:
       interesting_places | cultural | historic | natural | architecture
       | amusements | sport | foods
+
+    Returns named, real places only (museums, monuments, parks, galleries,
+    viewpoints, etc.) sorted nearest-first, each with the distance from the
+    search point and any website/wikipedia tag OSM carries for grounding.
 
     Args:
         lat: Latitude.
         lon: Longitude.
         category: One of the categories listed above.
-        limit: Max results (default 15, max 20).
-        radius_m: Search radius in meters (default 20000).
-
-    Env:
-        OPENTRIPMAP_API_KEY required.
+        limit: Max results (default 15, max 40).
+        radius_m: Search radius in meters (default 20000, max 50000).
     """
-    api_key = os.getenv("OPENTRIPMAP_API_KEY")
-    if not api_key:
-        return tool_error("OPENTRIPMAP_API_KEY not set on the MCP server.", code="missing_key")
-    try:
-        places = get_json(
-            _OPENTRIPMAP,
-            params={
-                "radius": radius_m,
-                "lon": lon,
-                "lat": lat,
-                "kinds": category,
-                "limit": min(int(limit), 20),
-                "apikey": api_key,
-                "format": "json",
-                "rate": 2,
-            },
+    tag_filters = _ATTRACTION_TAGS.get(category)
+    if tag_filters is None:
+        return tool_error(
+            f"Unknown category '{category}'. Valid: "
+            f"{', '.join(sorted(_ATTRACTION_TAGS))}.",
+            code="bad_input",
         )
+    radius_m = min(max(int(radius_m), 500), 50000)
+    limit = min(max(int(limit), 1), 40)
+
+    # Build a union over node+way for every (key, value-regex) in the category.
+    blocks = []
+    for key, val in tag_filters:
+        for kind in ("node", "way"):
+            blocks.append(f'{kind}["{key}"~"^({val})$"]["name"](around:{radius_m},{lat},{lon});')
+    query = f"[out:json][timeout:25];({' '.join(blocks)});out tags center 80;"
+
+    try:
+        data = get_json(_OVERPASS, params={"data": query})
+        seen: set[str] = set()
         results = []
-        for p in places or []:
-            name = (p.get("name") or "").strip()
-            if not name:
+        for el in data.get("elements", []):
+            tags = el.get("tags", {}) or {}
+            name = (tags.get("name") or "").strip()
+            if not name or name.lower() in seen:
                 continue
+            seen.add(name.lower())
+            center = el.get("center") or {}
+            plat = el.get("lat", center.get("lat"))
+            plon = el.get("lon", center.get("lon"))
+            dist = (_haversine_m(lat, lon, plat, plon)
+                    if plat is not None and plon is not None else None)
+            # "kinds" mirrors OpenTripMap's comma-joined descriptor so existing
+            # callers that read .kinds keep working.
+            kinds = ",".join(
+                str(tags[k]) for k in ("tourism", "historic", "leisure",
+                                       "natural", "amenity", "man_made")
+                if tags.get(k)
+            )
             results.append({
-                "name":     name,
-                "kinds":    p.get("kinds", ""),
-                "dist_m":   p.get("dist"),
-                "xid":      p.get("xid"),
-                "point":    p.get("point"),
+                "name":      name,
+                "kinds":     kinds,
+                "dist_m":    dist,
+                "lat":       plat,
+                "lon":       plon,
+                "address":   tags.get("addr:street", ""),
+                "website":   tags.get("website") or tags.get("contact:website") or "",
+                "wikipedia": tags.get("wikipedia", ""),
+                "osm":       f"https://www.openstreetmap.org/{el.get('type')}/{el.get('id')}",
             })
-        return tool_result({"category": category, "attractions": results})
+        results.sort(key=lambda r: (r["dist_m"] is None, r["dist_m"] or 0))
+        return tool_result({
+            "category": category,
+            "count":    len(results[:limit]),
+            "attractions": results[:limit],
+        })
     except Exception as exc:
-        return tool_error(f"OpenTripMap failed: {exc}", code="upstream")
+        return tool_error(f"Overpass query failed: {exc}", code="upstream")
 
 
 @mcp.tool()

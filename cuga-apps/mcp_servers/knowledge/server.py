@@ -25,6 +25,15 @@ from mcp_servers._core import tool_error, tool_result, get_json, get_xml
 from mcp_servers._core.serve import make_server, run
 from apps._ports import MCP_KNOWLEDGE_PORT  # noqa: E402
 
+try:
+    from apps._usage import track_call, classify_error
+except Exception:  # noqa: BLE001 — tracking is optional, never block the server
+    def track_call(*_a, **_k):  # type: ignore
+        pass
+
+    def classify_error(_exc):  # type: ignore
+        return "error"
+
 mcp = make_server("mcp-knowledge")
 
 # ── Wikipedia ──────────────────────────────────────────────────────────
@@ -55,8 +64,10 @@ def search_wikipedia(query: str, max_results: int = 6) -> str:
             "snippet": _strip_html(h.get("snippet", "")),
             "url":     f"https://en.wikipedia.org/wiki/{h.get('title', '').replace(' ', '_')}",
         } for h in hits]
+        track_call("wikipedia", app="mcp-knowledge")
         return tool_result({"results": results})
     except Exception as exc:
+        track_call("wikipedia", app="mcp-knowledge", ok=False, code=classify_error(exc))
         return tool_error(f"Wikipedia search failed: {exc}", code="upstream")
 
 
@@ -106,8 +117,10 @@ def _wiki_article(title: str, full: bool) -> str:
         }
         # Preserve the per-mode field name callers already expect.
         result["extract" if full else "summary"] = page.get("extract", "")
+        track_call("wikipedia", app="mcp-knowledge")
         return tool_result(result)
     except Exception as exc:
+        track_call("wikipedia", app="mcp-knowledge", ok=False, code=classify_error(exc))
         return tool_error(f"Wikipedia fetch failed: {exc}", code="upstream")
 
 

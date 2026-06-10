@@ -20,10 +20,13 @@ from mcp_servers._core.serve import make_server, run
 from apps._ports import MCP_FINANCE_PORT  # noqa: E402
 
 try:
-    from apps._usage import track_call
+    from apps._usage import track_call, classify_error
 except Exception:  # noqa: BLE001 — tracking is optional, never block the server
     def track_call(*_a, **_k):  # type: ignore
         pass
+
+    def classify_error(_exc):  # type: ignore
+        return "error"
 
 mcp = make_server("mcp-finance")
 
@@ -114,7 +117,7 @@ def get_stock_quote(symbol: str, api_key: str | None = None) -> str:
         })
         track_call("alpha_vantage", app="mcp-finance")
     except Exception as exc:
-        track_call("alpha_vantage", app="mcp-finance", ok=False)
+        track_call("alpha_vantage", app="mcp-finance", ok=False, code=classify_error(exc))
         return tool_error(f"Alpha Vantage failed: {exc}", code="upstream")
 
     if "Note" in data or "Information" in data:

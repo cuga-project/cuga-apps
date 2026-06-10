@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextvars
 import html as _html
 import json
 import logging
@@ -43,6 +44,7 @@ import re
 import sys
 import urllib.parse
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 # ── Path bootstrap — must come before local imports ─────────────────────
@@ -51,6 +53,17 @@ _DEMOS_DIR = _DIR.parent
 for _p in (str(_DIR), str(_DEMOS_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +89,13 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 # ── Per-thread session store ────────────────────────────────────────────
 _sessions: dict[str, dict] = {}
 
+# The thread_id of the in-flight /ask, so fetch_events can accumulate what it
+# extracts into that session WITHOUT depending on the (weak) model to thread a
+# thread_id through every tool call. A ContextVar is task-local, so concurrent
+# /ask requests don't clobber each other (and child tasks inherit the value).
+_active_thread: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "active_thread", default="")
+
 
 def _get_session(thread_id: str) -> dict:
     if thread_id not in _sessions:
@@ -84,8 +104,47 @@ def _get_session(thread_id: str) -> dict:
             "location":  "",
             "when":      "",
             "events":    [],   # ranked board the right panel renders
+            "_fetched":  [],   # raw events fetch_events extracted (safety-net source)
         }
     return _sessions[thread_id]
+
+
+def _event_is_past(start: str) -> bool:
+    """True if an event's start date is clearly in the past. Lenient: if the
+    date can't be parsed, keep the event (return False) rather than drop it."""
+    s = (start or "").strip()
+    if not s:
+        return False
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        m = re.match(r"(\d{4})-(\d{2})-(\d{2})", s)
+        if not m:
+            return False
+        dt = datetime(int(m[1]), int(m[2]), int(m[3]))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    # Compare on date only, so an event earlier *today* still counts.
+    return dt.date() < datetime.now(timezone.utc).date()
+
+
+# Bare-metal hosts (no `playwright install --with-deps`, no root to dnf-install
+# Chromium's system libs) can stage them in a local prefix and point the loader
+# at it. Default matches the rootless RPM-extract recipe in the README; override
+# with MEETUP_BROWSER_LIBS. No-op in the container (the image bakes the libs in)
+# and on any host where the prefix doesn't exist.
+def _ensure_local_browser_libs() -> None:
+    prefix = os.getenv("MEETUP_BROWSER_LIBS") or os.path.expanduser(
+        "~/.local/chromium-deps")
+    dirs = [os.path.join(prefix, "usr", "lib64"), os.path.join(prefix, "usr", "lib")]
+    dirs = [d for d in dirs if os.path.isdir(d)]
+    if not dirs:
+        return
+    existing = os.environ.get("LD_LIBRARY_PATH", "")
+    parts = [d for d in dirs if d not in existing.split(os.pathsep)]
+    if parts:
+        os.environ["LD_LIBRARY_PATH"] = os.pathsep.join(
+            parts + ([existing] if existing else []))
 
 
 # ── Playwright browser pool (lazy, single browser, serialized) ───────────
@@ -103,16 +162,30 @@ class _BrowserPool:
         from playwright.async_api import async_playwright
         headless = os.getenv("MEETUP_HEADLESS", "1") != "0"
         async with self._lock:
-            if self._pw is None:
-                self._pw = await async_playwright().start()
+            # Gate on the browser, not the playwright handle: a launch that fails
+            # after async_playwright().start() leaves _pw set but _browser None,
+            # so gating on _pw would skip relaunch and every later call would die
+            # with a misleading "'NoneType' has no attribute 'new_context'".
+            if self._browser is None:
+                _ensure_local_browser_libs()
+                if self._pw is None:
+                    self._pw = await async_playwright().start()
                 # In a container (Docker/Code Engine) Chromium runs as root and
                 # /dev/shm is tiny, so the sandbox + default shm break the
                 # launch. Detect the container and pass the standard flags.
                 in_container = bool(os.getenv("CUGA_IN_DOCKER") or os.getenv("CE_APP")
                                     or os.getenv("MEETUP_NO_SANDBOX"))
                 launch_args = ["--no-sandbox", "--disable-dev-shm-usage"] if in_container else []
-                self._browser = await self._pw.chromium.launch(
-                    headless=headless, args=launch_args)
+                try:
+                    self._browser = await self._pw.chromium.launch(
+                        headless=headless, args=launch_args)
+                except Exception:
+                    # Tear the handle down too so the next call retries cleanly
+                    # and surfaces the real launch error, not a None deref.
+                    await self.aclose()
+                    self._pw = None
+                    self._browser = None
+                    raise
             ctx = await self._browser.new_context(
                 user_agent=_UA, viewport={"width": 1280, "height": 2400})
             page = await ctx.new_page()
@@ -262,6 +335,59 @@ def _events_from_nextdata(html: str, source: str) -> list[dict]:
     return out
 
 
+def _board_from_fetched(raw: list[dict]) -> list[dict]:
+    """Build a render-ready board from the events fetch_events extracted:
+    normalise, drop past events, dedupe by title+date, cap. Used as the
+    safety net when the model never calls save_events."""
+    out, seen = [], set()
+    for e in raw:
+        ev = _coerce_board_event(e)
+        if not ev or _event_is_past(ev["start"]):
+            continue
+        key = (ev["title"].lower(), ev["start"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(ev)
+    return out[:30]
+
+
+def _coerce_board_event(e: dict) -> dict | None:
+    """Normalise one event the agent passes to save_events into the exact
+    shape the right panel renders. The model often uses schema.org-ish keys
+    (name/date/link/organizer) instead of our title/start/url/host — before
+    this, those rendered as blank 'Event' cards and, once we started filtering
+    empties, vanished entirely. A real entry needs at least a title/name."""
+    if not isinstance(e, dict):
+        return None
+
+    def pick(*keys):
+        for k in keys:
+            v = e.get(k)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        return ""
+
+    title = pick("title", "name", "headline", "event", "event_name", "summary")
+    if not title:
+        return None
+    att = e.get("attendees")
+    if not isinstance(att, (int, str)) or att == "":
+        att = pick("going", "going_count", "rsvps", "guest_count") or None
+    return {
+        "title":     title,
+        "url":       pick("url", "link", "permalink", "event_url", "rsvp_url"),
+        "start":     pick("start", "start_at", "startDate", "start_time",
+                          "starts_at", "datetime", "date", "when"),
+        "venue":     pick("venue", "location", "place", "address"),
+        "city":      pick("city"),
+        "host":      pick("host", "organizer", "organiser", "group"),
+        "source":    pick("source"),
+        "attendees": att,
+        "why":       pick("why", "reason", "fit", "note"),
+    }
+
+
 def _extract_events(html: str, url: str) -> list[dict]:
     domain = urllib.parse.urlparse(url).netloc.lower().replace("www.", "")
     source = domain.split(".")[0] if domain else "web"
@@ -378,6 +504,12 @@ def _make_tools():
                                "error": f"{type(exc).__name__}: {exc}"})
         events = _extract_events(html, url)[: max(1, min(int(limit or 15), 40))]
         log.info("fetch_events %s → %d events", url, len(events))
+        # Safety net: stash what we actually extracted on the in-flight session.
+        # If the model then forgets/comments-out save_events (the weak ones do),
+        # /ask falls back to this so the panel still renders real events.
+        tid = _active_thread.get()
+        if tid and events:
+            _get_session(tid)["_fetched"].extend(events)
         return json.dumps({"ok": True, "data": {
             "url": url, "page_title": _clean(title, 120),
             "count": len(events), "events": events,
@@ -425,9 +557,18 @@ def _make_tools():
             if not isinstance(events, list):
                 return json.dumps({"ok": False, "code": "bad_input",
                                    "error": "events_json must be a JSON array"})
-            session["events"] = events
-            log.info("[%s] saved %d events", thread_id[:8], len(events))
-            return json.dumps({"ok": True, "data": {"saved": len(events)}})
+            # Normalise each entry into the panel's shape (handles alternate
+            # key names) and drop anything without a title. This kills the
+            # empty-card flood AND ensures real events still render even when
+            # the model used name/date/link instead of title/start/url.
+            clean = [n for n in (_coerce_board_event(e) for e in events) if n]
+            clean = clean[:30]
+            # Don't wipe a good board with an empty/garbage submission.
+            if clean or not session.get("events"):
+                session["events"] = clean
+            log.info("[%s] saved %d events (%d submitted)",
+                     thread_id[:8], len(clean), len(events))
+            return json.dumps({"ok": True, "data": {"saved": len(clean)}})
         except json.JSONDecodeError as exc:
             return json.dumps({"ok": False, "code": "bad_input",
                                "error": f"invalid JSON: {exc}"})
@@ -538,6 +679,12 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent. Disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing learned/saved in one question
+        # leaks into the next via the shared .cuga folder. The output formatter
+        # we need is attached explicitly in _attach_policies().
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -580,16 +727,31 @@ def _web(port: int) -> None:
     @app.post("/ask")
     async def api_ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
-        # Stateless: the panel id keys the per-turn data the UI polls, but we
-        # reset it each turn and run the agent on a fresh memory thread, so
-        # nothing carries over from the previous question.
+        # Stateless per question: reset the panel session and run on a fresh
+        # memory thread. The singleton agent has its persistent knowledge store
+        # and on-disk policy auto-load disabled (see make_agent), so nothing
+        # carries over from the previous question.
         thread_id = req.thread_id or uuid.uuid4().hex
         _sessions.pop(thread_id, None)
+        _active_thread.set(thread_id)
         augmented = f"[thread:{thread_id}] {req.question}"
         try:
             agent = await _get_agent()
             result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
-            return {"answer": str(result), "thread_id": thread_id}
+            # Use the agent's synthesised answer, NOT str(result): the result
+            # object's repr dumps the CUGA plan + generated code into the chat.
+            answer = result.answer if hasattr(result, "answer") else str(result)
+            # Safety net: if the model fetched events but never (correctly) called
+            # save_events, the panel would be empty. Populate it from what
+            # fetch_events actually extracted so the user still sees real results.
+            session = _sessions.get(thread_id)
+            if session is not None and not session.get("events") and session.get("_fetched"):
+                board = _board_from_fetched(session["_fetched"])
+                if board:
+                    session["events"] = board
+                    log.info("[%s] safety-net populated %d events "
+                             "(model skipped save_events)", thread_id[:8], len(board))
+            return {"answer": answer, "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")
             return JSONResponse(

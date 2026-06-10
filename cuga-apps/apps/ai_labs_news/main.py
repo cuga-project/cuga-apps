@@ -43,6 +43,17 @@ for _p in (str(_DIR), str(_DEMOS_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -62,6 +73,19 @@ from ui import _HTML
 # slug → (display name, [candidate feed URLs tried in order]). Feeds move and
 # break; listing fallbacks per lab makes the tool resilient. The first feed
 # that parses to >0 entries wins.
+
+def _gnews(query: str) -> str:
+    """A Google News RSS search feed for `query`. Used as a reliable fallback
+    for labs that don't publish a working native blog feed (Anthropic, Meta AI,
+    IBM Research as of 2026 all 404 on their old RSS paths). Returns recent
+    news items about the lab — not their own blog posts — but it keeps the lab
+    reachable instead of silently dropping out of the digest."""
+    from urllib.parse import quote_plus
+    return ("https://news.google.com/rss/search?q="
+            + quote_plus(query)
+            + "&hl=en-US&gl=US&ceid=US:en")
+
+
 _LABS: dict[str, dict] = {
     "openai": {
         "name": "OpenAI",
@@ -69,7 +93,9 @@ _LABS: dict[str, dict] = {
     },
     "anthropic": {
         "name": "Anthropic",
-        "feeds": ["https://www.anthropic.com/rss.xml", "https://www.anthropic.com/news/rss.xml"],
+        # Anthropic publishes no working RSS feed (all known paths 404), so we
+        # fall back to a Google News search scoped to Anthropic/Claude.
+        "feeds": [_gnews("Anthropic Claude AI")],
     },
     "google-deepmind": {
         "name": "Google DeepMind",
@@ -87,11 +113,15 @@ _LABS: dict[str, dict] = {
     },
     "ibm-research": {
         "name": "IBM Research",
-        "feeds": ["https://research.ibm.com/blog/rss.xml", "https://research.ibm.com/feed"],
+        # Native blog RSS paths 404 as of 2026 — fall back to Google News.
+        "feeds": ["https://research.ibm.com/blog/rss.xml",
+                  _gnews('"IBM Research" AI')],
     },
     "meta-ai": {
         "name": "Meta AI",
-        "feeds": ["https://ai.meta.com/blog/rss/", "https://ai.facebook.com/blog/rss/"],
+        # Native blog RSS paths 404 as of 2026 — fall back to Google News.
+        "feeds": ["https://ai.meta.com/blog/rss/",
+                  _gnews('"Meta AI" OR "Meta FAIR" research')],
     },
     "huggingface": {
         "name": "Hugging Face",
@@ -426,6 +456,12 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent. Disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing learned/saved in one question
+        # leaks into the next via the shared .cuga folder. The output formatter
+        # we need is attached explicitly in _attach_policies().
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -477,7 +513,11 @@ def _web(port: int) -> None:
         try:
             agent = await _get_agent()
             result = await agent.invoke(augmented, thread_id=uuid.uuid4().hex)
-            return {"answer": str(result), "thread_id": thread_id}
+            # Use the agent's synthesised answer, NOT str(result): the result
+            # object's repr dumps the CUGA plan + generated code, which is what
+            # was leaking into the chat as an unformatted blob.
+            answer = result.answer if hasattr(result, "answer") else str(result)
+            return {"answer": answer, "thread_id": thread_id}
         except Exception as exc:
             log.exception("Agent invocation failed")
             return JSONResponse(

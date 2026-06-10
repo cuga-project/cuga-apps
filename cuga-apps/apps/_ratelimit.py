@@ -27,11 +27,11 @@ tunable via env vars, so you change limits by editing the CE `app-env` secret
 and restarting — no code change, no rebuild:
 
   RL_ENABLED          "1"       master switch ("0" disables all limiting)
-  RL_PER_MIN          "30"      sustained POSTs per minute per IP
-  RL_BURST            "12"      token-bucket capacity (short burst) per IP
-  RL_PER_DAY          "300"     hard POSTs per day per IP        (0 = off)
-  RL_GLOBAL_PER_MIN   "150"     POSTs per minute across all IPs  (0 = off)
-  RL_CONCURRENCY      "6"       max concurrent POSTs             (0 = off)
+  RL_PER_MIN          "60"      sustained POSTs per minute per IP
+  RL_BURST            "24"      token-bucket capacity (short burst) per IP
+  RL_PER_DAY          "600"     hard POSTs per day per IP        (0 = off)
+  RL_GLOBAL_PER_MIN   "300"     POSTs per minute across all IPs  (0 = off)
+  RL_CONCURRENCY      "12"      max concurrent POSTs             (0 = off)
   RL_MAX_BODY_BYTES   "32768"   reject POST bodies larger than this (0 = off)
   RL_TRUST_FORWARDED  "1"       derive client IP from X-Forwarded-For (CE/proxy)
   RL_MAX_TRACKED_IPS  "20000"   LRU cap on the per-IP table (bounds memory)
@@ -87,11 +87,13 @@ class _TokenBucket:
 class _Config:
     def __init__(self, **kw) -> None:
         self.enabled = os.getenv("RL_ENABLED", "1") != "0"
-        self.per_min = _env_int("RL_PER_MIN", 30)
-        self.burst = _env_int("RL_BURST", 12)
-        self.per_day = _env_int("RL_PER_DAY", 300)
-        self.global_per_min = _env_int("RL_GLOBAL_PER_MIN", 150)
-        self.concurrency = _env_int("RL_CONCURRENCY", 6)
+        # Defaults doubled for launch (lenient early-days posture). Dial back by
+        # setting the RL_* env vars in the CE app-env secret — no rebuild needed.
+        self.per_min = _env_int("RL_PER_MIN", 60)
+        self.burst = _env_int("RL_BURST", 24)
+        self.per_day = _env_int("RL_PER_DAY", 600)
+        self.global_per_min = _env_int("RL_GLOBAL_PER_MIN", 300)
+        self.concurrency = _env_int("RL_CONCURRENCY", 12)
         self.max_body = _env_int("RL_MAX_BODY_BYTES", 32768)
         self.trust_forwarded = os.getenv("RL_TRUST_FORWARDED", "1") != "0"
         self.max_tracked = _env_int("RL_MAX_TRACKED_IPS", 20000)

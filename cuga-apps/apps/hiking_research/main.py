@@ -41,6 +41,17 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -129,10 +140,49 @@ def _overpass_post(query: str) -> dict:
 # Tools
 # ---------------------------------------------------------------------------
 
+def _capture_hikes(result) -> None:
+    """Store the find_hikes tool output into the module-level right-panel
+    store so GET /hikes can serve it. Tolerant of dict or JSON-string shapes."""
+    global _last_hikes
+    try:
+        data = result
+        if isinstance(data, str):
+            data = json.loads(data)
+        if isinstance(data, dict) and isinstance(data.get("hikes"), list):
+            _last_hikes = data["hikes"]
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _wrap_find_hikes(tool) -> None:
+    """Wrap the geo MCP `find_hikes` tool so every call also populates the
+    right-panel store. Without this hook the agent's hike results were never
+    surfaced to the UI and the "Trails Found" panel stayed permanently empty."""
+    import functools
+    orig = getattr(tool, "coroutine", None)
+    if orig is None:
+        return
+
+    @functools.wraps(orig)
+    async def _wrapped(*args, **kwargs):
+        result = await orig(*args, **kwargs)
+        _capture_hikes(result)
+        return result
+
+    try:
+        tool.coroutine = _wrapped
+    except Exception:  # noqa: BLE001 — StructuredTool may forbid setattr
+        pass
+
+
 def _make_tools():
     # Delegated to MCP server(s): geo, web.
     from _mcp_bridge import load_tools
-    return load_tools(["geo", "web"])
+    tools = load_tools(["geo", "web"])
+    for t in tools:
+        if getattr(t, "name", "") == "find_hikes":
+            _wrap_find_hikes(t)
+    return tools
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +252,11 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent — disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing carries across questions via
+        # the shared .cuga folder.
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 

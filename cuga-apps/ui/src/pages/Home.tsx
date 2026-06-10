@@ -10,7 +10,9 @@ import { resolveAppUrl } from '../data/deployment'
 // Source lives in the public cuga-apps repo; each app's `demoPath` is a tree
 // path under it. Used by the "Check out code" affordance on not-yet-shippable
 // apps (for-later / exploratory), which open the source instead of a detail page.
-const REPO_TREE = 'https://github.com/cuga-project/cuga-apps/tree/main'
+// The apps live under the repo's inner `cuga-apps/` source dir, so a demoPath
+// of 'apps/ai_labs_news' maps to .../tree/main/cuga-apps/apps/ai_labs_news.
+const REPO_TREE = 'https://github.com/cuga-project/cuga-apps/tree/main/cuga-apps'
 const githubUrl = (demoPath: string | null) =>
   demoPath ? `${REPO_TREE}/${demoPath}` : 'https://github.com/cuga-project/cuga-apps'
 
@@ -195,6 +197,22 @@ const shipOrderIndex = (id: string) => {
   return i === -1 ? Number.MAX_SAFE_INTEGER : i
 }
 
+// Curated display order for the "Additional apps" (for-later + exploratory),
+// ranked by how well they actually work (status) × capability richness /
+// distinctiveness. Genuinely partial / not-working entries sink to the bottom.
+// Ids not listed fall to the end, preserving source order.
+const ADDITIONAL_ORDER = [
+  'code-reviewer', 'video-qa', 'bird-invocable-api', 'trip-designer', 'api-doc-gen',
+  'voice-journal', 'brief-budget', 'drop-summarizer', 'smart-todo', 'ibm-whats-new',
+  'chief-of-staff', 'box-qa',
+  // Pinned to the bottom by request.
+  'deck-forge', 'code-engine-deployer',
+]
+const additionalOrderIndex = (id: string) => {
+  const i = ADDITIONAL_ORDER.indexOf(id)
+  return i === -1 ? Number.MAX_SAFE_INTEGER : i
+}
+
 // ── Domain buckets (mirrors docs/apps_overview.svg) ───────────────────────────
 
 type BucketAccent = 'indigo' | 'emerald' | 'amber' | 'pink' | 'cyan' | 'violet' | 'slate'
@@ -256,8 +274,6 @@ function DomainBuckets({
   activeBucket: string | null
   onSelectBucket: (id: string | null) => void
 }) {
-  const navigate = useNavigate()
-
   const ucById = useMemo(() => {
     const m = new Map<string, (typeof USE_CASES)[number]>()
     for (const uc of useCases) m.set(uc.id, uc)
@@ -328,9 +344,9 @@ function DomainBuckets({
                     {apps.map((uc) => (
                       <button
                         key={uc.id}
-                        onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/use-case/${uc.id}`) }}
+                        onClick={(e: React.MouseEvent) => { e.stopPropagation(); window.open(resolveAppUrl(uc) || githubUrl(uc.demoPath), '_blank', 'noopener,noreferrer') }}
                         className={`text-xs font-medium px-2.5 py-1.5 rounded-md bg-tsurf border ${a.pill} text-t1 transition-colors whitespace-nowrap`}
-                        title={uc.tagline}
+                        title={`Open ${uc.name}`}
                       >
                         {uc.name}
                         <StageGlyph id={uc.id} ml="ml-1" />
@@ -377,13 +393,16 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
       const matchesShip = matchesShipFilter(uc.id, filterShip)
       return matchesSearch && matchesCategory && matchesShip
     })
-    // Stable sort: ship-ready first (in the curated SHIP_READY_ORDER), then
-    // for-later, then exploratory (each preserving source order).
+    // Stable sort: ship-ready first (curated SHIP_READY_ORDER), then all
+    // "Additional apps" (for-later + exploratory) in the curated
+    // ADDITIONAL_ORDER (by how well they work × capability richness).
     .sort((a, b) => {
-      const order: Record<Stage, number> = { 'ship-ready': 0, 'for-later': 1, 'exploratory': 2 }
-      const byStage = order[stageOf(a.id)] - order[stageOf(b.id)]
-      if (byStage !== 0) return byStage
-      return shipOrderIndex(a.id) - shipOrderIndex(b.id)
+      const aShip = stageOf(a.id) === 'ship-ready'
+      const bShip = stageOf(b.id) === 'ship-ready'
+      if (aShip !== bShip) return aShip ? -1 : 1
+      return aShip
+        ? shipOrderIndex(a.id) - shipOrderIndex(b.id)
+        : additionalOrderIndex(a.id) - additionalOrderIndex(b.id)
     })
 
   if (filtered.length === 0) {
@@ -421,19 +440,17 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
             // page — their row opens the source on GitHub instead.
             const notShippable = stageOf(uc.id) !== 'ship-ready'
             const repoUrl = githubUrl(uc.demoPath)
-            const openRow = () =>
-              notShippable
-                ? window.open(repoUrl, '_blank', 'noopener,noreferrer')
-                : navigate(`/use-case/${uc.id}`)
+            // Rows are intentionally NOT clickable — use the explicit "Try it"
+            // and "Check out code" actions. The wordy detail/README page is no
+            // longer surfaced from the UI.
             return (
               <tr
                 key={uc.id}
-                onClick={openRow}
-                className="hover:bg-tsurf2 cursor-pointer transition-colors group"
+                className="hover:bg-tsurf2 transition-colors"
               >
                 <td className="px-6 py-5 text-t4 text-sm font-mono">{i + 1}</td>
                 <td className="px-4 py-5">
-                  <div className="font-semibold text-t1 text-lg group-hover:text-indigo-500 transition-colors leading-snug">
+                  <div className="font-semibold text-t1 text-lg leading-snug">
                     {uc.name}<StageGlyph id={uc.id} ml="ml-1.5" />
                   </div>
                   <div className="text-sm text-t3 mt-1 leading-relaxed">{uc.tagline}</div>
@@ -636,7 +653,7 @@ export default function Home() {
           {/* Proof points */}
           <div className="lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-tborder bg-tsurf2/40 p-7 md:p-9 flex flex-col justify-center gap-6">
             <div>
-              <div className="text-3xl font-semibold text-t1">#1</div>
+              <div className="text-3xl font-semibold text-t1">#2</div>
               <div className="text-sm text-t3">on <a href="https://appworld.dev/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">AppWorld</a> — 750 tasks, 457 APIs</div>
             </div>
             <div>

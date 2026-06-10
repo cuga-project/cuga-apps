@@ -1,6 +1,24 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { MCP_SERVERS, mcpServerUrl, TOOL_EXPLORER_URL, type McpServer } from '../data/mcpServers'
+import CodeBlock from '../components/CodeBlock'
+
+// Copy-pasteable snippet: connect to THIS server's public /mcp endpoint over
+// streamable HTTP and pull its tools into any LangChain/LangGraph agent.
+function usageSnippet(s: McpServer): string {
+  const preview = s.tools.slice(0, 4).join(', ') + (s.tools.length > 4 ? ', …' : '')
+  return `# pip install langchain-mcp-adapters
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+client = MultiServerMCPClient({
+    "${s.id}": {
+        "transport": "streamable_http",
+        "url": "${mcpServerUrl(s.id)}",
+    },
+})
+tools = await client.get_tools()
+# → ${preview}`
+}
 
 const ACCENT: Record<McpServer['accent'], { bar: string; text: string; chip: string }> = {
   blue:    { bar: 'bg-indigo-600', text: 'text-indigo-600', chip: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25' },
@@ -53,19 +71,33 @@ function ServerCard({ s }: { s: McpServer }) {
               </div>
             </>
           )}
+
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-t4 mt-4 mb-1.5">Use it</div>
+          <CodeBlock code={usageSnippet(s)} language="python" />
         </div>
       </div>
 
       <div className="mt-auto border-t border-tborder px-5 py-3 bg-tsurf2/40 flex items-center justify-between gap-3">
         <code className="text-xs text-t3 font-mono truncate" title={url}>{url.replace('https://', '')}</code>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`shrink-0 text-xs font-semibold ${a.text} hover:underline whitespace-nowrap`}
-        >
-          Open endpoint ↗
-        </a>
+        <div className="flex items-center gap-3 shrink-0">
+          <a
+            href={TOOL_EXPLORER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Browse & invoke mcp-${s.id} tools in the MCP Tool Explorer`}
+            className="text-xs font-semibold text-t3 hover:text-t1 hover:underline whitespace-nowrap"
+          >
+            Tool Explorer ↗
+          </a>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`text-xs font-semibold ${a.text} hover:underline whitespace-nowrap`}
+          >
+            Open endpoint ↗
+          </a>
+        </div>
       </div>
     </div>
   )

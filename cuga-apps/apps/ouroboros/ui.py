@@ -1281,22 +1281,22 @@ _HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="chips">
-      <div class="chip" onclick="sendChip(this)">Find leads in Westchester, NY</div>
-      <div class="chip" onclick="sendChip(this)">Restaurants in HSR Layout, Bangalore — pitch order bots</div>
-      <div class="chip" onclick="sendChip(this)">Salons in Brooklyn that need appointment booking</div>
-      <div class="chip" onclick="sendChip(this)">Independent hotels in Lisbon — concierge agent angle</div>
-      <div class="chip" onclick="sendChip(this)">Clinics in Austin — patient FAQ + intake</div>
-      <div class="chip" onclick="sendChip(this)">Real estate offices in San Mateo — lead capture pitch</div>
-      <div class="chip" onclick="sendChip(this)">Boutiques in Williamsburg — product Q&A</div>
-      <div class="chip" onclick="sendChip(this)">Veterinary clinics near Berkeley — appointment + reminders</div>
-      <div class="chip" onclick="sendChip(this)">Tutoring centers in Mumbai Andheri — enrollment funnel</div>
+      <div class="chip" onclick="sendChip(this)">Boutiques in Williamsburg, Brooklyn — product Q&A & size/fit chat</div>
+      <div class="chip" onclick="sendChip(this)">Restaurants in Park Slope, Brooklyn — reservations + order bot</div>
+      <div class="chip" onclick="sendChip(this)">Cafés in the Mission District, San Francisco — order-ahead + loyalty</div>
+      <div class="chip" onclick="sendChip(this)">Restaurants in the North End, Boston — bookings + waitlist</div>
+      <div class="chip" onclick="sendChip(this)">Boutiques in Georgetown, Washington DC — product Q&A + styling</div>
+      <div class="chip" onclick="sendChip(this)">Boutiques on Abbot Kinney, Venice CA — product Q&A</div>
+      <div class="chip" onclick="sendChip(this)">Cafés in the Pearl District, Portland — mobile order-ahead</div>
+      <div class="chip" onclick="sendChip(this)">Restaurants in Fitzrovia, London — table bookings + menu concierge</div>
+      <div class="chip" onclick="sendChip(this)">Independent hotels in Lisbon — 24/7 concierge agent</div>
     </div>
 
     <div class="messages" id="messages"></div>
 
     <div class="input-row">
       <input type="text" id="userInput"
-        placeholder="Try: 'Find restaurants in HSR Layout that need an order bot'"
+        placeholder="Try: 'Restaurants in Park Slope, Brooklyn that need an order bot'"
         onkeydown="if(event.key==='Enter') sendMessage()" />
       <button class="btn" id="sendBtn" onclick="sendMessage()" title="Run the typed question once now">Hunt</button>
     </div>
@@ -1676,25 +1676,39 @@ _HTML = r"""<!DOCTYPE html>
   function refreshPanel(state) {
     const hash = JSON.stringify(state);
     if (hash === _lastHash) return;
-    _lastHash = hash;
 
     const b = state.leads;
     if (!b) return;
 
-    emptyState.style.display = 'none';
-    dataScroll.innerHTML = '';
-
+    // Build the HTML BEFORE touching the DOM, and guard every step. A single
+    // malformed lead field (e.g. evidence/review_friction arriving as a
+    // non-array) used to throw mid-render — after the panel had already been
+    // cleared — leaving the right panel completely blank even though leads
+    // were present. Now one bad lead is skipped and the panel still renders.
     let html = '';
-    html += renderHero(b, state);
+    try {
+      html += renderHero(b, state);
+    } catch (e) { console.error('renderHero failed', e); }
 
-    const leads = (b.leads || []).slice().sort((a, c) => (c.fit_score || 0) - (a.fit_score || 0));
+    const leads = (b.leads || []).slice()
+      .sort((a, c) => (c.fit_score || 0) - (a.fit_score || 0));
     if (leads.length) {
       html += '<div class="section-title">Leads · ranked by fit</div>';
-      leads.forEach((lead, i) => { html += renderLead(lead, i); });
+      leads.forEach((lead, i) => {
+        try { html += renderLead(lead, i); }
+        catch (e) { console.error('renderLead failed for lead', i, e, lead); }
+      });
     }
 
-    html += renderNextSteps(b.next_steps);
+    try {
+      html += renderNextSteps(b.next_steps);
+    } catch (e) { console.error('renderNextSteps failed', e); }
 
+    if (!html) return;   // nothing to show — keep whatever is on screen
+
+    _lastHash = hash;
+    emptyState.style.display = 'none';
+    dataScroll.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.style.display = 'contents';
     wrap.innerHTML = html;
@@ -1712,6 +1726,32 @@ _HTML = r"""<!DOCTYPE html>
   }
   // Auto-refresh removed — fetchSession() runs only after /ask returns,
   // or when the user clicks the Refresh badge in the data panel header.
+
+  // A supervisor turn takes 1–3 minutes. If a proxy/gateway drops the long
+  // /ask request before it finishes, the server still completes the turn and
+  // persists the leads to the session — so on a network error we poll
+  // /session for a few minutes and recover the result instead of failing.
+  async function recoverFromSession(thinking) {
+    const deadline = Date.now() + 240000;  // up to 4 minutes
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 6000));
+      try {
+        const res = await fetch('/session/' + SESSION_ID);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const n = data && data.leads && (data.leads.leads || []).length;
+        if (n) {
+          thinking.remove();
+          addMessage('Done — this run took a while, so it was recovered after '
+            + 'the request timed out. See the board on the right.', 'agent');
+          refreshPanel(data);
+          await refreshRunsList();
+          return true;
+        }
+      } catch (_) { /* keep waiting */ }
+    }
+    return false;
+  }
 
   async function sendMessage() {
     const question = inputEl.value.trim();
@@ -1742,8 +1782,13 @@ _HTML = r"""<!DOCTYPE html>
         await refreshRunsList();
       }
     } catch (err) {
-      thinking.remove();
-      addMessage('Network error: ' + err.message, 'error');
+      // Long run may have been dropped by a proxy/gateway — try to recover
+      // the result from the session before declaring failure.
+      const recovered = await recoverFromSession(thinking);
+      if (!recovered) {
+        thinking.remove();
+        addMessage('Network error: ' + err.message, 'error');
+      }
     } finally {
       sendBtn.disabled = false;
       setStatus(false, 'Ready');

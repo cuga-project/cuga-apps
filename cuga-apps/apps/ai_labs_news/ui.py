@@ -398,12 +398,22 @@ _BODY = r"""
   }
   setInterval(fetchSession, 10000);
 
+  function resetPanel() {
+    // Each question is answered fresh — clear the previous digest so stale
+    // results from the prior question don't linger on the right.
+    _lastHash = '';
+    dataScroll.innerHTML = '';
+    dataScroll.appendChild(emptyState);
+    emptyState.style.display = '';
+  }
+
   async function sendMessage() {
     const question = inputEl.value.trim();
     if (!question) return;
     inputEl.value = '';
     sendBtn.disabled = true;
     setStatus(true, 'Thinking…');
+    resetPanel();
     addMessage(question, 'user');
     const thinking = addMessage('Pulling the latest feeds…', 'thinking');
 

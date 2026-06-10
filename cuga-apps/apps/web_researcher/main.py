@@ -45,6 +45,17 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
+
 from _carbon import carbon_head, carbon_css
 
 logging.basicConfig(
@@ -188,6 +199,11 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each query is independent — disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing carries across queries via
+        # the shared .cuga folder.
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -788,7 +804,7 @@ async function ask(question) {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ question: q }) });
     const d = await r.json();
-    res.textContent = d.answer || d.error || '(no response)';
+    res.innerHTML = d.answer ? mdToHtml(d.answer) : esc(d.error || '(no response)');
     await loadReports();
   } catch(e) { res.textContent = 'Error: ' + e.message; }
   btn.disabled = false; btn.textContent = 'Research';
@@ -816,7 +832,7 @@ function renderReports(reports) {
         <span class="report-time">${new Date(r.created_at).toLocaleString()}</span>
         <span id="ri-${i}" style="font-size:11px;color:var(--cds-text-helper);margin-left:4px">▸</span>
       </div>
-      <div class="report-body" id="rb-${i}">${esc(r.report)}</div>
+      <div class="report-body" id="rb-${i}">${mdToHtml(r.report)}</div>
     </div>`).join('');
 }
 
@@ -834,6 +850,25 @@ function flash(id) {
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Minimal, safe markdown → HTML (escapes first, then formats). The agent
+// returns a structured markdown report; render it so headings, bullets, bold
+// and source links display properly instead of as one raw text blob.
+function mdToHtml(text) {
+  return esc(text)
+    .replace(/```[\s\S]*?```/g, m =>
+      '<pre style="white-space:pre-wrap;background:var(--cds-layer-accent);padding:8px;overflow:auto">'
+      + m.replace(/```/g, '') + '</pre>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,
+      '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+    .replace(/^\s*#{1,6}\s+(.+)$/gm, '<strong>$1</strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+?)`/g, '<code style="background:var(--cds-layer-accent);padding:1px 5px">$1</code>')
+    .replace(/^\s*[-*]\s+(.+)$/gm, '&nbsp;&nbsp;• $1')
+    .replace(/\n/g, '<br>');
 }
 
 init();

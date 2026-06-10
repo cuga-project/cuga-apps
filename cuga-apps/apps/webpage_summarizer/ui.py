@@ -406,7 +406,9 @@ _BODY = r"""
   function addMessage(text, cls) {
     const div = document.createElement('div');
     div.className = 'msg ' + cls;
-    div.textContent = text;
+    // Render the agent's markdown answer; keep user/thinking text literal.
+    if (cls === 'agent') div.innerHTML = mdToHtml(text);
+    else div.textContent = text;
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
@@ -438,7 +440,7 @@ _BODY = r"""
     card.className = 'summary-card';
     card.innerHTML =
       '<div class="card-url">' + escHtml(url || '') + '</div>' +
-      '<div class="card-body">' + escHtml(answer) + '</div>' +
+      '<div class="card-body">' + mdToHtml(answer) + '</div>' +
       '<div class="card-time">' + timeStr() + '</div>';
     summaryContent.prepend(card);
 
@@ -472,6 +474,24 @@ _BODY = r"""
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  // Minimal, safe markdown → HTML (escapes first, then formats). The agent
+  // returns a structured markdown summary; render it instead of dumping the
+  // raw text so headings, bullets, bold and links display properly.
+  function mdToHtml(text) {
+    return escHtml(String(text == null ? '' : text))
+      .replace(/```[\s\S]*?```/g, m =>
+        '<pre style="white-space:pre-wrap;background:var(--cds-layer-accent);padding:8px;overflow:auto">'
+        + m.replace(/```/g, '') + '</pre>')
+      .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/^\s*#{1,6}\s+(.+)$/gm, '<strong>$1</strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\n]+?)\*/g, '$1<em>$2</em>')
+      .replace(/`([^`]+?)`/g, '<code style="background:var(--cds-layer-accent);padding:1px 5px">$1</code>')
+      .replace(/^\s*[-*]\s+(.+)$/gm, '&nbsp;&nbsp;• $1')
+      .replace(/\n/g, '<br>');
   }
 
   async function sendMessage() {

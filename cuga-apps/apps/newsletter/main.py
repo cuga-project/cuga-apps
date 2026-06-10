@@ -46,6 +46,17 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s  %(message)s",
@@ -166,6 +177,11 @@ def make_agent():
         tools=make_feed_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent — disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing carries across questions via
+        # the shared .cuga folder.
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -358,12 +374,37 @@ def _web(port: int) -> None:
     @app.post("/ask")
     async def ask(req: AskReq):
         from _usage import track_utterance; track_utterance(req.question)
+        from datetime import datetime, timezone, timedelta
         feeds = _load_store().get("feeds", [])
+        # When the user asks for a recent window ("last 24 hours", "today",
+        # "this week"), hand the agent a concrete cutoff timestamp + the
+        # current time so it can actually filter items by publish date instead
+        # of guessing — the root cause of wrong "last 24 hours" summaries.
+        ql = req.question.lower()
+        window_note = ""
+        for phrase, hours in (("last 24 hour", 24), ("past 24 hour", 24),
+                              ("last 24h", 24), ("today", 24),
+                              ("last 48 hour", 48), ("yesterday", 48),
+                              ("this week", 168), ("past week", 168),
+                              ("last week", 168), ("last 7 day", 168)):
+            if phrase in ql:
+                now = datetime.now(timezone.utc)
+                cutoff = now - timedelta(hours=hours)
+                window_note = (
+                    f"\n\nTIME WINDOW (strict): only include items published on or "
+                    f"after {cutoff.isoformat()} — current time is {now.isoformat()}. "
+                    f"Call fetch_feed with max_items=50 for each feed so nothing "
+                    f"recent is missed, parse each item's published/updated date, and "
+                    f"DROP anything older than the cutoff. State how many items fell "
+                    f"in the window. If a feed has none, say so explicitly rather than "
+                    f"padding the summary with older posts."
+                )
+                break
         if feeds:
             feed_list = "\n".join(f"- {url}" for url in feeds)
-            prompt = f"Configured feeds:\n{feed_list}\n\nQuestion: {req.question}"
+            prompt = f"Configured feeds:\n{feed_list}\n\nQuestion: {req.question}{window_note}"
         else:
-            prompt = req.question
+            prompt = req.question + window_note
         try:
             result = await _agent.invoke(prompt, thread_id=uuid.uuid4().hex)
             return {"answer": result.answer}
@@ -741,9 +782,17 @@ async function ask() {
 }
 
 function renderAnswer(text) {
-  return text
+  return String(text == null ? '' : text)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    // [label](url) links
+    .replace(/\\[([^\\]]+)\\]\\((https?:[^)\\s]+)\\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    // ## / ### headings → bold section labels
+    .replace(/^\\s*#{1,6}\\s+(.+)$/gm,'<strong>$1</strong>')
     .replace(/\\*\\*(.*?)\\*\\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+?)`/g,'<code style="background:var(--cds-layer-accent);padding:1px 5px">$1</code>')
+    // - / * bullets → indented dots
+    .replace(/^\\s*[-*]\\s+(.+)$/gm,'&nbsp;&nbsp;• $1')
     .replace(/\\n/g,'<br>')
 }
 

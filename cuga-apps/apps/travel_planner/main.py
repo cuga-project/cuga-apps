@@ -98,11 +98,23 @@ this research workflow before writing a single day of the plan:
 4. Call search_attractions(lat, lon, category) at least twice with different
    categories relevant to the traveller's interests (e.g. historic + cultural,
    or natural + amusements).
-5. Call web_search(query) for at least two practical queries:
+5. Call web_search(query) for practical, current facts. Each result is a
+   REFERENCE PAGE to read — its title/URL is a source, NOT an event or a fact in
+   itself. Run at least:
    - visa / entry requirements for international travellers
    - local transport options and approximate costs
-   - any notable events or festivals during the travel month
+   - notable events or festivals during the travel month
 6. Only after gathering all the above, write the itinerary.
+
+EVENTS — read this carefully. Only mention an event if you can name the SPECIFIC
+event WITH its actual dates and venue, taken from the content of a page you
+searched. A search frequently returns only calendar/aggregator/listing pages —
+e.g. "Events in <city> in <month>", a "things to do" roundup, an Instagram or
+social handle, a tour-operator blog. Those are NOT events: they have no single
+date or venue. NEVER list such a page as an event (a dead giveaway is a "date"
+like "June 2026" with no day, or a venue like "various venues"). If you cannot
+find a concrete, dated, named event, simply say you couldn't confirm specific
+events for that month and move on — do not pad the itinerary with listing pages.
 
 Itinerary format:
 - Brief destination intro (2–3 sentences)
@@ -174,7 +186,19 @@ async def _build_cuga_agent(llm) -> CugaAgent:
     if not os.environ.get("OPENAI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = "sk-placeholder-not-used"
 
-    agent = CugaAgent(model=llm, tools=TOOLS, special_instructions=SYSTEM_INSTRUCTIONS)
+    # enable_knowledge / auto_load_policies OFF: CUGA's policy DB is a shared
+    # global sqlite store, so without this an output-formatter persisted by
+    # another app (e.g. meetup_finder's save_events event board) auto-loads here
+    # and the model emits that board instead of an itinerary. cuga_folder keeps
+    # this app's own CUGA state isolated under its directory.
+    agent = CugaAgent(
+        model=llm,
+        tools=TOOLS,
+        special_instructions=SYSTEM_INSTRUCTIONS,
+        cuga_folder=str(Path(__file__).parent / ".cuga"),
+        enable_knowledge=False,
+        auto_load_policies=False,
+    )
     await agent.initialize()
     return agent
 

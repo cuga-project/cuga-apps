@@ -109,6 +109,11 @@ class _Store:
         # providers[day][provider] = {"calls": int, "errors": int}
         self._providers: dict[str, dict[str, dict]] = defaultdict(
             lambda: defaultdict(lambda: {"calls": 0, "errors": 0}))
+        # err_codes[day][provider][code] = int — failure-reason breakdown
+        # (429, 404, timeout, …). In-memory only (not persisted in the snapshot);
+        # rebuilds from live traffic after a restart.
+        self._err_codes: dict[str, dict[str, dict[str, int]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(int)))
         # utt_counts[app][day] = int  (persisted totals; text is NOT kept here)
         self._utt_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self._utt_recent: deque = deque(maxlen=_UTT_RECENT)   # live view, in-memory
@@ -135,13 +140,14 @@ class _Store:
             self._dirty = True
 
     def record_call(self, provider: str, day: str, ok: bool, n: int,
-                    utt: str | None = None) -> None:
+                    utt: str | None = None, code: str | None = None) -> None:
         with self._lock:
             rec = self._providers[day][provider]
             if ok:
                 rec["calls"] += n
             else:
                 rec["errors"] += n
+                self._err_codes[day][provider][code or "error"] += n
             # In-process LLM calls carry the utterance id — attribute them to it.
             if utt:
                 item = self._utt_by_id.get(utt)
@@ -206,18 +212,49 @@ class _Store:
                 tot_uniq_today += uniq_today
             apps.sort(key=lambda a: (a["requests_today"], a["requests_total"]), reverse=True)
 
-            # Provider API calls — per-provider today + all-time.
+            # Provider API calls — per-provider today + all-time, plus the
+            # failure-reason breakdown (e.g. how often a 429 rate limit was hit).
             provs: dict[str, dict] = {}
             for day, by_prov in self._providers.items():
                 for prov, c in by_prov.items():
                     agg = provs.setdefault(prov, {"provider": prov, "calls_today": 0,
-                                                  "calls_total": 0, "errors_total": 0})
+                                                  "calls_total": 0, "errors_total": 0,
+                                                  "errors_by_code": defaultdict(int)})
                     agg["calls_total"] += c["calls"]
                     agg["errors_total"] += c["errors"]
                     if day == today:
                         agg["calls_today"] += c["calls"]
+            for day, by_prov in self._err_codes.items():
+                for prov, codes in by_prov.items():
+                    agg = provs.setdefault(prov, {"provider": prov, "calls_today": 0,
+                                                  "calls_total": 0, "errors_total": 0,
+                                                  "errors_by_code": defaultdict(int)})
+                    for code, k in codes.items():
+                        agg["errors_by_code"][code] += k
+            for agg in provs.values():            # defaultdict -> plain dict for JSON
+                agg["errors_by_code"] = dict(agg["errors_by_code"])
             providers = sorted(provs.values(),
                                key=lambda p: (p["calls_today"], p["calls_total"]), reverse=True)
+
+            # Aggregate daily series for the charts (last `days` days):
+            #  • api_calls — provider calls + errors per day (across all providers)
+            #  • visits    — requests + unique visitors per day (across all apps)
+            series_api = []
+            for dk in recent_days:
+                by_prov = self._providers.get(dk, {})
+                series_api.append({
+                    "day": dk,
+                    "calls":  sum(c["calls"] for c in by_prov.values()),
+                    "errors": sum(c["errors"] for c in by_prov.values()),
+                })
+            series_visits = []
+            for dk in recent_days:
+                day_req = sum(by_day.get(dk, {}).get("requests", 0)
+                              for by_day in self._stats.values())
+                day_uniq: set = set()
+                for by_day in self._stats.values():
+                    day_uniq |= by_day.get(dk, {}).get("uniques", set())
+                series_visits.append({"day": dk, "requests": day_req, "uniques": len(day_uniq)})
 
             utt_today = sum(by_day.get(today, 0) for by_day in self._utt_counts.values())
             utt_total = sum(sum(by_day.values()) for by_day in self._utt_counts.values())
@@ -239,6 +276,7 @@ class _Store:
                 "apps": apps,
                 "providers": providers,
                 "utterances": {"total": utt_total, "today": utt_today, "recent": recent_utts},
+                "series": {"api_calls": series_api, "visits": series_visits},
                 "days": recent_days,
             }
 
@@ -417,7 +455,8 @@ def _web(port: int) -> None:
             except (TypeError, ValueError):
                 n = 1
             STORE.record_call(provider, day, bool(ev.get("ok", True)), n,
-                              utt=(str(ev.get("utt"))[:32] if ev.get("utt") else None))
+                              utt=(str(ev.get("utt"))[:32] if ev.get("utt") else None),
+                              code=(str(ev.get("code"))[:24] if ev.get("code") else None))
         elif kind == "utterance":
             text = str(ev.get("text") or "")[:_UTT_TEXT_MAX]
             if text:

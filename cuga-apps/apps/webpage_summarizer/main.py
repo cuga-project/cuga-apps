@@ -35,6 +35,17 @@ for _p in [str(_DIR), str(_DEMOS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# Robustness: AGENT_SETTING_CONFIG may arrive as an in-IMAGE absolute path
+# (e.g. /app/apps/settings.watsonx.toml from build/.env) while running from a
+# local checkout where it doesn't exist. CUGA aborts on a missing config file,
+# so remap a non-existent absolute config to a local file of the same name.
+_asc = os.environ.get("AGENT_SETTING_CONFIG", "")
+if os.path.isabs(_asc) and not os.path.isfile(_asc):
+    for _cand in (_DIR / os.path.basename(_asc), _DEMOS_DIR / os.path.basename(_asc)):
+        if _cand.is_file():
+            os.environ["AGENT_SETTING_CONFIG"] = str(_cand)
+            break
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -111,6 +122,11 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # Each question is independent — disable the persistent knowledge store
+        # and on-disk policy auto-load so nothing carries across questions via
+        # the shared .cuga folder.
+        enable_knowledge=False,
+        auto_load_policies=False,
     )
 
 
@@ -148,7 +164,11 @@ def _web(port: int):
         try:
             agent = _get_agent()
             result = await agent.invoke(req.question, thread_id=thread_id)
-            return {"answer": str(result)}
+            # Return the agent's synthesised answer, NOT str(result): the
+            # result object's repr dumps the CUGA plan + generated Python code,
+            # which is what was leaking into the UI as an unformatted code blob.
+            answer = result.answer if hasattr(result, "answer") else str(result)
+            return {"answer": answer}
         except Exception as exc:
             log.exception("Agent invocation failed")
             return JSONResponse(status_code=500, content={"answer": f"Error: {exc}"})

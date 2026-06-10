@@ -211,21 +211,31 @@ try:
     from langchain_core.callbacks import BaseCallbackHandler
 
     class _LLMCallCounter(BaseCallbackHandler):
+        """Counts each LLM call by OUTCOME: a success on completion, a failure
+        (with a code) on error — so the dashboard's error/limit counts for the
+        model provider (watsonx, …) are accurate, not assumed-OK on start."""
+
         def __init__(self, provider: str) -> None:
             self.provider = provider
 
-        def _count(self) -> None:
+        def _record(self, ok: bool, code: str | None = None) -> None:
             try:
                 from _usage import track_call
-                track_call(self.provider)
+                track_call(self.provider, ok=ok, code=code)
             except Exception:  # noqa: BLE001 — tracking must never break a call
                 pass
 
-        def on_chat_model_start(self, *args: Any, **kwargs: Any) -> None:
-            self._count()
+        # Fires for both chat models and completion LLMs on success.
+        def on_llm_end(self, *args: Any, **kwargs: Any) -> None:
+            self._record(True)
 
-        def on_llm_start(self, *args: Any, **kwargs: Any) -> None:
-            self._count()
+        def on_llm_error(self, error: BaseException, *args: Any, **kwargs: Any) -> None:
+            try:
+                from _usage import classify_error
+                code = classify_error(error)
+            except Exception:  # noqa: BLE001
+                code = "error"
+            self._record(False, code)
 except Exception:  # noqa: BLE001 — if callbacks import fails, skip LLM counting
     _LLMCallCounter = None  # type: ignore
 
