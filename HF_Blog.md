@@ -1,6 +1,6 @@
 # Build real agentic apps on CUGA: two dozen working examples on a lightweight harness
 
-> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs governed in production without a rewrite.
+> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs governed, sovereign, and in production without a rewrite.
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
@@ -115,13 +115,13 @@ For a working example, open [Ouroboros](https://github.com/cuga-project/cuga-app
 
 ## Growing past one agent
 
-Two extensions matter once an app outgrows a single chat loop.
-
-When one agent would drown in its own context (too many tools, too much evidence to keep straight), you split the work. A `CugaSupervisor` delegates to specialist `CugaAgent`s, each with its own tools, prompt, and isolated context, and the supervisor only ever reasons about which specialist to hand a subtask to. Its planning surface stays small no matter how many tools sit underneath, and a flaky tool fails one delegation instead of the whole run. A specialist doesn't even have to be local; it can be an external agent reached over A2A, delegated to the same way. Adding a capability means adding a specialist, not rewriting a coordinator.
+Two extensions matter once an app outgrows a single chat loop. When one agent would drown in its own context (too many tools, too much evidence to keep straight), you split the work. A `CugaSupervisor` delegates to specialist `CugaAgent`s, each with its own tools, prompt, and isolated context, and the supervisor only ever reasons about which specialist to hand a subtask to. Its planning surface stays small no matter how many tools sit underneath, and a flaky tool fails one delegation instead of the whole run. A specialist doesn't even have to be local; it can be an external agent reached over A2A, delegated to the same way. Adding a capability means adding a specialist, not rewriting a coordinator.
 
 The other extension packages know-how rather than tools: Agent Skills, a folder with a `SKILL.md` playbook the agent pulls into context only when a task calls for it, so one prompt isn't carrying everything the agent might ever need to know. Both keep the same building blocks (tools, prompts, state, policies), just composed a level up.
 
 Ouroboros, the lead-gen app from earlier makes this pattern concrete. It has a supervisor over seven specialists (scout, site auditor, voice-of-customer, person finder, stack scanner, revenue estimator, and a pitch-email writer that synthesizes). Each specialist is one skill loaded into a `CugaAgent`, and the supervisor calls it through an auto-generated `delegate_to_<name>` tool. Adding an eighth is a one-line factory, not a coordinator rewrite. Read its `main.py` and `ARCHITECTURE.md` if you want the multi-agent shape end to end.
+
+There's a third extension, and it points back at the skills themselves. With [ALTK-Evolve](https://agenttoolkit.github.io/altk-evolve/), CUGA's on-the-job learning framework, an agent refines a skill from its own runs so a task done today makes tomorrow's faster and more accurate. The `SKILL.md` a specialist loads ends up holding what the agent learned on top of what you wrote. Same building blocks, except now using one teaches the next. The thing you stop doing is re-prompting through a problem you already solved last week.
 
 ## Governed by construction
 
