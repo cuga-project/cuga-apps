@@ -34,7 +34,7 @@ pushes as it works. If you've written a FastAPI route, you can read every line.
 
 Every app, behind a launch button, no install:
 
-**[cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud ↗](https://cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/)**
+**[https://huggingface.co/spaces/ibm-research/cuga-apps](https://huggingface.co/spaces/ibm-research/cuga-apps)**
 
 Filter by **✦ Showcase** for the polished set.
 
