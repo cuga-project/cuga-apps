@@ -1,10 +1,10 @@
-# Build real agentic apps on CUGA: two dozen working examples on a lightweight harness
+# Build real agentic apps using CUGA: two dozen working examples on a lightweight harness
 
-> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs sovereign and governed in production without a rewrite.
+> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), short for Configurable Generalist Agent, the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs sovereign and governed in production without a rewrite.
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
-[CUGA](https://github.com/cuga-project/cuga-agent) inverts that. Short for Configurable Generalist Agent, it's the open-source agent harness from IBM that handles the planning, the execution loop, the tool calls, and the state plumbing for you. What's left is the part that's actually yours: which tools the agent can reach, and what you tell it to do. To show what that feels like in practice, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): two dozen small, working apps, each a single FastAPI file wrapping one `CugaAgent`, from a movie recommender to an IBM Cloud architecture advisor. They exist to be read and copied.
+[CUGA](https://github.com/cuga-project/cuga-agent) inverts that. It's the open-source agent harness from IBM that handles the planning, the execution loop, the tool calls, and the state plumbing for you. What's left is the part that's actually yours: which tools the agent can reach, and what you tell it to do. To show what that feels like in practice, we built [cuga-apps](https://github.com/cuga-project/cuga-apps): two dozen small, working apps, each a single FastAPI file wrapping one `CugaAgent`, from a movie recommender to an IBM Cloud architecture advisor. They exist to be read and copied. You can [click through the live gallery](https://huggingface.co/spaces/ibm-research/cuga-apps).
 
 
 This article walks through one of them, names what the harness takes off your plate, and shows where the same code goes when you need it governed for production. No new framework to learn first. If you've written a FastAPI route, you can read every line.
@@ -19,14 +19,15 @@ You also set the cost/latency tradeoff from config rather than code: Fast, Balan
 
 None of the individual pieces is unique to CUGA. What's different is that they come pre-assembled, so you configure them instead of wiring them together. The API you touch is small — build a `CugaAgent` with a tool list and a prompt, then `await agent.invoke(...)`. Everything below that line is the harness.
 
-Concretely, that's interchangeable tools (OpenAPI, MCP, and LangChain functions all bind the same way), long-horizon planning with variable management and self-correction (the machinery behind **#1 on [AppWorld](https://appworld.dev/)** and **[WebArena](https://webarena.dev/)**), declarative guardrails, multi-agent delegation over **A2A**, Docling-powered RAG, and one-env-var provider switching (`pip install cuga`, then OpenAI, watsonx, Ollama, and more) — each something you'd otherwise build yourself. The first word of the name does the work: *Configurable*; the hard parts are handled, so your job is just the task.
+Concretely, that's interchangeable tools (OpenAPI, MCP, and LangChain functions all bind the same way), long-horizon planning with variable management and self-correction (the machinery behind **#1 on [AppWorld](https://appworld.dev/)** from 07/25 - 02/26 and **[WebArena](https://webarena.dev/)**  from 02/25 - 09/25), declarative guardrails, multi-agent delegation over **A2A**, Docling-powered RAG, and one-env-var provider switching (`pip install cuga`, then OpenAI, watsonx, Ollama, and more) — each something you'd otherwise build yourself. The first word of the name does the work: *Configurable*; the hard parts are handled, so your job is just the task.
 
 ## One app, start to finish
 
 Here's the IBM Cloud advisor — an agent that recommends real IBM Cloud services for an architecture. The whole thing fits in one file: a `main.py` with the agent factory, the tools, and the prompt, plus a small UI.
+ 
 
-![Anatomy of the ibm_cloud_advisor cuga-app: the main.py file layout, an inline @tool (search_ibm_catalog) that calls the IBM Cloud Global Catalog API alongside an MCP web-search tool in one tool list, and a system prompt enforcing "catalog before recommendation."](cuga-apps/docs/architecture_app_anatomy_cloud_advisor.svg)
-
+![Anatomy of the ibm_cloud_advisor cuga-app: the main.py file layout, an inline @tool (search_ibm_catalog) that calls the IBM Cloud Global Catalog API alongside an MCP web-search tool in one tool list, and a system prompt enforcing "catalog before recommendation."](https://cdn-uploads.huggingface.co/production/uploads/649d9ad1500fd8d51a675a93/UWUOaGwQ7pCVGWT7-Vbg6.png)
+ 
 The whole agent is this:
 
 ```python
@@ -77,15 +78,15 @@ One detail is easy to skip and turns out to be load-bearing: every inline tool r
 
 It looks like boilerplate. It isn't. CUGA's planner handles a *declared* failure gracefully ("geocoding didn't return anything, skip that section and keep going") and chokes on an *undeclared* one, where a raw stack trace bubbles up mid-plan and the run derails. Across the apps, the ones that worked reliably were the ones whose tools never threw a bare exception at the agent. A boring convention, but it's the difference between an agent that recovers and one that face-plants.
 
-The split above only pays off because the generic half is already running somewhere. The capabilities the apps reach for over and over — web search, Wikipedia/arXiv, geocoding and weather, finance quotes, and a few more — live in **7 public MCP servers (36 tools)** hosted on IBM Code Engine, no auth required. A small bridge resolves their URLs automatically, and the [live gallery](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/) ships an **MCP Tool Explorer** to call any of them from a form before you wire it into an agent.
+The split above only pays off because the generic half is already running somewhere. The capabilities the apps reach for over and over — web search, Wikipedia/arXiv, geocoding and weather, finance quotes, and a few more — live in **7 public MCP servers (36 tools)** hosted on IBM Code Engine, no auth required. A small bridge resolves their URLs automatically, and the [live gallery](https://huggingface.co/spaces/ibm-research/cuga-apps) ships an **MCP Tool Explorer** to call any of them from a form before you wire it into an agent.
 
 ## A library, not a demo
 
-The reason there are two dozen matters more than any single one: once you've read the cloud advisor, you've read all of them. They share a skeleton — the movie recommender swaps the IBM catalog tool for the `knowledge` MCP server, the web researcher leans almost entirely on `web` — so cuga-apps is really a catalog of starting points. You clone the repo, find the app closest to your idea, and edit its tool list and prompt (`HOW_TO_BUILD_AN_APP_FAST.md` and `ADDING_AN_APP.md` walk through exactly that). A few apps were even generated by handing a coding assistant one spec file and a one-line brief — regular enough for a model to reproduce means regular enough for you to learn. You can [click through every one in the live gallery](https://cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud) before cloning anything.
+The reason there are two dozen polished apps matters more than any single one: once you've read the cloud advisor, you've read all of them. They share a skeleton — the movie recommender swaps the IBM catalog tool for the `knowledge` MCP server, the web researcher leans almost entirely on `web` — so cuga-apps is really a catalog of starting points. You clone the repo, find the app closest to your idea, and edit its tool list and prompt ([HOW_TO_BUILD_AN_APP_FAST.md](https://github.com/cuga-project/cuga-apps/blob/main/cuga-apps/docs/HOW_TO_BUILD_AN_APP_FAST.md) and [ADDING_AN_APP.md](https://github.com/cuga-project/cuga-apps/blob/main/cuga-apps/docs/ADDING_AN_APP.md) walk through exactly that). A few apps were even generated by handing a coding assistant one spec file and a one-line brief — regular enough for a model to reproduce means regular enough for you to learn. You can [click through every one in the live gallery](https://huggingface.co/spaces/ibm-research/cuga-apps) before cloning anything.
 
 They also fan out across families, so whatever you're building, one app already exercises the piece you need. There's a research cluster (Paper Scout ranks arXiv papers by citation count; Wiki Dive and Web Researcher do cited synthesis), an everyday-productivity set (city briefings, travel, recipes, trails), a document-and-media group that does RAG over PDFs, audio, and video, an ops corner watching live metrics, and an enterprise example over real IBM product docs. Ouroboros is a seven-agent lead-gen system; open it for the multi-agent shape. And Meetup Finder drives headless Chromium through Playwright to pull structured events off Meetup, Luma, and Eventbrite (all of which killed their public search APIs); open it for browser automation, which is where CUGA started and the muscle behind its strong WebArena results.
 
-Two caveats before you clone. The real catalog lives in the inner `cuga-apps/cuga-apps/apps/` directory, not the outer one. And not every app is equally polished, so the UI tags them ship-ready, for-later, or exploratory and defaults to ship-ready; start from the cloud advisor or movie recommender for a working baseline.
+Two caveats before you clone. The real catalog lives in the inner `cuga-apps/cuga-apps/apps/` directory, not the outer one. And not every app is equally polished, so the UI tags them "showcase" or "additional apps" and defaults to "showcase"; start from the cloud advisor or movie recommender for a working baseline.
 
 ## Keeping your agent within the boundaries
 
@@ -143,23 +144,32 @@ The developer takeaway stands on its own, though. An agentic app can be one file
 
 Clone the repo and run an app. The hosted MCP servers mean you don't need third-party keys, just an LLM provider. The apps in this article run on the open-weights **`gpt-oss-120b`** — the same model the hosted gallery and our Sovereign Core deployments use — but because the model is a one-line swap (`create_llm` reads a single env var), you can point any app at OpenAI, Anthropic, watsonx, or a local Ollama model with no code change, and at a local model there's no API cost at all:
 
+
+Start by reviewing our Quick Start Guide [here](https://github.com/cuga-project/cuga-apps#1--an-inline-tools-only-app-fastest-path). If you'd like to set up all the applications, ensure Docker is running and then follow the steps below.
+
 ```bash
 git clone https://github.com/cuga-project/cuga-apps.git
-cd cuga-apps/cuga-apps
-CUGA_TARGET=ce python apps/launch.py   # use hosted MCP servers; no extra keys
+cd build
+cp .env.example .env          # set your LLM provider + key; add TAVILY_API_KEY /
+                              # OPENTRIPMAP_API_KEY / ALPHA_VANTAGE_API_KEY for the
+                              # apps that use them
+docker compose up --build     # first build is large (cuga + Chromium + MCP deps)
+# open http://localhost:8080
 ```
+
 
 Then open `apps/ibm_cloud_advisor/main.py` and read it end to end — it's the clearest example of the inline-tool-plus-MCP pattern. Change the system prompt, add a tool, and watch the behavior shift. The MCP Tool Explorer lists every hosted tool with a form to call it directly, which is a quick way to check the plumbing before wiring a tool into an agent.
 
-So try it. `pip install cuga`, clone [cuga-apps](https://github.com/cuga-project/cuga-apps), and run an app — or just [click through the live gallery](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/) first. The harness lives at [cuga-agent](https://github.com/cuga-project/cuga-agent) and the project home is [cuga.dev](https://cuga.dev). If something breaks, an app misbehaves, or you have an idea, we want to hear it: open an issue, file a PR, drop in your own app, or just reach out — the repo is built to be added to, and we read everything that comes in.
+So try it. `pip install cuga`, clone [cuga-apps](https://github.com/cuga-project/cuga-apps), and run an app — or just [click through the live gallery](https://huggingface.co/spaces/ibm-research/cuga-apps) first. The harness lives at [cuga-agent](https://github.com/cuga-project/cuga-agent) and the project home is [cuga.dev](https://cuga.dev). If something breaks, an app misbehaves, or you have an idea, we want to hear it: open an issue, file a PR, drop in your own app, or just reach out — the repo is built to be added to, and we read everything that comes in.
 
 ## Resources
 
 - [cuga-apps](https://github.com/cuga-project/cuga-apps) — the apps, MCP servers, and UI in this article
-- [cuga-apps/apps](https://github.com/cuga-project/cuga-apps/tree/main/cuga-apps/apps) — the two dozen single-file agent apps (the inner catalog; clone from here)
+- [cuga-apps/apps](https://github.com/cuga-project/cuga-apps/tree/main/cuga-apps/apps) — the two dozen polished single-file agent apps (the inner catalog; clone from here)
 - [cuga-apps/mcp_servers](https://github.com/cuga-project/cuga-apps/tree/main/cuga-apps/mcp_servers) — the shared MCP servers (web, knowledge, geo, finance, code, text, …) the apps borrow
-- [Live app gallery + MCP Tool Explorer](https://cuga-apps-ui.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/) — every app behind a launch button, plus a form to call each hosted MCP tool directly
+- [Live app gallery + MCP Tool Explorer](https://huggingface.co/spaces/ibm-research/cuga-apps) — every app behind a launch button, plus a form to call each hosted MCP tool directly
 - [cuga-agent](https://github.com/cuga-project/cuga-agent) — the CUGA runtime and policy system
 - [cuga.dev](https://cuga.dev) — CUGA project home (`pip install cuga`)
 - [Open by Design: Generalist and Pre-Built Agents in the Sovereign Core](https://community.ibm.com/community/user/blogs/shikha-srivastava1/2026/04/30/open-by-design-generalist-and-prebuilt-agents-in-t) — IBM Community post on how CUGA runs inside Sovereign Core (Srivastava, Marreed, Thomas, April 2026)
 - [IBM Sovereign Core](https://www.ibm.com/products/sovereign-core) — product page
+  
