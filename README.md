@@ -1,6 +1,6 @@
 # cuga-apps
 
-**Real agentic apps you can read in one sitting, built on [CUGA](https://cuga.dev).**
+**Real agentic apps built using [CUGA](https://cuga.dev).**
 
 The model is rarely the hard part of an agent. The work is wiring up tools,
 holding state together across a long task, adding guardrails, and growing from
