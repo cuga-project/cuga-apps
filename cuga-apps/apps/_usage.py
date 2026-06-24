@@ -219,6 +219,36 @@ def track_call(provider: str, *, app: str | None = None, ok: bool = True,
         pass
 
 
+def track_mcp(server: str, tool: str, *, app: str | None = None, ok: bool = True,
+              n: int = 1, code: str | None = None) -> None:
+    """Count a single MCP tool invocation against its server.
+
+    Distinct from track_call (which counts provider/LLM calls): this records the
+    MCP *server* (web, knowledge, geo, finance, …) and the specific *tool* on it
+    that was invoked, so the collector can show per-server and per-tool usage.
+
+    On failure pass `code` (an HTTP status or short label) — derive it from an
+    exception with classify_error(exc). Like track_call, an in-flight utterance
+    id (_CUR_UTT) is attached when present so the call is attributed to the
+    utterance that triggered it.
+
+    Fire-and-forget and safe from any context (async app handlers, sync MCP
+    callers, LangChain tool wrappers). Never raises.
+    """
+    try:
+        event = {"kind": "mcp", "server": str(server)[:40], "tool": str(tool)[:64],
+                 "app": app or _detect_app_name(), "ok": bool(ok),
+                 "n": int(n), "ts": time.time()}
+        if not ok and code:
+            event["code"] = str(code)[:24]
+        utt = _CUR_UTT.get()
+        if utt:                       # set only for in-process (request-scoped) calls
+            event["utt"] = utt
+        _emit(event)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def track_utterance(text: str, *, app: str | None = None) -> str | None:
     """Record a user's natural-language input (chat utterance) for the dashboard.
 

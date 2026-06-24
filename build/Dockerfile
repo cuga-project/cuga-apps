@@ -93,5 +93,26 @@ RUN rm -f /etc/nginx/sites-enabled/default \
         --start /app/run_all.sh \
     && chmod +x /app/run_all.sh
 
+# ── Build provenance ─────────────────────────────────────────────────────────
+# Git commit + build time, baked in so the internal stats dashboard can show
+# exactly which image is live (GET /api/build → footer on /a/usage-collector/).
+# Declared LAST, on purpose: these values change every build, so keeping them
+# after the heavy pip/npm/playwright layers means a new stamp only rebuilds
+# these trivial layers — the expensive ones stay cached. `.git` isn't in the
+# build context, so the values are computed on the host and passed as build-args
+# (see build/ce/build_and_push.sh and build/docker-compose.yml).
+ARG CUGA_BUILD_TIME=""
+ARG CUGA_GIT_COMMIT=""
+ARG CUGA_GIT_SHA=""
+ARG CUGA_GIT_BRANCH=""
+ARG CUGA_GIT_SUBJECT=""
+ARG CUGA_GIT_COMMIT_TIME=""
+ENV CUGA_BUILD_TIME=$CUGA_BUILD_TIME \
+    CUGA_GIT_COMMIT=$CUGA_GIT_COMMIT \
+    CUGA_GIT_SHA=$CUGA_GIT_SHA \
+    CUGA_GIT_BRANCH=$CUGA_GIT_BRANCH \
+    CUGA_GIT_SUBJECT=$CUGA_GIT_SUBJECT \
+    CUGA_GIT_COMMIT_TIME=$CUGA_GIT_COMMIT_TIME
+
 EXPOSE 8080
 CMD ["/app/run_all.sh"]

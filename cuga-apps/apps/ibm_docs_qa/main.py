@@ -130,6 +130,11 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # CUGA's policy DB is a global sqlite store shared by every app. Don't
+        # auto-load it, or an output-formatter persisted by another app (e.g.
+        # find_a_doctor's doctor board) bleeds in and the model emits that board
+        # instead of this app's answer.
+        auto_load_policies=False,
     )
 
 

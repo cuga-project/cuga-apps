@@ -210,6 +210,11 @@ class VideoQAAgent:
                 tools=_make_tools(self._video_path_ref),
                 special_instructions=_SYSTEM,
                 cuga_folder=str(_EXAMPLE_DIR / ".cuga"),
+                # CUGA's policy DB is a global sqlite store shared by every app. Don't
+                # auto-load it, or an output-formatter persisted by another app (e.g.
+                # find_a_doctor's doctor board) bleeds in and the model emits that board
+                # instead of this app's answer.
+                auto_load_policies=False,
             )
             log.info("VideoQAAgent CugaAgent ready")
         return self._agent

@@ -425,7 +425,11 @@ async def build_cuga_agent(session: DeckForgeSession, llm):
         os.environ["OPENAI_API_KEY"] = "sk-placeholder-not-used"
 
     tools = _make_tools(session)
-    agent = CugaAgent(model=llm, tools=tools, special_instructions=_SYSTEM)
+    # auto_load_policies=False: CUGA's policy DB is a global sqlite store shared
+    # by every app; without this, another app's output-formatter (e.g.
+    # find_a_doctor's doctor board) leaks in and gets emitted here.
+    agent = CugaAgent(model=llm, tools=tools, special_instructions=_SYSTEM,
+                      auto_load_policies=False)
     await agent.initialize()
     return agent
 

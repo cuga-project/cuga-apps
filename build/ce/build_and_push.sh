@@ -35,11 +35,32 @@ IMAGE="${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 PUSH=1
 [[ "${1:-}" == "--no-push" ]] && PUSH=0
 
+# ── Build provenance ─────────────────────────────────────────────────────────
+# Compute git commit + build time on the HOST (the image build can't run git —
+# `.git` isn't in the context) and pass them as build-args. The all-in-one image
+# bakes them into env vars; the stats dashboard surfaces them so you can tell
+# which build is live. A working tree with uncommitted changes is flagged
+# "-dirty" (builds use the working tree, not a clean checkout).
+git_() { git -C "$REPO_ROOT" "$@" 2>/dev/null; }
+BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if git_ rev-parse --git-dir >/dev/null; then
+    GIT_SHA="$(git_ rev-parse HEAD)"
+    GIT_COMMIT="$(git_ rev-parse --short HEAD)"
+    GIT_BRANCH="$(git_ rev-parse --abbrev-ref HEAD)"
+    GIT_SUBJECT="$(git_ log -1 --pretty=%s)"
+    GIT_COMMIT_TIME="$(git_ log -1 --date=iso-strict --pretty=%cd)"
+    [[ -n "$(git_ status --porcelain)" ]] && GIT_COMMIT="${GIT_COMMIT}-dirty"
+else
+    GIT_SHA=""; GIT_COMMIT="unknown"; GIT_BRANCH=""; GIT_SUBJECT=""; GIT_COMMIT_TIME=""
+fi
+
 echo "════════════════════════════════════════════════════════════════"
 echo "  Build all-in-one image"
 echo "    image      : $IMAGE"
 echo "    dockerfile : build/Dockerfile  (context: repo root)"
 echo "    network    : $DOCKER_BUILD_NETWORK"
+echo "    build time : $BUILD_TIME"
+echo "    git commit : ${GIT_BRANCH:+$GIT_BRANCH@}$GIT_COMMIT"
 echo "    push       : $([[ $PUSH == 1 ]] && echo yes || echo 'no (--no-push)')"
 echo "════════════════════════════════════════════════════════════════"
 
@@ -48,6 +69,12 @@ echo "════════════════════════�
 docker build \
     --platform linux/amd64 \
     --network="$DOCKER_BUILD_NETWORK" \
+    --build-arg CUGA_BUILD_TIME="$BUILD_TIME" \
+    --build-arg CUGA_GIT_COMMIT="$GIT_COMMIT" \
+    --build-arg CUGA_GIT_SHA="$GIT_SHA" \
+    --build-arg CUGA_GIT_BRANCH="$GIT_BRANCH" \
+    --build-arg CUGA_GIT_SUBJECT="$GIT_SUBJECT" \
+    --build-arg CUGA_GIT_COMMIT_TIME="$GIT_COMMIT_TIME" \
     -f "$DOCKERFILE" \
     -t "$IMAGE" \
     "$REPO_ROOT"
