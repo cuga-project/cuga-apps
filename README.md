@@ -34,7 +34,7 @@ pushes as it works. If you've written a FastAPI route, you can read every line.
 
 Every app, behind a launch button, no install:
 
-**[cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud ↗](https://cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/)**
+**[https://huggingface.co/spaces/ibm-research/cuga-apps](https://huggingface.co/spaces/ibm-research/cuga-apps)**
 
 Filter by **✦ Showcase** for the polished set.
 
@@ -305,6 +305,40 @@ cuga-apps/
         ├── ADDING_AN_APP.md             register a new app end-to-end
         └── cuga_app_builder_spec.md     full in-repo build spec (MCP + inline)
 ```
+
+## Choosing an LLM provider (Docker stack)
+
+CUGA has **two model layers** and both must point at a provider: the **outer
+model** (`LLM_PROVIDER` + `LLM_MODEL`) and CUGA's **internal nodes** (planner,
+coder, final_answer, …) configured by the settings TOML named in
+`AGENT_SETTING_CONFIG`. The all-in-one image reads these from
+[`build/.env`](build/.env.example) — pick **one** block; no rebuild needed when
+you switch. CUGA ships native settings for watsonx/openai/litellm/… but **not**
+for `anthropic` or `ollama`, so those route their internal nodes through the
+`openai` platform (point its `OPENAI_BASE_URL` at the right endpoint).
+
+| Provider | `build/.env` variables |
+|---|---|
+| **watsonx** (image default) | `LLM_PROVIDER=watsonx`, `LLM_MODEL=openai/gpt-oss-120b`, `AGENT_SETTING_CONFIG=/app/apps/settings.watsonx.toml`, `WATSONX_APIKEY=…`, `WATSONX_PROJECT_ID=…` (or `WATSONX_SPACE_ID`), `WATSONX_URL=https://us-south.ml.cloud.ibm.com` |
+| **Ollama** (local, free) | `LLM_PROVIDER=ollama`, `LLM_MODEL=gpt-oss:20b`, `OLLAMA_BASE_URL=http://host.docker.internal:11434`, `AGENT_SETTING_CONFIG=settings.openai.toml`, `OPENAI_BASE_URL=http://host.docker.internal:11434/v1`, `OPENAI_API_KEY=ollama`, `MODEL_NAME=gpt-oss:20b` |
+| **OpenAI** | `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o`, `AGENT_SETTING_CONFIG=settings.openai.toml`, `OPENAI_API_KEY=sk-…`, `MODEL_NAME=gpt-4o` |
+| **Anthropic** | `LLM_PROVIDER=anthropic`, `LLM_MODEL=claude-sonnet-4-6`, `ANTHROPIC_API_KEY=sk-ant-…`, `AGENT_SETTING_CONFIG=settings.openai.toml`, `OPENAI_BASE_URL=https://api.anthropic.com/v1/`, `OPENAI_API_KEY=sk-ant-…`, `MODEL_NAME=claude-sonnet-4-6` |
+
+**Ollama specifics:** use `host.docker.internal` (not `localhost`) so the
+container reaches Ollama on the host, and start Ollama beyond loopback with
+`OLLAMA_HOST=0.0.0.0:11434 ollama serve` (the macOS app binds `127.0.0.1` only —
+quit it first). `gpt-oss:20b` is the smallest model that drives CUGA's
+planner/coder reliably; expect minutes per query on a laptop.
+
+**Anthropic specifics:** the outer model is native Claude, but CUGA has no
+anthropic platform, so its internal nodes use the `openai` platform. The row
+above keeps them on Claude via Anthropic's OpenAI-compatible endpoint; supply a
+real `OPENAI_API_KEY` instead if you'd rather run the internal nodes on GPT.
+
+After editing `build/.env`, recreate the container:
+`docker compose -f build/docker-compose.yml up -d` (add `--build` only if you
+changed code). Full annotated reference in
+[`build/.env.example`](build/.env.example).
 
 ## License
 
