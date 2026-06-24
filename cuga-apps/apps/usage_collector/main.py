@@ -103,6 +103,26 @@ def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+# When this collector process started — distinct from the image build time, so
+# you can tell a redeploy (new build) from a cold start of the same image.
+_STARTED_AT = time.time()
+
+
+def _build_info() -> dict:
+    """Image build provenance, baked into the all-in-one image at build time via
+    build-args (see build/Dockerfile). Empty fields ⇒ a 'dev build' with no
+    stamp. Surfaced read-only on the internal stats dashboard's footer."""
+    return {
+        "build_time":      os.getenv("CUGA_BUILD_TIME", ""),
+        "git_commit":      os.getenv("CUGA_GIT_COMMIT", ""),
+        "git_sha":         os.getenv("CUGA_GIT_SHA", ""),
+        "git_branch":      os.getenv("CUGA_GIT_BRANCH", ""),
+        "git_subject":     os.getenv("CUGA_GIT_SUBJECT", ""),
+        "git_commit_time": os.getenv("CUGA_GIT_COMMIT_TIME", ""),
+        "started_at":      _STARTED_AT,
+    }
+
+
 # ── Time-window helpers ──────────────────────────────────────────────────
 # The dashboard tables and downloads break every count into these fixed UTC
 # windows. "total" is all-time. Windows are inclusive of today (e.g. "7d" is the
@@ -255,6 +275,21 @@ class _Store:
             batch, self._utt_buffer = self._utt_buffer, []
             self._utt_seq += 1
             return batch
+
+    def hydrate_recent(self, items: list[dict]) -> None:
+        """Seed the live recent-utterance feed from archived text (COS/file) at
+        startup, so the Utterances tab isn't empty after a redeploy/cold start.
+
+        Archived items carry app/text/ts only (no id/calls — call attribution is
+        live-only). We deliberately do NOT touch ``_utt_counts`` (those come from
+        the durable snapshot) or ``_utt_buffer`` (don't re-archive what we just
+        read). ``items`` must be oldest→newest; the deque keeps the newest
+        ``_UTT_RECENT``. Call once at startup, before traffic arrives."""
+        with self._lock:
+            for it in items:
+                self._utt_recent.append({"app": it.get("app") or "unknown",
+                                         "text": it.get("text") or "",
+                                         "ts": float(it.get("ts") or 0.0)})
 
     def rollup(self, days: int = 14) -> dict:
         """Per-app summary + a daily series for the last `days` days."""
@@ -754,6 +789,94 @@ def _flush_utterances() -> None:
         log.warning("utterance flush failed (dropped %d): %s", len(batch), exc)
 
 
+# ── Recent-utterance hydration (read archived text back at startup) ───────
+# The aggregate snapshot restores utterance *counts* but not the recent *text*
+# feed (text lives append-only under <prefix>/<day>/*.jsonl). After a cold start
+# the Utterances tab would otherwise be empty while counts show hundreds, so on
+# startup we read just enough of the newest batches to refill the live feed.
+def _batch_item_count(key: str) -> int:
+    """Items in a batch, parsed from its '<ms>-<count>.jsonl' name (0 if odd)."""
+    name = key.rsplit("/", 1)[-1]
+    try:
+        return int(name.rsplit("-", 1)[1].split(".")[0])
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _list_utt_batches() -> list[str]:
+    """All utterance batch keys/paths, sorted oldest→newest. The keys embed the
+    day and a millisecond stamp, so lexicographic sort ≈ chronological."""
+    prefix = _UTT_PREFIX.rstrip("/") + "/"
+    if _S3_BUCKET:
+        keys: list[str] = []
+        client = _s3_client()
+        token = None
+        while True:
+            kw = {"Bucket": _S3_BUCKET, "Prefix": prefix}
+            if token:
+                kw["ContinuationToken"] = token
+            resp = client.list_objects_v2(**kw)
+            keys.extend(o["Key"] for o in resp.get("Contents", [])
+                        if o.get("Key", "").endswith(".jsonl"))
+            if resp.get("IsTruncated"):
+                token = resp.get("NextContinuationToken")
+            else:
+                break
+        return sorted(keys)
+    base = Path(_DB_PATH).parent / _UTT_PREFIX
+    if not base.exists():
+        return []
+    files = [p for p in base.glob("*/*.jsonl")]
+    files.sort(key=lambda p: (p.parent.name, p.name))
+    return [str(p) for p in files]
+
+
+def _read_utt_batch(key: str) -> list[dict]:
+    try:
+        if _S3_BUCKET:
+            body = _s3_client().get_object(Bucket=_S3_BUCKET, Key=key)["Body"].read().decode("utf-8", "replace")
+        else:
+            body = Path(key).read_text(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        return []
+    out = []
+    for line in body.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except Exception:  # noqa: BLE001
+            continue
+        if d.get("text"):
+            out.append({"app": d.get("app") or "unknown", "text": d["text"],
+                        "ts": float(d.get("ts") or 0.0)})
+    return out
+
+
+def _hydrate_recent() -> None:
+    """Refill STORE's recent-utterance feed from the archive (newest first), so
+    the Utterances tab is populated after a cold start. Reads only enough of the
+    newest batches to reach _UTT_RECENT items. Best-effort; never raises."""
+    try:
+        batches = _list_utt_batches()          # oldest→newest
+        if not batches:
+            return
+        collected: list[dict] = []
+        for key in reversed(batches):          # newest first, walk back
+            collected.extend(_read_utt_batch(key))
+            if len(collected) >= _UTT_RECENT:
+                break
+        if not collected:
+            return
+        collected.sort(key=lambda d: d["ts"])  # chronological (oldest→newest)
+        STORE.hydrate_recent(collected[-_UTT_RECENT:])
+        log.info("hydrated %d recent utterance(s) from %s",
+                 min(len(collected), _UTT_RECENT), "S3" if _S3_BUCKET else "file")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("recent-utterance hydrate skipped: %s", exc)
+
+
 # ── HTTP server ──────────────────────────────────────────────────────────
 def _web(port: int) -> None:
     import asyncio
@@ -764,6 +887,7 @@ def _web(port: int) -> None:
     @app.on_event("startup")
     async def _startup():
         _load_snapshot()
+        _hydrate_recent()   # refill the recent-utterance feed from the archive
 
         async def _saver():
             while True:
@@ -844,6 +968,14 @@ def _web(port: int) -> None:
         if not _dash_authed(request):
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         return STORE.rollup()
+
+    @app.get("/api/build")
+    async def api_build(request: Request):
+        """Image build provenance (git commit + build time) for the dashboard
+        footer, so you can tell which build is live. Token-gated like the rest."""
+        if not _dash_authed(request):
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        return _build_info()
 
     @app.get("/api/report")
     async def api_report(request: Request, granularity: str = "daily",

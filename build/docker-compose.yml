@@ -24,6 +24,21 @@ services:
       # inside a container, so name resolution to deb.debian.org / npm
       # registry fails ("Temporary failure resolving 'deb.debian.org'").
       network: host
+      # Build provenance (shown on the internal stats dashboard). Compose can't
+      # run git, so these read from the host env and default to empty — a plain
+      # `docker compose build` shows "dev build". To stamp a local build, export
+      # them first, e.g.:
+      #   export CUGA_GIT_COMMIT=$(git rev-parse --short HEAD) \
+      #          CUGA_GIT_SHA=$(git rev-parse HEAD) \
+      #          CUGA_GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
+      #          CUGA_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      args:
+        CUGA_BUILD_TIME: "${CUGA_BUILD_TIME:-}"
+        CUGA_GIT_COMMIT: "${CUGA_GIT_COMMIT:-}"
+        CUGA_GIT_SHA: "${CUGA_GIT_SHA:-}"
+        CUGA_GIT_BRANCH: "${CUGA_GIT_BRANCH:-}"
+        CUGA_GIT_SUBJECT: "${CUGA_GIT_SUBJECT:-}"
+        CUGA_GIT_COMMIT_TIME: "${CUGA_GIT_COMMIT_TIME:-}"
     image: cuga-apps-allinone:latest
     container_name: cuga-agent-apps
     ports:

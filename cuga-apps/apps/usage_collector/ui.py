@@ -183,6 +183,14 @@ _APP_CSS = """<style>
   .fchip.on { background: var(--cds-interactive); color: #fff; border-color: var(--cds-interactive); }
   .fchip .fc { font-family: var(--cds-font-mono); font-size: 0.6875rem; opacity: 0.85; }
   .filter-note { font-size: 0.6875rem; color: var(--cds-text-helper); margin: 0 0 var(--cds-sp-04); }
+
+  /* Build-provenance footer — which image am I looking at? */
+  .buildbar { border-top: 1px solid var(--cds-border-subtle); background: var(--cds-layer-01);
+    padding: var(--cds-sp-04) var(--cds-sp-07); font-size: 0.6875rem; color: var(--cds-text-helper);
+    font-family: var(--cds-font-mono); display: flex; flex-wrap: wrap; gap: 0.25rem 0.85rem; align-items: baseline; }
+  .buildbar .bk { color: var(--cds-text-secondary); font-weight: 600; }
+  .buildbar .bsub { font-family: var(--cds-font-sans); font-style: italic; color: var(--cds-text-secondary); }
+  .buildbar .bsha { color: var(--cds-text-helper); }
 </style>"""
 
 _BODY = r"""
@@ -309,6 +317,8 @@ _BODY = r"""
     <div id="uttWrap"><div class="empty">No utterances recorded yet.</div></div>
   </section>
 </main>
+
+<footer class="buildbar" id="buildbar"></footer>
 
 <script>
   const TOKEN = new URLSearchParams(location.search).get('token') || '';
@@ -721,8 +731,35 @@ _BODY = r"""
       else { document.getElementById('statusText').textContent = 'Unauthorized'; }
     } catch (_) { document.getElementById('statusText').textContent = 'Offline'; }
   }
+
+  // ── Build provenance footer — which image am I looking at? ───────────────
+  function renderBuild(b) {
+    const el = document.getElementById('buildbar'); if (!el) return;
+    const has = b && (b.build_time || (b.git_commit && b.git_commit !== 'unknown') || b.git_sha);
+    if (!has) { el.innerHTML = '<span class="muted">dev build — no image build stamp</span>'; return; }
+    const parts = [];
+    if (b.build_time)
+      parts.push('<span><span class="bk">image built</span> ' + esc(b.build_time) + '</span>');
+    const commit = (b.git_branch ? esc(b.git_branch) + '@' : '') + esc(b.git_commit || 'unknown');
+    parts.push('<span><span class="bk">commit</span> ' + commit + '</span>');
+    if (b.git_subject) parts.push('<span class="bsub">“' + esc(b.git_subject) + '”</span>');
+    if (b.git_commit_time)
+      parts.push('<span><span class="bk">committed</span> ' + esc(b.git_commit_time) + '</span>');
+    if (b.started_at)
+      parts.push('<span><span class="bk">container up</span> ' + ago(b.started_at) + '</span>');
+    if (b.git_sha) parts.push('<span class="bsha" title="full commit SHA">' + esc(b.git_sha) + '</span>');
+    el.innerHTML = parts.join('');
+  }
+  async function loadBuild() {
+    try {
+      const res = await fetch('/api/build' + (TOKEN ? ('?token=' + encodeURIComponent(TOKEN)) : ''));
+      if (res.ok) renderBuild(await res.json());
+    } catch (_) { /* footer just stays empty */ }
+  }
+
   document.getElementById('search').addEventListener('input', draw);
   refresh();
+  loadBuild();
   setInterval(refresh, 15000);
 </script>
 """
