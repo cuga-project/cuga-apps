@@ -1,6 +1,6 @@
 # Build real agentic apps on CUGA: two dozen working examples on a lightweight harness
 
-> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs governed in production without a rewrite.
+> **TL;DR** — Building an agent is mostly plumbing: tools, state, guardrails, scaling from one agent to many. CUGA (pip install cuga), the Agent Harness for the Enterprise from IBM handles that, so you write just a tool list and a prompt. We built two-dozen single-file apps to prove it. Read one end to end here, then see how the same agent runs sovereign and governed in production without a rewrite.
 
 Most agentic apps start with a week of plumbing before the agent does anything useful. You pick a framework, wire up a model client, write tool adapters, build some way to stream state to a UI, and somewhere in there you also decide what the agent is actually for. The interesting part arrives last.
 
@@ -15,7 +15,7 @@ The fair question to ask of anything in this space is what it saves you from wri
 
 It plans before it acts, then executes with a mix of tool calls and generated code (CodeAct). On a long task that runs twenty steps, the thing that breaks most agents is losing track of intermediate results and re-deriving them (often wrong) on the next turn; CUGA holds that state and runs a reflection step that can catch a bad call and re-plan instead of barreling ahead. That machinery is why it has topped agent benchmarks like AppWorld and WebArena rather than something you tune by hand.
 
-You also set the cost/latency tradeoff from config rather than code: Fast, Balanced, and Accurate reasoning modes, with code execution in whatever sandbox you trust (local, Docker/Podman, or E2B cloud). Same agent definition, different dial.
+You also set the cost/latency tradeoff from config rather than code: Fast, Balanced, and Accurate reasoning modes, with code execution in whatever sandbox you trust (local, Docker/Podman, or E2B cloud). Same agent definition, different dial. That dial matters more than it sounds. Most harnesses assume a frontier model sits underneath and lean on it to recover when a plan goes sideways; CUGA does that work itself. The planning, the reflection step, the variable-tracking that keeps a long run on course — that's the harness carrying load the model would otherwise have to, which is what lets a smaller open-weight model hold up where it normally wouldn't. It's why the hosted apps run on gpt-oss-120b rather than a frontier API. Running the biggest model you can call is the usual bet; CUGA's is that a smaller open one is enough.
 
 None of the individual pieces is unique to CUGA. What's different is that they come pre-assembled, so you configure them instead of wiring them together. The API you touch is small — build a `CugaAgent` with a tool list and a prompt, then `await agent.invoke(...)`. Everything below that line is the harness.
 
@@ -115,13 +115,13 @@ For a working example, open [Ouroboros](https://github.com/cuga-project/cuga-app
 
 ## Growing past one agent
 
-Two extensions matter once an app outgrows a single chat loop.
-
-When one agent would drown in its own context (too many tools, too much evidence to keep straight), you split the work. A `CugaSupervisor` delegates to specialist `CugaAgent`s, each with its own tools, prompt, and isolated context, and the supervisor only ever reasons about which specialist to hand a subtask to. Its planning surface stays small no matter how many tools sit underneath, and a flaky tool fails one delegation instead of the whole run. A specialist doesn't even have to be local; it can be an external agent reached over A2A, delegated to the same way. Adding a capability means adding a specialist, not rewriting a coordinator.
+Two extensions matter once an app outgrows a single chat loop. When one agent would drown in its own context (too many tools, too much evidence to keep straight), you split the work. A `CugaSupervisor` delegates to specialist `CugaAgent`s, each with its own tools, prompt, and isolated context, and the supervisor only ever reasons about which specialist to hand a subtask to. Its planning surface stays small no matter how many tools sit underneath, and a flaky tool fails one delegation instead of the whole run. A specialist doesn't even have to be local; it can be an external agent reached over A2A, delegated to the same way. Adding a capability means adding a specialist, not rewriting a coordinator.
 
 The other extension packages know-how rather than tools: Agent Skills, a folder with a `SKILL.md` playbook the agent pulls into context only when a task calls for it, so one prompt isn't carrying everything the agent might ever need to know. Both keep the same building blocks (tools, prompts, state, policies), just composed a level up.
 
 Ouroboros, the lead-gen app from earlier makes this pattern concrete. It has a supervisor over seven specialists (scout, site auditor, voice-of-customer, person finder, stack scanner, revenue estimator, and a pitch-email writer that synthesizes). Each specialist is one skill loaded into a `CugaAgent`, and the supervisor calls it through an auto-generated `delegate_to_<name>` tool. Adding an eighth is a one-line factory, not a coordinator rewrite. Read its `main.py` and `ARCHITECTURE.md` if you want the multi-agent shape end to end.
+
+There's a third extension, and it points back at the skills themselves. With [ALTK-Evolve](https://agenttoolkit.github.io/altk-evolve/), CUGA's on-the-job learning framework, an agent refines a skill from its own runs so a task done today makes tomorrow's faster and more accurate. The `SKILL.md` a specialist loads ends up holding what the agent learned on top of what you wrote. Same building blocks, except now using one teaches the next. The thing you stop doing is re-prompting through a problem you already solved last week.
 
 ## Governed by construction
 
