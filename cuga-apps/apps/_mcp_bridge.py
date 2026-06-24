@@ -220,7 +220,22 @@ _RETURN_SHAPE_HINT = (
 )
 
 
-def _wrap_tool_for_cuga(tool):
+def _track_mcp(server: str | None, tool_name: str, ok: bool, code: str | None = None) -> None:
+    """Best-effort: count this MCP tool invocation in the usage collector.
+
+    Never raises and never affects the tool call — usage tracking is optional
+    infrastructure. No-op if _usage isn't importable or no server is known.
+    """
+    if not server:
+        return
+    try:
+        from _usage import track_mcp
+        track_mcp(server, tool_name, ok=ok, code=code)
+    except Exception:  # noqa: BLE001 — tracking must never break a tool call
+        pass
+
+
+def _wrap_tool_for_cuga(tool, server: str | None = None):
     """Patch a StructuredTool so it works with cuga's executor + prompt builder:
 
       1. Wrap the async coroutine so direct `await tool(...)` returns a
@@ -231,16 +246,35 @@ def _wrap_tool_for_cuga(tool):
          without AttributeError.
       3. Append a return-shape hint to the description so the agent
          doesn't waste turns guessing dict vs list.
+
+    `server` is the MCP server name this tool came from (web, geo, …); when
+    present, every invocation is counted in the usage collector so the
+    dashboard can break usage down per server and per tool.
     """
     import functools as _ft
 
-    # ── 1. Tuple unwrap on the async path ──────────────────────────────
+    tool_name = getattr(tool, "name", "tool")
+
+    # ── 1. Tuple unwrap on the async path (+ usage tracking) ───────────
     original = getattr(tool, "coroutine", None)
     if original is not None:
         @_ft.wraps(original)
         async def _wrapped(*args, **kwargs):
-            raw = await original(*args, **kwargs)
-            return _unwrap_mcp_tool_result(raw)
+            try:
+                raw = await original(*args, **kwargs)
+            except Exception as exc:  # noqa: BLE001
+                try:
+                    from _usage import classify_error
+                    _track_mcp(server, tool_name, ok=False, code=classify_error(exc))
+                except Exception:  # noqa: BLE001
+                    _track_mcp(server, tool_name, ok=False, code="error")
+                raise
+            result = _unwrap_mcp_tool_result(raw)
+            # cuga error envelopes surface as an "ERROR: …" string (see
+            # _unwrap_mcp_tool_result); treat those as failed calls.
+            ok = not (isinstance(result, str) and result.startswith("ERROR:"))
+            _track_mcp(server, tool_name, ok=ok, code=None if ok else "tool_error")
+            return result
 
         tool.coroutine = _wrapped
 
@@ -259,6 +293,13 @@ def _wrap_tool_for_cuga(tool):
     if isinstance(desc, str) and _RETURN_SHAPE_HINT not in desc:
         try:
             tool.description = desc + _RETURN_SHAPE_HINT
+        except Exception:
+            pass
+
+    # Stash the origin server so callers can attribute tool calls later if needed.
+    if server:
+        try:
+            tool._mcp_server = server     # noqa: SLF001 — cooperative annotation
         except Exception:
             pass
 
@@ -296,22 +337,33 @@ def load_tools(servers: List[str]) -> list:
 
     client = MultiServerMCPClient(connections)
 
+    async def _get_tagged_tools() -> list:
+        """Fetch tools server-by-server so each carries its origin server name
+        (for per-server/per-tool usage tracking). Falls back to one flat
+        get_tools() if per-server loading isn't supported by the adapter."""
+        out: list = []
+        try:
+            for name in urls:
+                server_tools = await client.get_tools(server_name=name)
+                out.extend(_wrap_tool_for_cuga(t, server=name) for t in server_tools)
+            return out
+        except TypeError:
+            # Older adapter without server_name kwarg — load all, untagged.
+            return [_wrap_tool_for_cuga(t) for t in await client.get_tools()]
+
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
         loop = None
 
     if loop is None or not loop.is_running():
-        tools = asyncio.run(client.get_tools())
-    else:
-        # Unlikely in practice (make_agent is called before uvicorn starts), but
-        # handle it: run in a dedicated thread with its own event loop.
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            fut = ex.submit(lambda: asyncio.run(client.get_tools()))
-            tools = fut.result()
-
-    return [_wrap_tool_for_cuga(t) for t in tools]
+        return asyncio.run(_get_tagged_tools())
+    # Unlikely in practice (make_agent is called before uvicorn starts), but
+    # handle it: run in a dedicated thread with its own event loop.
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(lambda: asyncio.run(_get_tagged_tools()))
+        return fut.result()
 
 
 def call_tool(server: str, tool: str, args: dict | None = None, timeout: float = 180.0):
@@ -358,17 +410,28 @@ def call_tool(server: str, tool: str, args: dict | None = None, timeout: float =
                     return payload.get("data")
                 return payload
 
-    coro = asyncio.wait_for(_go(), timeout=timeout)
+    def _run() -> object:
+        coro = asyncio.wait_for(_go(), timeout=timeout)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is None or not loop.is_running():
+            return asyncio.run(coro)
+        # Caller is inside an event loop already — run on a worker thread.
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(lambda: asyncio.run(coro))
+            return fut.result()
 
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop is None or not loop.is_running():
-        return asyncio.run(coro)
-
-    # Caller is inside an event loop already — run on a worker thread.
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-        fut = ex.submit(lambda: asyncio.run(coro))
-        return fut.result()
+        out = _run()
+    except Exception as exc:  # noqa: BLE001
+        try:
+            from _usage import classify_error
+            _track_mcp(server, tool, ok=False, code=classify_error(exc))
+        except Exception:  # noqa: BLE001
+            _track_mcp(server, tool, ok=False, code="error")
+        raise
+    _track_mcp(server, tool, ok=True)
+    return out

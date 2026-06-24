@@ -7,9 +7,12 @@ per-day counters and serves a single dashboard (GET /) answering the question
 "are people actually using these apps?" — requests, unique visitors/day, and
 last-seen, across every app.
 
-It also records two extra event kinds on the same /track endpoint:
+It also records three extra event kinds on the same /track endpoint:
   • kind="call"      — an external/provider API call (tavily, alpha_vantage,
                        watsonx, …), counted per provider per day.
+  • kind="mcp"       — an MCP tool invocation, counted per MCP server AND per
+                       tool per day (e.g. server="web", tool="tavily_search").
+                       Surfaced on the dashboard's "MCP servers & tools" tab.
   • kind="utterance" — a user's natural-language input. Counts go in the
                        snapshot; the *text* streams to the utterances/ prefix as
                        append-only daily batches (so a COS lifecycle rule can
@@ -100,20 +103,70 @@ def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+# ── Time-window helpers ──────────────────────────────────────────────────
+# The dashboard tables and downloads break every count into these fixed UTC
+# windows. "total" is all-time. Windows are inclusive of today (e.g. "7d" is the
+# last 7 days up to and including today). NOTE: visitor hashes are daily-salted,
+# so a visitor on two different days is two different hashes — summing daily
+# unique counts over a window is therefore exact (no cross-day double count).
+WINDOW_KEYS = ["today", "yesterday", "7d", "14d", "1m", "3m", "total"]
+
+
+def _window_ctx() -> tuple:
+    """Build the day strings/sets that classify a day into windows. Computed
+    once per rollup/report so every entity is bucketed against the same 'now'."""
+    base = datetime.now(timezone.utc).date().toordinal()
+
+    def dayset(n: int) -> set:
+        return {datetime.fromordinal(base - i).strftime("%Y-%m-%d") for i in range(n)}
+
+    today = datetime.fromordinal(base).strftime("%Y-%m-%d")
+    yesterday = datetime.fromordinal(base - 1).strftime("%Y-%m-%d")
+    return (today, yesterday, dayset(7), dayset(14), dayset(30), dayset(90))
+
+
+def _windows_for(day: str, ctx: tuple) -> list:
+    """Window keys a given day belongs to (always includes 'total')."""
+    today, yesterday, w7, w14, w1m, w3m = ctx
+    out = []
+    if day == today:
+        out.append("today")
+    if day == yesterday:
+        out.append("yesterday")
+    if day in w7:
+        out.append("7d")
+    if day in w14:
+        out.append("14d")
+    if day in w1m:
+        out.append("1m")
+    if day in w3m:
+        out.append("3m")
+    out.append("total")
+    return out
+
+
+def _zero_windows() -> dict:
+    return {k: 0 for k in WINDOW_KEYS}
+
+
 # ── Aggregate store ──────────────────────────────────────────────────────
 # stats[app][day] = {"requests": int, "uniques": set[str],
 #                    "statuses": {code: int}, "last_ts": float}
 class _Store:
     def __init__(self) -> None:
         self._stats: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(self._blank))
-        # providers[day][provider] = {"calls": int, "errors": int}
+        # providers[day][provider] = {"calls": int, "errors": int, "last_ts": float}
         self._providers: dict[str, dict[str, dict]] = defaultdict(
-            lambda: defaultdict(lambda: {"calls": 0, "errors": 0}))
+            lambda: defaultdict(lambda: {"calls": 0, "errors": 0, "last_ts": 0.0}))
         # err_codes[day][provider][code] = int — failure-reason breakdown
         # (429, 404, timeout, …). In-memory only (not persisted in the snapshot);
         # rebuilds from live traffic after a restart.
         self._err_codes: dict[str, dict[str, dict[str, int]]] = defaultdict(
             lambda: defaultdict(lambda: defaultdict(int)))
+        # mcp[day][server][tool] = {"calls": int, "errors": int, "last_ts": float}
+        # — MCP tool usage broken out per server and per tool (persisted).
+        self._mcp: dict[str, dict[str, dict[str, dict]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(lambda: {"calls": 0, "errors": 0, "last_ts": 0.0})))
         # utt_counts[app][day] = int  (persisted totals; text is NOT kept here)
         self._utt_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self._utt_recent: deque = deque(maxlen=_UTT_RECENT)   # live view, in-memory
@@ -140,7 +193,8 @@ class _Store:
             self._dirty = True
 
     def record_call(self, provider: str, day: str, ok: bool, n: int,
-                    utt: str | None = None, code: str | None = None) -> None:
+                    utt: str | None = None, code: str | None = None,
+                    ts: float = 0.0) -> None:
         with self._lock:
             rec = self._providers[day][provider]
             if ok:
@@ -148,11 +202,29 @@ class _Store:
             else:
                 rec["errors"] += n
                 self._err_codes[day][provider][code or "error"] += n
+            rec["last_ts"] = max(rec.get("last_ts", 0.0), ts)
             # In-process LLM calls carry the utterance id — attribute them to it.
             if utt:
                 item = self._utt_by_id.get(utt)
                 if item is not None:
                     item["calls"][provider] = item["calls"].get(provider, 0) + n
+            self._dirty = True
+
+    def record_mcp(self, server: str, tool: str, day: str, ok: bool, n: int,
+                   utt: str | None = None, ts: float = 0.0) -> None:
+        with self._lock:
+            rec = self._mcp[day][server][tool]
+            if ok:
+                rec["calls"] += n
+            else:
+                rec["errors"] += n
+            rec["last_ts"] = max(rec.get("last_ts", 0.0), ts)
+            # Attribute to the in-flight utterance (chips), keyed by server name
+            # so an utterance shows which MCP servers it exercised.
+            if utt:
+                item = self._utt_by_id.get(utt)
+                if item is not None:
+                    item["calls"][server] = item["calls"].get(server, 0) + n
             self._dirty = True
 
     def record_utterance(self, app: str, day: str, text: str, ts: float,
@@ -188,53 +260,68 @@ class _Store:
         """Per-app summary + a daily series for the last `days` days."""
         with self._lock:
             today = _today()
+            ctx = _window_ctx()
             recent = [(datetime.now(timezone.utc).date().toordinal() - i) for i in range(days)]
             recent_days = [datetime.fromordinal(o).strftime("%Y-%m-%d") for o in sorted(recent)]
             apps = []
             tot_req = tot_today = tot_uniq_today = 0
+            tot_uniq_all = 0
             for app, by_day in self._stats.items():
-                req_total = sum(d["requests"] for d in by_day.values())
-                req_today = by_day.get(today, {}).get("requests", 0)
-                uniq_today = len(by_day.get(today, {}).get("uniques", ()))
-                req_7d = sum(by_day.get(dk, {}).get("requests", 0) for dk in recent_days[-7:])
-                last_ts = max((d["last_ts"] for d in by_day.values()), default=0.0)
+                req_w = _zero_windows()       # requests per window
+                uniq_w = _zero_windows()      # unique visitors per window (daily sum)
+                last_ts = 0.0
+                for dk, d in by_day.items():
+                    nreq, nuniq = d["requests"], len(d["uniques"])
+                    for w in _windows_for(dk, ctx):
+                        req_w[w] += nreq
+                        uniq_w[w] += nuniq
+                    last_ts = max(last_ts, d["last_ts"])
                 series = [{"day": dk,
                            "requests": by_day.get(dk, {}).get("requests", 0),
                            "uniques": len(by_day.get(dk, {}).get("uniques", ()))}
                           for dk in recent_days]
-                apps.append({
-                    "app": app, "requests_total": req_total,
-                    "requests_today": req_today, "uniques_today": uniq_today,
-                    "requests_7d": req_7d, "last_ts": last_ts, "series": series,
-                })
-                tot_req += req_total
-                tot_today += req_today
-                tot_uniq_today += uniq_today
+                row = {"app": app, "last_ts": last_ts, "series": series}
+                for w in WINDOW_KEYS:
+                    row[f"requests_{w}"] = req_w[w]
+                    row[f"uniques_{w}"] = uniq_w[w]
+                apps.append(row)
+                tot_req += req_w["total"]
+                tot_today += req_w["today"]
+                tot_uniq_today += uniq_w["today"]
+                tot_uniq_all += uniq_w["total"]
             apps.sort(key=lambda a: (a["requests_today"], a["requests_total"]), reverse=True)
 
-            # Provider API calls — per-provider today + all-time, plus the
-            # failure-reason breakdown (e.g. how often a 429 rate limit was hit).
+            # Provider API calls — per-provider windowed call/error counts, last
+            # seen, plus the failure-reason breakdown (how often a 429 was hit).
             provs: dict[str, dict] = {}
+
+            def _prov(prov):
+                return provs.setdefault(prov, {
+                    "provider": prov, "calls": _zero_windows(), "errors": _zero_windows(),
+                    "errors_by_code": defaultdict(int), "last_ts": 0.0})
+
             for day, by_prov in self._providers.items():
+                wins = _windows_for(day, ctx)
                 for prov, c in by_prov.items():
-                    agg = provs.setdefault(prov, {"provider": prov, "calls_today": 0,
-                                                  "calls_total": 0, "errors_total": 0,
-                                                  "errors_by_code": defaultdict(int)})
-                    agg["calls_total"] += c["calls"]
-                    agg["errors_total"] += c["errors"]
-                    if day == today:
-                        agg["calls_today"] += c["calls"]
+                    agg = _prov(prov)
+                    for w in wins:
+                        agg["calls"][w] += c["calls"]
+                        agg["errors"][w] += c["errors"]
+                    agg["last_ts"] = max(agg["last_ts"], c.get("last_ts", 0.0))
             for day, by_prov in self._err_codes.items():
                 for prov, codes in by_prov.items():
-                    agg = provs.setdefault(prov, {"provider": prov, "calls_today": 0,
-                                                  "calls_total": 0, "errors_total": 0,
-                                                  "errors_by_code": defaultdict(int)})
+                    agg = _prov(prov)
                     for code, k in codes.items():
                         agg["errors_by_code"][code] += k
-            for agg in provs.values():            # defaultdict -> plain dict for JSON
-                agg["errors_by_code"] = dict(agg["errors_by_code"])
-            providers = sorted(provs.values(),
-                               key=lambda p: (p["calls_today"], p["calls_total"]), reverse=True)
+            providers = []
+            for agg in provs.values():
+                flat = {"provider": agg["provider"], "last_ts": agg["last_ts"],
+                        "errors_by_code": dict(agg["errors_by_code"])}
+                for w in WINDOW_KEYS:
+                    flat[f"calls_{w}"] = agg["calls"][w]
+                    flat[f"errors_{w}"] = agg["errors"][w]
+                providers.append(flat)
+            providers.sort(key=lambda p: (p["calls_today"], p["calls_total"]), reverse=True)
 
             # Aggregate daily series for the charts (last `days` days):
             #  • api_calls — provider calls + errors per day (across all providers)
@@ -256,29 +343,277 @@ class _Store:
                     day_uniq |= by_day.get(dk, {}).get("uniques", set())
                 series_visits.append({"day": dk, "requests": day_req, "uniques": len(day_uniq)})
 
-            utt_today = sum(by_day.get(today, 0) for by_day in self._utt_counts.values())
-            utt_total = sum(sum(by_day.values()) for by_day in self._utt_counts.values())
+            # MCP servers & tools — per-server totals + a per-day series, each
+            # with its tools broken out the same way. This powers the dedicated
+            # "MCP servers & tools" tab: a server's daily status up top, the
+            # tools inside it further down.
+            recent_set = set(recent_days)
+            srv_acc: dict[str, dict] = {}
+
+            def _srv(srv):
+                return srv_acc.setdefault(srv, {
+                    "server": srv, "calls": _zero_windows(), "errors": _zero_windows(),
+                    "last_ts": 0.0,
+                    "series": {d: {"calls": 0, "errors": 0} for d in recent_days},
+                    "tools": {}})
+
+            def _tool(s, tool):
+                return s["tools"].setdefault(tool, {
+                    "tool": tool, "calls": _zero_windows(), "errors": _zero_windows(),
+                    "last_ts": 0.0,
+                    "series": {d: {"calls": 0, "errors": 0} for d in recent_days}})
+
+            for dk, by_srv in self._mcp.items():
+                wins = _windows_for(dk, ctx)
+                in_window = dk in recent_set
+                for srv, by_tool in by_srv.items():
+                    s = _srv(srv)
+                    for tool, c in by_tool.items():
+                        t = _tool(s, tool)
+                        for w in wins:
+                            s["calls"][w] += c["calls"]; s["errors"][w] += c["errors"]
+                            t["calls"][w] += c["calls"]; t["errors"][w] += c["errors"]
+                        lt = c.get("last_ts", 0.0)
+                        s["last_ts"] = max(s["last_ts"], lt)
+                        t["last_ts"] = max(t["last_ts"], lt)
+                        if in_window:
+                            s["series"][dk]["calls"] += c["calls"]; s["series"][dk]["errors"] += c["errors"]
+                            t["series"][dk]["calls"] += c["calls"]; t["series"][dk]["errors"] += c["errors"]
+
+            def _flat_mcp(node, key):
+                flat = {key: node[key], "last_ts": node["last_ts"],
+                        "series": [{"day": d, **node["series"][d]} for d in recent_days]}
+                for w in WINDOW_KEYS:
+                    flat[f"calls_{w}"] = node["calls"][w]
+                    flat[f"errors_{w}"] = node["errors"][w]
+                return flat
+
+            mcp_servers = []
+            for s in srv_acc.values():
+                sflat = _flat_mcp(s, "server")
+                tools = [_flat_mcp(t, "tool") for t in s["tools"].values()]
+                tools.sort(key=lambda x: (x["calls_today"], x["calls_total"]), reverse=True)
+                sflat["tools"] = tools
+                mcp_servers.append(sflat)
+            mcp_servers.sort(key=lambda s: (s["calls_today"], s["calls_total"]), reverse=True)
+            mcp_series = []
+            for dk in recent_days:
+                by_srv = self._mcp.get(dk, {})
+                mcp_series.append({
+                    "day": dk,
+                    "calls":  sum(c["calls"] for bt in by_srv.values() for c in bt.values()),
+                    "errors": sum(c["errors"] for bt in by_srv.values() for c in bt.values()),
+                })
+            mcp_calls_today = sum(s["calls_today"] for s in mcp_servers)
+            mcp_calls_total = sum(s["calls_total"] for s in mcp_servers)
+
+            # Utterance counts per window (text isn't kept beyond the recent deque).
+            utt_w = _zero_windows()
+            for by_day in self._utt_counts.values():
+                for dk, n in by_day.items():
+                    for w in _windows_for(dk, ctx):
+                        utt_w[w] += int(n)
+            utt_today, utt_total = utt_w["today"], utt_w["total"]
             # newest first; copy the mutable `calls` dict under the lock so it
             # can't be mutated by a concurrent record_call during serialization.
+            # Send the whole recent deque (each carries `ts`) so the UI can filter
+            # the visible list by time window client-side.
             recent_utts = [
                 {"app": u["app"], "text": u["text"], "ts": u["ts"],
                  **({"id": u["id"]} if u.get("id") else {}),
                  **({"calls": dict(u["calls"])} if u.get("calls") else {})}
-                for u in list(self._utt_recent)[-50:][::-1]
+                for u in list(self._utt_recent)[::-1]
             ]
 
             return {
                 "generated_at": time.time(),
                 "totals": {"apps": len(apps), "requests_total": tot_req,
                            "requests_today": tot_today, "uniques_today": tot_uniq_today,
+                           "uniques_total": tot_uniq_all,
                            "calls_today": sum(p["calls_today"] for p in providers),
+                           "mcp_calls_today": mcp_calls_today,
+                           "mcp_calls_total": mcp_calls_total,
                            "utterances_total": utt_total, "utterances_today": utt_today},
                 "apps": apps,
                 "providers": providers,
-                "utterances": {"total": utt_total, "today": utt_today, "recent": recent_utts},
-                "series": {"api_calls": series_api, "visits": series_visits},
+                "mcp": {"servers": mcp_servers, "series": mcp_series},
+                "utterances": {"total": utt_total, "today": utt_today,
+                               "windows": utt_w, "recent": recent_utts},
+                "series": {"api_calls": series_api, "visits": series_visits,
+                           "mcp_calls": mcp_series},
                 "days": recent_days,
             }
+
+    def report(self, granularity: str = "daily") -> dict:
+        """Per-period usage rollup for download. ``granularity`` is 'daily'
+        (per YYYY-MM-DD) or 'monthly' (per YYYY-MM). Rolls up the same per-day
+        aggregates the dashboard uses into downloadable rows: per-app usage,
+        per-provider API calls, and a per-period total (unique visitors are a
+        true union across days/apps, never a sum)."""
+        monthly = str(granularity).lower().startswith("month")
+
+        def bucket(day: str) -> str:
+            return day[:7] if monthly else day          # YYYY-MM vs YYYY-MM-DD
+
+        with self._lock:
+            app_rows: dict = defaultdict(lambda: defaultdict(
+                lambda: {"requests": 0, "uniques": set(), "utterances": 0}))
+            period_uniq: dict = defaultdict(set)
+            for app, by_day in self._stats.items():
+                for day, d in by_day.items():
+                    p = bucket(day)
+                    r = app_rows[p][app]
+                    r["requests"] += d["requests"]
+                    r["uniques"] |= d["uniques"]
+                    period_uniq[p] |= d["uniques"]
+            for app, by_day in self._utt_counts.items():
+                for day, n in by_day.items():
+                    app_rows[bucket(day)][app]["utterances"] += int(n)
+            prov_rows: dict = defaultdict(lambda: defaultdict(
+                lambda: {"calls": 0, "errors": 0}))
+            for day, by_prov in self._providers.items():
+                p = bucket(day)
+                for prov, c in by_prov.items():
+                    prov_rows[p][prov]["calls"] += c["calls"]
+                    prov_rows[p][prov]["errors"] += c["errors"]
+            # MCP tool usage rolled up per period, keyed by "server/tool".
+            mcp_rows: dict = defaultdict(lambda: defaultdict(
+                lambda: {"calls": 0, "errors": 0}))
+            for day, by_srv in self._mcp.items():
+                p = bucket(day)
+                for srv, by_tool in by_srv.items():
+                    for tool, c in by_tool.items():
+                        m = mcp_rows[p][f"{srv}/{tool}"]
+                        m["calls"] += c["calls"]
+                        m["errors"] += c["errors"]
+
+            periods = sorted(set(app_rows) | set(prov_rows) | set(mcp_rows))
+            apps_out, providers_out, mcp_out, totals_out = [], [], [], []
+            for p in periods:
+                t_req = t_utt = 0
+                for app in sorted(app_rows.get(p, {})):
+                    r = app_rows[p][app]
+                    apps_out.append({"period": p, "app": app,
+                                     "requests": r["requests"],
+                                     "unique_visitors": len(r["uniques"]),
+                                     "utterances": r["utterances"]})
+                    t_req += r["requests"]
+                    t_utt += r["utterances"]
+                for prov in sorted(prov_rows.get(p, {})):
+                    c = prov_rows[p][prov]
+                    providers_out.append({"period": p, "provider": prov,
+                                          "calls": c["calls"], "errors": c["errors"]})
+                for st in sorted(mcp_rows.get(p, {})):
+                    c = mcp_rows[p][st]
+                    srv, _, tool = st.partition("/")
+                    mcp_out.append({"period": p, "server": srv, "tool": tool,
+                                    "calls": c["calls"], "errors": c["errors"]})
+                totals_out.append({
+                    "period": p, "requests": t_req,
+                    "unique_visitors": len(period_uniq.get(p, set())),
+                    "utterances": t_utt,
+                    "provider_calls": sum(c["calls"] for c in prov_rows.get(p, {}).values()),
+                    "provider_errors": sum(c["errors"] for c in prov_rows.get(p, {}).values()),
+                    "mcp_calls": sum(c["calls"] for c in mcp_rows.get(p, {}).values()),
+                    "mcp_errors": sum(c["errors"] for c in mcp_rows.get(p, {}).values()),
+                })
+
+            # ── Windowed summary (today / yesterday / 7d / 14d / 1m / 3m / total
+            # + last seen) — the same numbers the dashboard tables show, so a
+            # download is self-contained. Independent of the daily/monthly axis.
+            windows = self._window_summary()
+            return {"granularity": "monthly" if monthly else "daily",
+                    "generated_at": time.time(),
+                    "window_keys": WINDOW_KEYS,
+                    "totals": totals_out, "apps": apps_out,
+                    "providers": providers_out, "mcp": mcp_out,
+                    "windows": windows}
+
+    def _window_summary(self) -> dict:
+        """Windowed counts (WINDOW_KEYS) + last-seen for every app, provider, and
+        MCP server/tool, plus per-window totals and utterance counts. Assumes the
+        caller already holds ``self._lock``."""
+        ctx = _window_ctx()
+
+        def accum(store, key_fn):
+            agg: dict = {}
+            for name, by_day in store.items():
+                for dk, val in by_day.items():
+                    wins = _windows_for(dk, ctx)
+                    rec = agg.setdefault(name, {"w": _zero_windows(), "last_ts": 0.0,
+                                                "extra": _zero_windows()})
+                    n, e, ts = key_fn(val)
+                    for w in wins:
+                        rec["w"][w] += n
+                        rec["extra"][w] += e
+                    rec["last_ts"] = max(rec["last_ts"], ts)
+            return agg
+
+        # Apps: requests (+ unique visitors as the "extra" series, summed daily).
+        app_agg = accum(self._stats,
+                        lambda d: (d["requests"], len(d["uniques"]), d["last_ts"]))
+        # Utterances per app per window (no last_ts dimension).
+        utt_app: dict = {}
+        for app, by_day in self._utt_counts.items():
+            for dk, n in by_day.items():
+                rec = utt_app.setdefault(app, _zero_windows())
+                for w in _windows_for(dk, ctx):
+                    rec[w] += int(n)
+        apps_w = []
+        for app in sorted(set(app_agg) | set(utt_app)):
+            a = app_agg.get(app, {"w": _zero_windows(), "extra": _zero_windows(), "last_ts": 0.0})
+            u = utt_app.get(app, _zero_windows())
+            for w in WINDOW_KEYS:
+                apps_w.append({"window": w, "app": app,
+                               "requests": a["w"][w], "unique_visitors": a["extra"][w],
+                               "utterances": u[w],
+                               "last_seen": a["last_ts"] if w == "total" else ""})
+
+        prov_agg = accum(self._providers,
+                         lambda c: (c["calls"], c["errors"], c.get("last_ts", 0.0)))
+        providers_w = []
+        for prov in sorted(prov_agg):
+            a = prov_agg[prov]
+            for w in WINDOW_KEYS:
+                providers_w.append({"window": w, "provider": prov,
+                                    "calls": a["w"][w], "errors": a["extra"][w],
+                                    "last_seen": a["last_ts"] if w == "total" else ""})
+
+        # MCP keyed by "server/tool" so it flows through the same accum() shape.
+        mcp_flat: dict = defaultdict(lambda: defaultdict(
+            lambda: {"calls": 0, "errors": 0, "last_ts": 0.0}))
+        for dk, by_srv in self._mcp.items():
+            for srv, by_tool in by_srv.items():
+                for tool, c in by_tool.items():
+                    m = mcp_flat[dk][f"{srv}/{tool}"]
+                    m["calls"] += c["calls"]; m["errors"] += c["errors"]
+                    m["last_ts"] = max(m["last_ts"], c.get("last_ts", 0.0))
+        mcp_agg = accum(mcp_flat,
+                        lambda c: (c["calls"], c["errors"], c["last_ts"]))
+        mcp_w = []
+        for st in sorted(mcp_agg):
+            a = mcp_agg[st]
+            srv, _, tool = st.partition("/")
+            for w in WINDOW_KEYS:
+                mcp_w.append({"window": w, "server": srv, "tool": tool,
+                              "calls": a["w"][w], "errors": a["extra"][w],
+                              "last_seen": a["last_ts"] if w == "total" else ""})
+
+        # Per-window totals across everything.
+        totals_w = []
+        for w in WINDOW_KEYS:
+            totals_w.append({
+                "window": w,
+                "requests": sum(a["w"][w] for a in app_agg.values()),
+                "unique_visitors": sum(a["extra"][w] for a in app_agg.values()),
+                "utterances": sum(u[w] for u in utt_app.values()),
+                "provider_calls": sum(a["w"][w] for a in prov_agg.values()),
+                "provider_errors": sum(a["extra"][w] for a in prov_agg.values()),
+                "mcp_calls": sum(a["w"][w] for a in mcp_agg.values()),
+                "mcp_errors": sum(a["extra"][w] for a in mcp_agg.values()),
+            })
+        return {"totals": totals_w, "apps": apps_w,
+                "providers": providers_w, "mcp": mcp_w}
 
     # ── persistence ──────────────────────────────────────────────────────
     # The snapshot carries the bounded, anonymous aggregates (requests, uniques,
@@ -286,7 +621,7 @@ class _Store:
     # it streams to the utterances/ prefix as append-only batches.
     def to_snapshot(self) -> dict:
         with self._lock:
-            return {"version": 2, "saved_at": time.time(),
+            return {"version": 3, "saved_at": time.time(),
                     "stats": {
                         app: {day: {"requests": d["requests"],
                                     "uniques": sorted(d["uniques"]),
@@ -296,6 +631,9 @@ class _Store:
                         for app, by_day in self._stats.items()},
                     "providers": {day: {p: dict(c) for p, c in by_prov.items()}
                                   for day, by_prov in self._providers.items()},
+                    "mcp": {day: {srv: {tool: dict(c) for tool, c in by_tool.items()}
+                                  for srv, by_tool in by_srv.items()}
+                            for day, by_srv in self._mcp.items()},
                     "utt_counts": {app: dict(by_day)
                                    for app, by_day in self._utt_counts.items()}}
 
@@ -309,11 +647,20 @@ class _Store:
                     rec["uniques"] = set(d.get("uniques", []))
                     rec["statuses"] = defaultdict(int, {k: int(v) for k, v in (d.get("statuses") or {}).items()})
                     rec["last_ts"] = float(d.get("last_ts", 0.0))
-            self._providers = defaultdict(lambda: defaultdict(lambda: {"calls": 0, "errors": 0}))
+            self._providers = defaultdict(lambda: defaultdict(lambda: {"calls": 0, "errors": 0, "last_ts": 0.0}))
             for day, by_prov in (snap.get("providers") or {}).items():
                 for prov, c in by_prov.items():
                     self._providers[day][prov] = {"calls": int(c.get("calls", 0)),
-                                                  "errors": int(c.get("errors", 0))}
+                                                  "errors": int(c.get("errors", 0)),
+                                                  "last_ts": float(c.get("last_ts", 0.0))}
+            self._mcp = defaultdict(
+                lambda: defaultdict(lambda: defaultdict(lambda: {"calls": 0, "errors": 0, "last_ts": 0.0})))
+            for day, by_srv in (snap.get("mcp") or {}).items():
+                for srv, by_tool in by_srv.items():
+                    for tool, c in by_tool.items():
+                        self._mcp[day][srv][tool] = {"calls": int(c.get("calls", 0)),
+                                                     "errors": int(c.get("errors", 0)),
+                                                     "last_ts": float(c.get("last_ts", 0.0))}
             self._utt_counts = defaultdict(lambda: defaultdict(int))
             for app, by_day in (snap.get("utt_counts") or {}).items():
                 for day, n in by_day.items():
@@ -456,7 +803,18 @@ def _web(port: int) -> None:
                 n = 1
             STORE.record_call(provider, day, bool(ev.get("ok", True)), n,
                               utt=(str(ev.get("utt"))[:32] if ev.get("utt") else None),
-                              code=(str(ev.get("code"))[:24] if ev.get("code") else None))
+                              code=(str(ev.get("code"))[:24] if ev.get("code") else None),
+                              ts=ts)
+        elif kind == "mcp":
+            server = str(ev.get("server") or "unknown")[:40]
+            tool = str(ev.get("tool") or "unknown")[:64]
+            try:
+                n = int(ev.get("n") or 1)
+            except (TypeError, ValueError):
+                n = 1
+            STORE.record_mcp(server, tool, day, bool(ev.get("ok", True)), n,
+                             utt=(str(ev.get("utt"))[:32] if ev.get("utt") else None),
+                             ts=ts)
         elif kind == "utterance":
             text = str(ev.get("text") or "")[:_UTT_TEXT_MAX]
             if text:
@@ -486,6 +844,73 @@ def _web(port: int) -> None:
         if not _dash_authed(request):
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         return STORE.rollup()
+
+    @app.get("/api/report")
+    async def api_report(request: Request, granularity: str = "daily",
+                         format: str = "csv"):
+        """Download a usage report. ?granularity=daily|monthly · ?format=csv|json
+        Token-gated like the dashboard (?token=…). CSV opens straight in Excel.
+        Two row groups: the per-period breakdown (section TOTAL/APP/PROVIDER/MCP,
+        the ``period`` column holds a date) and the windowed summary the dashboard
+        tables show (section WIN-*, the ``period`` column holds a window name like
+        today / yesterday / 7d / 14d / 1m / 3m / total)."""
+        if not _dash_authed(request):
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        g = "monthly" if str(granularity).lower().startswith("month") else "daily"
+        rep = STORE.report(g)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        fname = f"cuga_usage_{g}_{stamp}"
+        if str(format).lower() == "json":
+            return JSONResponse(rep, headers={
+                "Content-Disposition": f'attachment; filename="{fname}.json"'})
+        import csv
+        import io
+        from fastapi.responses import Response
+
+        def _iso(ts) -> str:
+            if not ts:
+                return ""
+            try:
+                return datetime.fromtimestamp(float(ts), timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+            except Exception:  # noqa: BLE001
+                return ""
+
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["section", "period", "name", "requests",
+                    "unique_visitors", "utterances", "calls", "errors", "last_seen"])
+        for r in rep["totals"]:
+            w.writerow(["TOTAL", r["period"], "(all apps)", r["requests"],
+                        r["unique_visitors"], r["utterances"],
+                        r["provider_calls"] + r.get("mcp_calls", 0),
+                        r["provider_errors"] + r.get("mcp_errors", 0), ""])
+        for r in rep["apps"]:
+            w.writerow(["APP", r["period"], r["app"], r["requests"],
+                        r["unique_visitors"], r["utterances"], "", "", ""])
+        for r in rep["providers"]:
+            w.writerow(["PROVIDER", r["period"], r["provider"], "", "", "",
+                        r["calls"], r["errors"], ""])
+        for r in rep.get("mcp", []):
+            w.writerow(["MCP", r["period"], r["server"] + "/" + r["tool"], "", "", "",
+                        r["calls"], r["errors"], ""])
+        # Windowed summary rows (today / yesterday / 7d / 14d / 1m / 3m / total).
+        win = rep.get("windows", {})
+        for r in win.get("totals", []):
+            w.writerow(["WIN-TOTAL", r["window"], "(all apps)", r["requests"],
+                        r["unique_visitors"], r["utterances"],
+                        r["provider_calls"] + r.get("mcp_calls", 0),
+                        r["provider_errors"] + r.get("mcp_errors", 0), ""])
+        for r in win.get("apps", []):
+            w.writerow(["WIN-APP", r["window"], r["app"], r["requests"],
+                        r["unique_visitors"], r["utterances"], "", "", _iso(r.get("last_seen"))])
+        for r in win.get("providers", []):
+            w.writerow(["WIN-PROVIDER", r["window"], r["provider"], "", "", "",
+                        r["calls"], r["errors"], _iso(r.get("last_seen"))])
+        for r in win.get("mcp", []):
+            w.writerow(["WIN-MCP", r["window"], r["server"] + "/" + r["tool"], "", "", "",
+                        r["calls"], r["errors"], _iso(r.get("last_seen"))])
+        return Response(content=buf.getvalue(), media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{fname}.csv"'})
 
     @app.get("/health")
     async def health():

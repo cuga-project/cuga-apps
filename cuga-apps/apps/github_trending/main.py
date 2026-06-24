@@ -414,6 +414,11 @@ def make_agent():
         tools=_make_tools(),
         special_instructions=_SYSTEM,
         cuga_folder=str(_DIR / ".cuga"),
+        # CUGA's policy DB is a global sqlite store shared by every app. This app
+        # attaches its own policies at runtime, so it never needs auto-load —
+        # turning it off stops it inheriting OTHER apps' output-formatters (e.g.
+        # find_a_doctor's doctor board) and emitting them instead of its own.
+        auto_load_policies=False,
     )
 
 
