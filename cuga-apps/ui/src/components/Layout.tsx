@@ -13,6 +13,10 @@ const FEEDBACK_URL = 'https://github.com/cuga-project/cuga-apps/issues/new'
 // can jump straight to the code behind every app on the page.
 const REPO_URL = 'https://github.com/cuga-project/cuga-apps'
 
+// The CUGA agent harness itself — the "give us a star" CTA points here, not at
+// the apps repo above.
+const STAR_URL = 'https://github.com/cuga-project/cuga-agent'
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme()
 
@@ -58,6 +62,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="flex-1" />
+        <a
+          href={STAR_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Star CUGA on GitHub"
+          className="flex items-center gap-2 px-4 h-9 rounded-full text-sm font-semibold text-[#3a2c08] bg-[linear-gradient(135deg,#f5dca0_0%,#e6c074_50%,#d4a857_100%)] border border-[#d8b970] shadow-[0_2px_8px_rgba(180,130,40,0.22)] hover:brightness-105 transition"
+        >
+          <span aria-hidden="true" className="text-base leading-none">⭐</span>
+          <span>Star CUGA on GitHub</span>
+        </a>
         <a
           href={REPO_URL}
           target="_blank"
