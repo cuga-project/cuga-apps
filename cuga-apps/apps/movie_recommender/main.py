@@ -7,7 +7,7 @@ suggestions.  Movie details are looked up via the free Wikipedia REST API — no
 key required.
 
 Usage:
-  python main.py [--port 8072] [--provider anthropic] [--model claude-sonnet-4-6]
+  python main.py [--port 28806] [--provider anthropic] [--model claude-sonnet-4-6]
 
 Required env vars:
   LLM_PROVIDER          — LLM backend: anthropic | openai | rits | watsonx | litellm | ollama
