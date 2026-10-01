@@ -67,6 +67,8 @@ Then open <http://127.0.0.1:28826> and try:
 | `LLM_MODEL`            | no       | model override                              |
 | `AGENT_SETTING_CONFIG` | no       | defaulted in `make_agent`                   |
 | `MEETUP_HEADLESS`      | no       | `0` to watch the browser (default headless) |
+| `MEETUP_BROWSER_LIBS`  | no       | Prefix with Chromium's system libs.         |
+| `MEETUP_NO_SANDBOX`    | no       | Force --no-sandbox (servers/containers).    |
 
 ## Notes & caveats
 
