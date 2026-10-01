@@ -339,6 +339,11 @@ class TestMcpCode:
         }))
         assert data["language"] == "javascript"
 
+    def test_validate_json_reports_line_and_col(self):
+        data = _expect_ok(call_mcp_tool("code", "validate_json", {"text": '{"a": 1,\n "b": }'}))
+        assert data["valid"] is False
+        assert (data["line"], data["col"]) == (2, 7)
+
 
 # ─── mcp-local ───────────────────────────────────────────────────────────
 
@@ -500,3 +505,9 @@ class TestMcpText:
         else:
             # If docling refused this minimal doc, at least confirm the right error code.
             assert env["code"] in ("upstream",)
+    def test_text_stats(self):
+        data = _expect_ok(call_mcp_tool("text", "text_stats", {
+            "text": "Hello world. This is CUGA! Is it fast?",
+        }))
+        assert data["words"] == 8
+        assert data["sentences"] == 3

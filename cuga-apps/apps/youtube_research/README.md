@@ -57,6 +57,16 @@ python main.py
 # open http://127.0.0.1:28803
 ```
 
+## Try it
+
+Once the app is open, type one of these into the chat box:
+
+- Latest developments in AI agents
+- How does RLHF work?
+- Best practices for RAG pipelines
+- https://youtube.com/watch?v=VIDEO_ID — summarise this video
+- Compare what these creators say about fine-tuning: [url1] [url2]
+
 ---
 
 ## How It Works
