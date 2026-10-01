@@ -339,6 +339,11 @@ class TestMcpCode:
         }))
         assert data["language"] == "javascript"
 
+    def test_validate_json_reports_line_and_col(self):
+        data = _expect_ok(call_mcp_tool("code", "validate_json", {"text": '{"a": 1,\n "b": }'}))
+        assert data["valid"] is False
+        assert (data["line"], data["col"]) == (2, 7)
+
 
 # ─── mcp-local ───────────────────────────────────────────────────────────
 
