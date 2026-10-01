@@ -114,6 +114,17 @@ class TestMcpWeb:
         })
         _expect_error(env, code="bad_input")
 
+    @pytest.mark.external
+    def test_get_github_repo(self):
+        env = call_mcp_tool("web", "get_github_repo", {"repo": "cuga-project/cuga-apps"})
+        if env["ok"]:
+            assert env["data"]["repo"] == "cuga-project/cuga-apps"
+        else:
+            assert env.get("code") == "rate_limit", env   # shared CI IPs can hit GitHub's limit
+
+    def test_get_github_repo_rejects_bad_input(self):
+        _expect_error(call_mcp_tool("web", "get_github_repo", {"repo": "not-a-repo"}), code="bad_input")
+
 
 # ─── mcp-knowledge ───────────────────────────────────────────────────────
 
