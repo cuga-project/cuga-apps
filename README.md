@@ -197,7 +197,7 @@ on. Run pattern: `cd cuga-apps/apps/<app> && pip install -r requirements.txt cug
 | [Stock & Crypto Alert](cuga-apps/apps/stock_alert) | finance | 28801 | Alpha Vantage key pasted in browser per session |
 | [IBM Cloud Advisor](cuga-apps/apps/ibm_cloud_advisor) | web | 28812 | |
 | [IBM Docs Q&A](cuga-apps/apps/ibm_docs_qa) | web | 28813 | |
-| [Ouroboros](cuga-apps/apps/ouroboros) | — | 28822 | multi-agent (supervisor + 7 specialists); give it `APP_MEM=4G` |
+| [Ouroboros](cuga-apps/apps/ouroboros) | web | 28822 | multi-agent (supervisor + 7 specialists); give it `APP_MEM=4G` |
 
 Apps using an MCP server need either a local MCP server or `export CUGA_TARGET=ce`
 (see [Shared MCP servers](#shared-mcp-servers)).
