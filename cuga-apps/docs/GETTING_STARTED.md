@@ -97,7 +97,7 @@ ui                        Up
 
 | URL | What |
 |---|---|
-| http://localhost:3001 | **Umbrella UI** — clickable tiles for all 23 apps, with the MCP server + tools each one consumes shown in the Tools column |
+| http://localhost:3001 | **Umbrella UI** — clickable tiles for every app, with the MCP server + tools each one consumes shown in the Tools column |
 | http://localhost:28900 | **MCP Tool Explorer** — pick any MCP server, see its tools with their input schemas, fill in args in a form, invoke and see the raw response |
 
 Each app has its own browser-served FastAPI UI on a port in the 28xxx range —
@@ -168,7 +168,7 @@ If you'd rather run on the host (faster iteration during dev):
 ```bash
 pip install -r requirements.apps.txt -r requirements.mcp.txt
 cd apps
-python launch.py            # spawns 7 MCP servers + 23 apps as background processes
+python launch.py            # spawns all 8 MCP servers + every app as background processes
 python launch.py status     # who's running
 python launch.py logs newsletter   # tail one app's log
 python launch.py stop       # kill them all

@@ -3,6 +3,7 @@
 Tools:
   - get_crypto_price(symbol)   CoinGecko (free)
   - get_stock_quote(symbol)    Alpha Vantage (ALPHA_VANTAGE_API_KEY)
+  - convert_currency(amount, from_currency, to_currency)   Frankfurter / ECB rates (free)
 """
 from __future__ import annotations
 
@@ -134,6 +135,39 @@ def get_stock_quote(symbol: str, api_key: str | None = None) -> str:
         "volume":        int(quote.get("06. volume", 0)),
         "previous_close":float(quote.get("08. previous close", 0)),
         "latest_day":    quote.get("07. latest trading day", ""),
+    })
+
+
+@mcp.tool()
+def convert_currency(amount: float, from_currency: str, to_currency: str) -> str:
+    """Convert an amount between two fiat currencies using today's ECB reference rates.
+
+    Uses the Frankfurter API (no API key). Rates update once per working day.
+
+    Args:
+        amount: Amount to convert (e.g. 100).
+        from_currency: ISO 4217 code of the source currency (e.g. "USD").
+        to_currency: ISO 4217 code of the target currency (e.g. "EUR").
+    """
+    src, dst = from_currency.strip().upper(), to_currency.strip().upper()
+    if src == dst:
+        return tool_error("from_currency and to_currency must differ.", code="bad_input")
+    try:
+        data = get_json("https://api.frankfurter.dev/v1/latest",
+                       params={"amount": amount, "from": src, "to": dst})
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status == 404:
+            return tool_error(f"Unsupported currency code '{src}' or '{dst}'.", code="not_found")
+        if status == 422:
+            return tool_error(f"Invalid request: {exc}", code="bad_input")
+        return tool_error(f"Frankfurter failed: {exc}", code="upstream")
+    return tool_result({
+        "amount":        data.get("amount"),
+        "from_currency": src,
+        "to_currency":   dst,
+        "converted":     (data.get("rates") or {}).get(dst),
+        "rate_date":     data.get("date"),
     })
 
 

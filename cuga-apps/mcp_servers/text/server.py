@@ -3,6 +3,7 @@
 Tools:
   - chunk_text(text, strategy, size, overlap)   stateless splitting
   - count_tokens(text, encoding)                tiktoken encoding count
+  - text_stats(text, words_per_minute)        words, sentences, reading time
   - extract_text(file_path)                     docling: PDF/DOCX/XLSX/HTML → markdown
 
 All three are pure transformations — no shared state. Apps that previously
@@ -177,6 +178,33 @@ def count_tokens(text: str, encoding: str = "cl100k_base") -> str:
         "token_count": len(tokens),
         "encoding":    encoding,
         "char_count":  len(text or ""),
+    })
+
+
+# ── text_stats ─────────────────────────────────
+
+@mcp.tool()
+def text_stats(text: str, words_per_minute: int = 200) -> str:
+    """Count words, sentences and characters in a text and estimate reading time.
+
+    Args:
+        text: Text to analyze.
+        words_per_minute: Reading speed used for the estimate (default 200).
+
+    Returns:
+        {words, sentences, characters, characters_no_spaces, reading_time_minutes}
+    """
+    if words_per_minute <= 0:
+        return tool_error("words_per_minute must be a positive integer.", code="bad_input")
+    text = text or ""
+    words = len(text.split())
+    sentences = len([s for s in re.split(r"[.!?]+", text) if s.strip()])
+    return tool_result({
+        "words":                words,
+        "sentences":            sentences,
+        "characters":           len(text),
+        "characters_no_spaces": len(re.sub(r"\s", "", text)),
+        "reading_time_minutes": round(words / words_per_minute, 2),
     })
 
 

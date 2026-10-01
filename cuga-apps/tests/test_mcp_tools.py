@@ -114,6 +114,17 @@ class TestMcpWeb:
         })
         _expect_error(env, code="bad_input")
 
+    @pytest.mark.external
+    def test_get_github_repo(self):
+        env = call_mcp_tool("web", "get_github_repo", {"repo": "cuga-project/cuga-apps"})
+        if env["ok"]:
+            assert env["data"]["repo"] == "cuga-project/cuga-apps"
+        else:
+            assert env.get("code") == "rate_limit", env   # shared CI IPs can hit GitHub's limit
+
+    def test_get_github_repo_rejects_bad_input(self):
+        _expect_error(call_mcp_tool("web", "get_github_repo", {"repo": "not-a-repo"}), code="bad_input")
+
 
 # ─── mcp-knowledge ───────────────────────────────────────────────────────
 
@@ -254,6 +265,16 @@ class TestMcpGeo:
         assert "attractions" in data
         assert isinstance(data["attractions"], list)
 
+    @pytest.mark.external
+    def test_get_public_holidays(self):
+        data = _expect_ok(call_mcp_tool("geo", "get_public_holidays", {"country_code": "US", "year": 2026}))
+        assert any(h["date"] == "2026-01-01" for h in data["holidays"])
+
+    @pytest.mark.external
+    def test_get_public_holidays_unknown_country(self):
+        _expect_error(call_mcp_tool("geo", "get_public_holidays", {"country_code": "XX", "year": 2026}),
+                      code="bad_input")
+
 
 # ─── mcp-finance ─────────────────────────────────────────────────────────
 
@@ -285,6 +306,18 @@ class TestMcpFinance:
             assert env["data"]["price"] > 0
         else:
             assert env.get("code") in ("rate_limit", "not_found"), env
+
+    @pytest.mark.external
+    def test_convert_currency(self):
+        data = _expect_ok(call_mcp_tool("finance", "convert_currency", {
+            "amount": 100, "from_currency": "USD", "to_currency": "EUR",
+        }))
+        assert data["converted"] > 0
+
+    def test_convert_currency_same_currency_is_bad_input(self):
+        _expect_error(call_mcp_tool("finance", "convert_currency", {
+            "amount": 1, "from_currency": "USD", "to_currency": "usd",
+        }), code="bad_input")
 
 
 # ─── mcp-code ────────────────────────────────────────────────────────────
@@ -338,6 +371,11 @@ class TestMcpCode:
             "code": "const f = (x) => { console.log(x); return x + 1 };\n",
         }))
         assert data["language"] == "javascript"
+
+    def test_validate_json_reports_line_and_col(self):
+        data = _expect_ok(call_mcp_tool("code", "validate_json", {"text": '{"a": 1,\n "b": }'}))
+        assert data["valid"] is False
+        assert (data["line"], data["col"]) == (2, 7)
 
 
 # ─── mcp-local ───────────────────────────────────────────────────────────
@@ -500,3 +538,9 @@ class TestMcpText:
         else:
             # If docling refused this minimal doc, at least confirm the right error code.
             assert env["code"] in ("upstream",)
+    def test_text_stats(self):
+        data = _expect_ok(call_mcp_tool("text", "text_stats", {
+            "text": "Hello world. This is CUGA! Is it fast?",
+        }))
+        assert data["words"] == 8
+        assert data["sentences"] == 3
