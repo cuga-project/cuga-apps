@@ -254,6 +254,16 @@ class TestMcpGeo:
         assert "attractions" in data
         assert isinstance(data["attractions"], list)
 
+    @pytest.mark.external
+    def test_get_public_holidays(self):
+        data = _expect_ok(call_mcp_tool("geo", "get_public_holidays", {"country_code": "US", "year": 2026}))
+        assert any(h["date"] == "2026-01-01" for h in data["holidays"])
+
+    @pytest.mark.external
+    def test_get_public_holidays_unknown_country(self):
+        _expect_error(call_mcp_tool("geo", "get_public_holidays", {"country_code": "XX", "year": 2026}),
+                      code="bad_input")
+
 
 # ─── mcp-finance ─────────────────────────────────────────────────────────
 
