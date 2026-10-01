@@ -11,7 +11,7 @@ Starts a browser UI at http://127.0.0.1:28767 with:
 
 Run:
     python main.py
-    python main.py --port 9000
+    python main.py --port 28767
     python main.py --provider anthropic
 
 No email integration — alerts are surfaced in the UI and server log only.

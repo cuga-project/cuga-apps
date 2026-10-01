@@ -21,7 +21,7 @@ The server is stateless: every /ask and /check opens a fresh agent thread
 
 Run:
     python main.py
-    python main.py --port 8080
+    python main.py --port 28801
     python main.py --provider anthropic
 
 Then open: http://127.0.0.1:28801
