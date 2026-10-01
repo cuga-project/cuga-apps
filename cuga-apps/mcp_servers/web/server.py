@@ -6,6 +6,7 @@ Tools:
   - fetch_webpage_links(url, limit)          enumerate outbound links
   - fetch_feed(url, max_items)               RSS/Atom via feedparser
   - search_feeds(feed_urls, keywords, ...)   keyword filter across feeds
+  - get_github_repo(repo)                     GitHub repo stats (public API)
 
 Runs at streamable-http on MCP_WEB_PORT (default 29100).
 """
@@ -294,6 +295,42 @@ def get_youtube_transcript(youtube_url: str, max_words: int = 5000) -> str:
         "total_duration":    total_duration,
         "truncated":         truncated,
         "transcript":        transcript,
+    })
+
+
+@mcp.tool()
+def get_github_repo(repo: str) -> str:
+    """Get stats for a public GitHub repository, incl. open "good first issue" count.
+
+    Unauthenticated GitHub API: 60 requests/hour (search: 10/minute) per IP.
+
+    Args:
+        repo: Repository as "owner/name" (e.g. "cuga-project/cuga-apps").
+    """
+    repo = repo.strip().strip("/")
+    if repo.count("/") != 1:
+        return tool_error("repo must look like 'owner/name'.", code="bad_input")
+    try:
+        r = get_json(f"https://api.github.com/repos/{repo}")
+        q = f'repo:{repo} label:"good first issue" is:issue is:open'
+        gfi = get_json("https://api.github.com/search/issues", params={"q": q, "per_page": 1})
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status == 404:
+            return tool_error(f"Repository '{repo}' not found.", code="not_found")
+        if status in (403, 429):
+            return tool_error("GitHub rate limit hit; try again later.", code="rate_limit")
+        return tool_error(f"GitHub API failed: {exc}", code="upstream")
+    return tool_result({
+        "repo":              r.get("full_name"),
+        "description":       r.get("description"),
+        "stars":             r.get("stargazers_count"),
+        "forks":             r.get("forks_count"),
+        "open_issues_count": r.get("open_issues_count"),
+        "license":           (r.get("license") or {}).get("spdx_id"),
+        "pushed_at":         r.get("pushed_at"),
+        "good_first_issues": gfi.get("total_count"),
+        "url":               r.get("html_url"),
     })
 
 

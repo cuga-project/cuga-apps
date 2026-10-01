@@ -1,5 +1,5 @@
-# Dependencies for the cuga-apps FastAPI apps (stage 2: all 23 apps).
-# The apps mostly delegate tool primitives to the 6 MCP servers, but some
+# Dependencies for the cuga-apps FastAPI apps (stage 2: all apps).
+# The apps mostly delegate tool primitives to the shared MCP servers, but some
 # still carry heavy deps for app-state logic that can't move to MCP
 # (Box auth, OpenAPI parsers, chromadb embeddings, etc.).
 

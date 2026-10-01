@@ -4,12 +4,14 @@ Tools:
   - check_python_syntax(code)   AST validation
   - extract_code_metrics(code)  LOC, branch complexity, top-level defs
   - detect_language(code)       heuristic language ID
+  - validate_json(text)          JSON validation with line/col
 
 stdlib-only — no external APIs.
 """
 from __future__ import annotations
 
 import ast
+import json
 import sys
 from pathlib import Path
 
@@ -44,6 +46,28 @@ def check_python_syntax(code: str) -> str:
             "error": str(e),
             "line":  e.lineno,
             "col":   e.offset,
+        })
+
+
+@mcp.tool()
+def validate_json(text: str) -> str:
+    """Check whether a string is valid JSON using Python's json parser.
+
+    Returns {valid: bool, error: str|null, line: int|null, col: int|null}.
+    Use this before trying to load or reason about a JSON payload.
+
+    Args:
+        text: The JSON document to validate.
+    """
+    try:
+        json.loads(text)
+        return tool_result({"valid": True, "error": None, "line": None, "col": None})
+    except json.JSONDecodeError as e:
+        return tool_result({
+            "valid": False,
+            "error": e.msg,
+            "line":  e.lineno,
+            "col":   e.colno,
         })
 
 

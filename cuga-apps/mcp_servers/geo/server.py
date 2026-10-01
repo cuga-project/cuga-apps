@@ -5,11 +5,13 @@ Tools:
   - find_hikes(lat, lon, radius_km, ...)         Overpass API (OSM)
   - search_attractions(lat, lon, category, limit) Overpass API (OSM)
   - get_weather(city, travel_month)              wttr.in
+  - get_public_holidays(country_code, year)      Nager.Date
 
 All free, no API keys required.
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import sys
@@ -20,7 +22,7 @@ _SERVERS_ROOT = _HERE.parent
 if str(_SERVERS_ROOT.parent) not in sys.path:
     sys.path.insert(0, str(_SERVERS_ROOT.parent))
 
-from mcp_servers._core import tool_error, tool_result, get_json
+from mcp_servers._core import tool_error, tool_result, get_json, get_text
 from mcp_servers._core.serve import make_server, run
 from apps._ports import MCP_GEO_PORT  # noqa: E402
 
@@ -304,6 +306,34 @@ def get_weather(city: str, travel_month: str = "") -> str:
         },
         "forecast": forecast,
     })
+
+
+@mcp.tool()
+def get_public_holidays(country_code: str, year: int) -> str:
+    """List the public holidays for a country and year via Nager.Date (no API key).
+
+    Args:
+        country_code: ISO 3166-1 alpha-2 country code (e.g. "US", "DE", "JP").
+        year: Four-digit year (e.g. 2026).
+    """
+    cc = country_code.strip().upper()
+    try:
+        text = get_text(f"https://date.nager.at/api/v3/PublicHolidays/{year}/{cc}")
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status in (400, 404):
+            return tool_error(f"Unknown country code '{cc}' or unsupported year {year}.",
+                              code="bad_input")
+        return tool_error(f"Nager.Date failed: {exc}", code="upstream")
+    if not text.strip():  # HTTP 204: country exists but has no holiday data
+        return tool_error(f"No holiday data for '{cc}' in {year}.", code="not_found")
+    holidays = [{
+        "date":       h.get("date"),
+        "name":       h.get("name"),
+        "local_name": h.get("localName"),
+        "types":      h.get("types") or [],
+    } for h in json.loads(text)]
+    return tool_result({"country_code": cc, "year": year, "holidays": holidays})
 
 
 if __name__ == "__main__":

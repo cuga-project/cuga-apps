@@ -2,6 +2,9 @@
 name: TODO_skill_name
 description: TODO one-line, trigger-rich description. Mention the user-facing intent verbs ("Discover and compare hikes near a location"), not the implementation ("Wraps OpenStreetMap"). The agent reads this to decide whether to load this skill.
 requirements: []
+examples:
+  - "TODO a realistic request a user would type"
+  - "TODO a second, different request"
 ---
 
 # TODO_skill_name Assistant
