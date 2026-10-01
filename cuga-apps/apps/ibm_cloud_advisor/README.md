@@ -33,4 +33,14 @@ python main.py --port 28812
 # open http://127.0.0.1:28812
 ```
 
+## Try it
+
+Once the app is open, type one of these into the chat box:
+
+- IoT sensor pipeline with real-time processing and dashboards
+- Serverless web app with auth and a managed database
+- Event-driven microservices with a message queue
+- ML model training and serving platform on IBM Cloud
+- AWS equivalent: S3 + Lambda + DynamoDB on IBM Cloud
+
 Required env: `LLM_PROVIDER`, `LLM_MODEL`, `TAVILY_API_KEY` (consumed by mcp-web).
