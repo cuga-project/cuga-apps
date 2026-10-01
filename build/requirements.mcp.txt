@@ -8,7 +8,8 @@
 # Keeping those out drops several GB from the image.
 
 # ── MCP framework (server + client helpers) ──────────────────────────────
-mcp>=1.0
+# mcp 2.x renamed FastMCP; our servers use the 1.x API.
+mcp>=1.0,<2
 httpx
 pydantic
 

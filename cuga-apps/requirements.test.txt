@@ -3,4 +3,5 @@
 pytest>=7
 pytest-xdist>=3
 httpx>=0.27
-mcp>=1.0
+# mcp 2.x renamed FastMCP; the MCP servers and test client use the 1.x API.
+mcp>=1.0,<2
