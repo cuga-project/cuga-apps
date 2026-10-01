@@ -12,7 +12,7 @@ Usage:
     python launch.py stop
     python launch.py status
     python launch.py logs
-    python launch.py install
+    python launch.py kill      # force-free the ports (also catches orphans `stop` misses)
 
 The port registry lives in _ports.py — do not hardcode ports here.
 """
