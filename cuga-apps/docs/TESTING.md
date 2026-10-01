@@ -14,7 +14,7 @@ deliberately thin — most of the value lives at the integration layer here).
 ```bash
 make install-test-deps      # one-time: pip install -r requirements.test.txt
 docker compose up -d        # start the stack first
-make test                   # ~13s, 120 tests, no LLM cost
+make test                   # ~13s, 137 tests, no LLM cost
 ```
 
 If a test session-skips with "stack appears down", run `docker compose up -d`
@@ -120,7 +120,7 @@ on the bare host, or anywhere else the same ports are reachable.
 tests/
 ├── README.md            short pointer to this doc
 ├── conftest.py          session guard, helpers, mcp_session fixture
-├── test_smoke.py        endpoint reachability — 40 tests
+├── test_smoke.py        endpoint reachability — 53 tests
 ├── test_mcp_tools.py    one TestMcp* class per server — 45 tests
 ├── test_app_wiring.py   non-LLM REST routes per app + one round-trip — 39 tests
 └── test_app_llm.py      opt-in LLM round-trips + drop_summarizer pipeline — 5 tests
