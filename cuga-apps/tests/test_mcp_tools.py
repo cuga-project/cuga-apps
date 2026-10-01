@@ -307,6 +307,18 @@ class TestMcpFinance:
         else:
             assert env.get("code") in ("rate_limit", "not_found"), env
 
+    @pytest.mark.external
+    def test_convert_currency(self):
+        data = _expect_ok(call_mcp_tool("finance", "convert_currency", {
+            "amount": 100, "from_currency": "USD", "to_currency": "EUR",
+        }))
+        assert data["converted"] > 0
+
+    def test_convert_currency_same_currency_is_bad_input(self):
+        _expect_error(call_mcp_tool("finance", "convert_currency", {
+            "amount": 1, "from_currency": "USD", "to_currency": "usd",
+        }), code="bad_input")
+
 
 # ─── mcp-code ────────────────────────────────────────────────────────────
 
