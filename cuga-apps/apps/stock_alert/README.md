@@ -90,6 +90,16 @@ python main.py
 # click "Enable browser alerts" once to grant Notification permission
 ```
 
+## Try it
+
+Once the app is open, type one of these into the chat box:
+
+- What is the current price and 24h change?
+- Is this a good entry point compared to recent range?
+- Compare BTC and ETH — which is performing better today?
+- Give me a quick bull or bear read on SOL right now.
+- Add Watch: BTC above $90,000 — surfaces in Recent Alerts when crossed
+
 For stock quotes, each user pastes their own free Alpha Vantage key into the
 UI's "Alpha Vantage Key" field. It's saved to that browser's localStorage and
 sent on every request — never persisted on the server.
