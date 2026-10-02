@@ -1,0 +1,14 @@
+# webpage_summarizer — standalone Python deps.
+# Install: pip install -r requirements.txt
+
+# cuga agent framework (every app builds a CugaAgent)
+cuga
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+langchain-core>=0.3
+
+# MCP bridge — calls hosted `web` MCP for fetch_webpage
+mcp>=1.0
+langchain-mcp-adapters
