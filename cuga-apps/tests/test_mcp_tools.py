@@ -412,6 +412,21 @@ class TestMcpLocal:
 
 class TestMcpText:
 
+    @pytest.mark.parametrize("text", [
+        "a\n\nbbbbb\n\na",
+        "a\nbbbbb\na",
+        "a. bbbbb. a",
+        "a bbbbb a",
+        "\n\nbbbbb\n\n",
+        "a\nbbbbb\na\n\nend",
+    ], ids=["paragraphs", "lines", "sentences", "words", "empty-parts", "nested"])
+    def test_chunk_text_recursive_preserves_separators(self, text):
+        data = _expect_ok(call_mcp_tool("text", "chunk_text", {
+            "text": text, "strategy": "recursive", "size": 6, "overlap": 0,
+        }))
+        assert data["count"] >= 2
+        assert "".join(data["chunks"]) == text
+
     def test_chunk_text_recursive(self):
         text = "Section one.\n\nSection two with much more content here, definitely longer than the chunk size.\n\nSection three."
         data = _expect_ok(call_mcp_tool("text", "chunk_text", {
