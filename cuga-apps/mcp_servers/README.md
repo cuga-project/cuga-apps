@@ -51,7 +51,7 @@ From the repo root (`cuga-apps/`):
 
 ```bash
 # 1) one-time: create a venv and install common + the server's extras
-python3.11 -m venv .venv
+python3.13 -m venv .venv
 source .venv/bin/activate
 pip install "mcp>=1.0" httpx pydantic
 
