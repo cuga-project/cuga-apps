@@ -57,8 +57,8 @@ def _chunk_recursive(text: str, size: int, overlap: int, seps: list[str]) -> lis
     chunks: list[str] = []
     buf: list[str] = []
     cur_len = 0
-    for part in parts:
-        piece = part + (sep if part is not parts[-1] else "")
+    for i, part in enumerate(parts):
+        piece = part + (sep if i < len(parts) - 1 else "")
         if cur_len + len(piece) > size and buf:
             chunks.append("".join(buf))
             tail_overlap = "".join(buf)[-overlap:] if overlap > 0 else ""
