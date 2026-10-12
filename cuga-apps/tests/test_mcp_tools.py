@@ -192,6 +192,14 @@ class TestMcpKnowledge:
         assert "Attention" in data["title"]
 
     @pytest.mark.external
+    def test_search_books(self):
+        data = _expect_ok(call_mcp_tool("knowledge", "search_books", {"query": "the hobbit", "max_results": 2}))
+        assert any("Tolkien" in " ".join(b["authors"]) for b in data["books"])
+
+    def test_search_books_rejects_empty_query(self):
+        _expect_error(call_mcp_tool("knowledge", "search_books", {"query": ""}), code="bad_input")
+
+    @pytest.mark.external
     def test_search_semantic_scholar(self):
         env = call_mcp_tool("knowledge", "search_semantic_scholar", {
             "query": "transformer attention",
