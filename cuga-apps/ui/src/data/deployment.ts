@@ -72,6 +72,37 @@ const CE_APP_BY_ID: Record<string, string> = {
 }
 
 
+// ── External apps (own repo + own Code Engine app — see build/external/) ──
+// Not part of the all-in-one image, so never routed via /a/<app>/: in every
+// hosted mode the tile links straight to the app's own CE URL; locally it uses
+// the tile's appUrl (http://localhost:<port>) like any other app.
+// Keep in sync with build/external/apps/<app>.conf (UI_ID → CE_APP).
+const EXTERNAL_APP_BY_ID: Record<string, string> = {
+  // (none yet — Farm Assistant is listed under Bharat Core Services; see bharatServices.ts)
+}
+
+const ceAppUrl = (ceName: string): string =>
+  `https://${ceName}.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud`
+
+
+/**
+ * URL for a service that runs in its OWN Code Engine app (e.g. the Bharat Core
+ * Services in bharat-core-cuga-agent-app). In every hosted mode — Hugging Face, the
+ * all-in-one's own UI, per-app remote — that is the app's CE URL plus `path`;
+ * locally it is `localUrl`, with localhost rewritten to the page's host.
+ */
+export function resolveServiceUrl(ceApp: string, path: string, localUrl: string): string {
+  const hosted = TARGET === 'remote' || BUILD_TARGET === 'remote-allinone' || BUILD_TARGET === 'single'
+  if (hosted) {
+    return ceAppUrl(ceApp) + (path.startsWith('/') ? path : '/' + path)
+  }
+  if (typeof window !== 'undefined') {
+    return localUrl.replace('localhost', window.location.hostname)
+  }
+  return localUrl
+}
+
+
 // ── Deployment-target detection ────────────────────────────────────────
 type DeploymentTarget = 'local' | 'remote'
 
@@ -139,6 +170,15 @@ function allinoneSeg(id: string): string | null {
  * Returns null when the app has no usable URL in the current context.
  */
 export function resolveAppUrl(uc: Pick<UseCase, 'id' | 'appUrl'>): string | null {
+  // External apps: their own CE app in every hosted mode — including the
+  // all-in-one's 'single' UI. Checked first so 'single' (injected below by
+  // build/patch-deployment.cjs) can't turn it into a dead /a/<app>/ route.
+  const external = EXTERNAL_APP_BY_ID[uc.id]
+  if (external && (TARGET === 'remote' || BUILD_TARGET === 'remote-allinone'
+                   || BUILD_TARGET === 'single')) {
+    return ceAppUrl(external)
+  }
+
   if (!uc.appUrl) return null
 
   // remote-allinone: link into the single CE all-in-one service's path route.

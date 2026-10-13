@@ -340,6 +340,24 @@ Optional tuning env (sensible defaults; set in `build/.env` if needed):
 
 ---
 
+## 2c. External apps — their own Code Engine app
+
+Apps whose source lives in **another repo** (e.g. Farm Assistant) aren't in the all-in-one image.
+Each runs as its own CE app in this project — own origin, own secret, own restarts — and the
+umbrella UI links straight to it. Config and scripts live in [external/](external/README.md):
+
+```bash
+cd build/external
+cp apps/bharat-core-cuga-agent-app.env.example apps/bharat-core-cuga-agent-app.env            # fill in (gitignored)
+./build_external.sh bharat-core-cuga-agent-app /path/to/CUGA-Voice-RAG-Agent       # → prints <tag>
+./deploy_external.sh bharat-core-cuga-agent-app <tag>                               # → prints the URL
+```
+
+Redeploying an external app never touches `cuga-agent-apps`. Rebuild the UIs (§3, and §2 for the
+all-in-one's own UI) only when its tile or link changes.
+
+---
+
 ## 3. Hugging Face — build static UI, republish
 
 ```bash

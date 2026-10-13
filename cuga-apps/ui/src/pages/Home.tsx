@@ -5,7 +5,8 @@ import {
   CATEGORIES,
   type Category,
 } from '../data/usecases'
-import { resolveAppUrl } from '../data/deployment'
+import { resolveAppUrl, resolveServiceUrl } from '../data/deployment'
+import { BHARAT_SERVICES } from '../data/bharatServices'
 
 // Source lives in the public cuga-apps repo; each app's `demoPath` is a tree
 // path under it. Used by the "Check out code" affordance on not-yet-shippable
@@ -599,6 +600,64 @@ function UseCaseTable({ useCases, search, filterCategory, filterBucket, filterSh
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// Services built for India, hosted together in the bharat-core-cuga-agent-app Code Engine
+// app (outside the all-in-one). Rows come from data/bharatServices.ts. Drawn as its
+// own saffron band, visually separate from the indigo CUGA App Gallery below it.
+function BharatCoreServices() {
+  if (BHARAT_SERVICES.length === 0) return null
+  return (
+    <section aria-labelledby="bharat-core-heading"
+             className="mb-8 border border-amber-500/30 border-l-4 border-l-amber-500 bg-amber-500/[0.06]">
+      <div className="px-6 md:px-8 pt-6 pb-2 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">
+            Bharat Core Services
+          </div>
+          <h2 id="bharat-core-heading" className="text-2xl md:text-3xl font-semibold text-t1 tracking-tight">
+            Agents built for India, in Indian languages
+          </h2>
+        </div>
+      </div>
+      <ul className="px-6 md:px-8 pb-6 pt-3 grid gap-4 md:grid-cols-2">
+        {BHARAT_SERVICES.map((svc) => {
+          const href = resolveServiceUrl(svc.ceApp, svc.path, svc.localUrl)
+          return (
+            <li key={svc.id} className="bg-tsurf border border-tborder p-5 flex flex-col gap-3">
+              <a href={href} target="_blank" rel="noopener noreferrer"
+                 className="text-lg font-semibold text-t1 hover:text-amber-600 transition-colors">
+                {svc.name}
+              </a>
+              <p className="text-sm text-t2 leading-relaxed">{svc.description}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-auto">
+                {svc.facts.map((f) => (
+                  <span key={f} className="text-xs text-t3 bg-tsurf2 border border-tborder px-2 py-0.5">{f}</span>
+                ))}
+                <a href={href} target="_blank" rel="noopener noreferrer"
+                   className="ml-auto px-4 py-2 text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors">
+                  Open ↗
+                </a>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="px-6 md:px-8 pb-5 text-xs text-t3">Each service opens in a new tab and asks you to sign in.</p>
+    </section>
+  )
+}
+
+// Divider + heading that introduces the second band: the CUGA App Gallery.
+function GalleryDivider() {
+  return (
+    <div className="mb-6 flex items-center gap-4" role="separator" aria-label="CUGA App Gallery">
+      <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 whitespace-nowrap">
+        CUGA App Gallery
+      </div>
+      <div className="h-px flex-1 bg-tborder" />
+    </div>
+  )
+}
+
 export default function Home() {
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState<Category | 'all'>('all')
@@ -611,6 +670,12 @@ export default function Home() {
 
   return (
     <div className="p-6 md:p-8 max-w-screen-2xl mx-auto">
+
+      {/* ── Band 1: Bharat Core Services (bharat-core-cuga-agent-app, outside the all-in-one) ── */}
+      <BharatCoreServices />
+
+      {/* ── Band 2: the CUGA App Gallery ── */}
+      {BHARAT_SERVICES.length > 0 && <GalleryDivider />}
 
       {/* ── Hero pitch ── */}
       <div className="mb-10 bg-tsurf border border-tborder overflow-hidden">

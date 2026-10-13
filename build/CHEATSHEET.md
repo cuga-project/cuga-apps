@@ -43,6 +43,12 @@ For the full walkthrough (prereqs, COS setup, troubleshooting) see
 - **Used by:** the `usage-collector` app *inside* the all-in-one (dashboard at `/a/usage-collector/`). CE filesystem is ephemeral, so counters/utterances persist here.
 - **Wired via:** `build/.env` → CE secret. Setup in [DEPLOYMENT.md §2b](DEPLOYMENT.md).
 
+### 6. External apps — own repo, own CE app (e.g. Farm Assistant)
+- **Lives at:** CE app **`bharat-core-cuga-agent-app`** → `https://bharat-core-cuga-agent-app.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud`
+- **Image:** `icr.io/routing_namespace/bharat-core-cuga-agent-app:<git-sha>` · Dockerfile in the app's own repo
+- **Why separate:** own origin (users paste their own API keys), own secret, own restarts. Linked from the umbrella UI via `EXTERNAL_APP_BY_ID` in `deployment.ts` — never `/a/<app>/`.
+- **Builds from:** `build/external/build_external.sh <app> <checkout>` → `build/external/deploy_external.sh <app> <tag>` · config in `build/external/apps/<app>.conf`. See [external/README.md](external/README.md).
+
 ## How they relate
 
 ```
@@ -62,6 +68,7 @@ CE: cuga-apps-mcp-tool-explorer                                 ◀── "Tool 
 |---|---|---|
 | Any app / umbrella UI / bundled MCP (e.g. geo) → **gallery** | All-in-one (+ HF if UI changed) | `build/ce/build_and_push.sh && build/ce/deploy.sh`; then `build/hf/build.sh` |
 | A standalone MCP server or the **Tool Explorer** | Shared MCP image | `build/mcp_servers/build_mcp_image.sh …` → `build/mcp_servers/deploy_mcp.sh …` |
+| An **external app** (e.g. Farm Assistant, in its own repo) | That app's image only | `build/external/build_external.sh <app> <checkout>` → `build/external/deploy_external.sh <app> <tag>`; HF only if its tile/link changed |
 
 The two families are independent: the all-in-one bundles its own MCP copy, so the
 standalone `cuga-apps-mcp-*` set only matters for from-source `CUGA_TARGET=ce`

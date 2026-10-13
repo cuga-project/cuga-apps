@@ -22,7 +22,11 @@
 # =====================================================================
 
 # ---- Stage 1: build the umbrella UI in "single-container" URL mode ----------
-FROM node:20-slim AS ui
+# Built on the BUILD machine's own platform: the output is static HTML/JS/CSS,
+# identical on any CPU. This also keeps esbuild (a Go binary) out of QEMU
+# emulation when building amd64 on Apple Silicon, where it crashes with
+# "fatal error: lfstack.push".
+FROM --platform=$BUILDPLATFORM node:20-slim AS ui
 WORKDIR /ui
 COPY cuga-apps/ui/package*.json ./
 RUN npm ci
@@ -51,21 +55,26 @@ WORKDIR /app
 # CPU-only container. Installing the +cpu build up front satisfies the version
 # constraint, so the requirements.apps.txt resolve below never drags in the
 # CUDA wheels. Keeps all functionality; ~4.4 GB smaller image.
+COPY build/constraints.allinone.txt ./constraints.txt
+# Exact versions here instead of -c constraints.txt: this step only sees the PyTorch index,
+# which lacks some pinned versions (e.g. setuptools==81.0.0). Keep in step with constraints.allinone.txt.
 RUN pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.12.0 torchvision
+        torch==2.12.0 torchvision==0.27.0
 
 # App deps (cuga + sqlite-vec + feedparser + playwright + the LangChain stack).
 # The ship-ready set does NOT include video_qa/deck_forge, so the heavy file
 # (chromadb + sentence-transformers) is intentionally skipped — leaner image.
 COPY cuga-apps/requirements.apps.txt ./
-RUN pip install --no-cache-dir -r requirements.apps.txt
+# -c constraints.txt: the exact versions of the live image (see the file's header). Without it a
+# rebuild resolves fresh and drifts — on 2026-10-06 that broke every app.
+RUN pip install --no-cache-dir -c constraints.txt -r requirements.apps.txt
 
 # MCP server deps (lean subset — see build/requirements.mcp.txt). The 5 servers
 # the ship-ready apps use are bundled into this image and run on loopback, so
 # the apps need NO external MCP deployment.
 COPY build/requirements.mcp.txt ./requirements.mcp.txt
-RUN pip install --no-cache-dir -r requirements.mcp.txt
+RUN pip install --no-cache-dir -c constraints.txt -r requirements.mcp.txt
 
 # Chromium for the one browser-driven ship-ready app (meetup_finder).
 RUN python -m playwright install --with-deps chromium
