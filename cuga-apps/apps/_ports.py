@@ -76,4 +76,5 @@ APP_PORTS: dict[str, int] = {
     "meetup_finder":              28826,
     "usage_collector":            28827,
     "explain_like_five":          28830,
+    "fact_checker":               28832,
 }
