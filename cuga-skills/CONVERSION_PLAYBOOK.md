@@ -79,6 +79,8 @@ name: <skill_name>          # required, must match folder name
 description: <one line>     # required, trigger-rich, mentions user verbs
 requirements:               # optional, declares pip/npm deps
   - some-package>=1.0
+examples:                   # recommended, 2–4 sample user requests (shown in the skills UI)
+  - "Easy family-friendly hikes near Yosemite, CA"
 ---
 ```
 
@@ -237,7 +239,7 @@ discovered-skills table.
 A skill is **done** when every box checks:
 
 - [ ] **Description is trigger-rich.** Read it cold — do you know when to load this skill?
-- [ ] **Frontmatter is valid.** `name` matches folder; `description` is one line; `requirements` set (empty list if stdlib-only).
+- [ ] **Frontmatter is valid.** `name` matches folder; `description` is one line; `requirements` set (empty list if stdlib-only); `examples` lists 2–4 realistic requests.
 - [ ] **CLI helpers documented.** Each subcommand listed in the Tools table with its inputs and return shape.
 - [ ] **Workflow is procedural.** "If user mentions kids, pass `kid_friendly=true`" ✓; "Always greet the user warmly" ✗.
 - [ ] **No host assumptions.** SKILL.md doesn't mention buttons, URLs, specific UIs, absolute filesystem paths, or host-specific tool names like `run_command`. Reference the script by its relative path (`scripts/<name>.py`); the host's harness resolves the mount point.

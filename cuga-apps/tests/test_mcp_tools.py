@@ -500,3 +500,9 @@ class TestMcpText:
         else:
             # If docling refused this minimal doc, at least confirm the right error code.
             assert env["code"] in ("upstream",)
+    def test_text_stats(self):
+        data = _expect_ok(call_mcp_tool("text", "text_stats", {
+            "text": "Hello world. This is CUGA! Is it fast?",
+        }))
+        assert data["words"] == 8
+        assert data["sentences"] == 3

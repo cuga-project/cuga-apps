@@ -31,4 +31,14 @@ python main.py --port 28813
 # open http://127.0.0.1:28813
 ```
 
+## Try it
+
+Once the app is open, type one of these into the chat box:
+
+- How do I set up a private endpoint for Cloud Object Storage?
+- What are the Lite plan limits for Watson Discovery?
+- How does IBM Cloud IAM service ID authentication work?
+- Code Engine: Dockerfile vs Buildpacks — which should I use?
+- How do I connect IBM Databases for PostgreSQL to Code Engine?
+
 Required env: `LLM_PROVIDER`, `LLM_MODEL`, `TAVILY_API_KEY` (consumed by mcp-web).
