@@ -144,6 +144,7 @@ PROCS: list[dict] = [
     dict(name="movie_recommender",  kind="app", port=APP_PORTS["movie_recommender"],  cwd=HERE / "movie_recommender",  cmd=_app_cmd()),
     dict(name="webpage_summarizer", kind="app", port=APP_PORTS["webpage_summarizer"], cwd=HERE / "webpage_summarizer", cmd=_app_cmd()),
     dict(name="explain_like_five",  kind="app", port=APP_PORTS["explain_like_five"],  cwd=HERE / "explain_like_five",  cmd=_app_cmd()),
+    dict(name="fact_checker",       kind="app", port=APP_PORTS["fact_checker"],       cwd=HERE / "fact_checker",       cmd=_app_cmd()),
     dict(name="wiki_dive",          kind="app", port=APP_PORTS["wiki_dive"],          cwd=HERE / "wiki_dive",          cmd=_app_cmd()),
     dict(name="box_qa",             kind="app", port=APP_PORTS["box_qa"],             cwd=HERE / "box_qa",             cmd=_app_cmd()),
     dict(name="api_doc_gen",        kind="app", port=APP_PORTS["api_doc_gen"],        cwd=HERE / "api_doc_gen",        cmd=_app_cmd()),
