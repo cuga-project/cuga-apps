@@ -165,6 +165,7 @@ PROCS: list[dict] = [
     dict(name="find_a_doctor",      kind="app", port=APP_PORTS["find_a_doctor"],      cwd=HERE / "find_a_doctor",      cmd=_app_cmd()),
     dict(name="meetup_finder",      kind="app", port=APP_PORTS["meetup_finder"],      cwd=HERE / "meetup_finder",      cmd=_app_cmd()),
     dict(name="usage_collector",    kind="app", port=APP_PORTS["usage_collector"],    cwd=HERE / "usage_collector",    cmd=_app_cmd()),
+    dict(name="weather_wardrobe",   kind="app", port=APP_PORTS["weather_wardrobe"],   cwd=HERE / "weather_wardrobe",   cmd=_app_cmd()),
 ]
 
 # The 21 "ship-ready" apps (mirrors the umbrella UI: in usecases.ts and NOT in
