@@ -50,6 +50,11 @@ ENDPOINTS = [
     ("smart_todo", "/todos/done",       "json_list"),
     ("smart_todo", "/reminders/fired",  "json_list"),
     ("smart_todo", "/settings",         "json_obj"),
+    ("smart_todo", "/health",           "json_obj"),
+
+    # wiki_dive, paper_scout — health
+    ("wiki_dive", "/health", "json_obj"),
+    ("paper_scout", "/health", "json_obj"),
 
     # voice_journal — entries + search + watcher
     ("voice_journal", "/entries",         "json_list"),

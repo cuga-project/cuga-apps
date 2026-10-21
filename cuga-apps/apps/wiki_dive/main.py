@@ -229,6 +229,10 @@ def _web(port: int) -> None:
             log.error("Agent error: %s", exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
 
+    @app.get("/health")
+    async def health():
+        return {"ok": True}
+
     @app.get("/", response_class=HTMLResponse)
     async def ui():
         return HTMLResponse(_HTML)
