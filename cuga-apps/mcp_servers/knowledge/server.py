@@ -193,6 +193,37 @@ def get_related_articles(title: str, max_results: int = 8) -> str:
         return tool_error(f"Wikipedia related-articles lookup failed: {exc}", code="upstream")
 
 
+# ── Words (Datamuse) ───────────────────────────────────────────────────
+_DATAMUSE = "https://api.datamuse.com/words"
+_WORD_MODES = {"rhymes": "rel_rhy", "means_like": "ml", "sounds_like": "sl", "synonyms": "rel_syn"}
+
+
+@mcp.tool()
+def find_words(word: str, mode: str = "means_like", max_results: int = 10) -> str:
+    """Find related English words: rhymes, synonyms, or words with a similar meaning or sound.
+
+    Uses the free Datamuse API (no key). Handy for writing help: song lyrics, headlines, puzzles.
+
+    Args:
+        word: A word or short phrase, e.g. "moon" or "very happy".
+        mode: "means_like" (default), "synonyms", "rhymes" or "sounds_like".
+        max_results: How many words to return (1–50, default 10).
+    """
+    param = _WORD_MODES.get((mode or "").strip().lower())
+    if not param:
+        return tool_error(f"mode must be one of: {', '.join(_WORD_MODES)}.", code="bad_input")
+    if not (word or "").strip():
+        return tool_error("word must not be empty.", code="bad_input")
+    try:
+        rows = get_json(_DATAMUSE, params={param: word.strip(), "max": max(1, min(max_results, 50))})
+    except Exception as exc:
+        return tool_error(f"Datamuse failed: {exc}", code="upstream")
+    words = [r["word"] for r in rows if r.get("word")]
+    if not words:
+        return tool_error(f"No {mode} found for '{word}'.", code="not_found")
+    return tool_result({"word": word.strip(), "mode": mode, "results": words})
+
+
 # ── arXiv ──────────────────────────────────────────────────────────────
 _ATOM = "http://www.w3.org/2005/Atom"
 _ARXIV_API = "https://export.arxiv.org/api/query"

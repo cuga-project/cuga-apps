@@ -173,6 +173,14 @@ class TestMcpKnowledge:
         assert isinstance(data["related"], list)
 
     @pytest.mark.external
+    def test_find_words_rhymes(self):
+        data = _expect_ok(call_mcp_tool("knowledge", "find_words", {"word": "moon", "mode": "rhymes"}))
+        assert len(data["results"]) > 0
+
+    def test_find_words_rejects_unknown_mode(self):
+        _expect_error(call_mcp_tool("knowledge", "find_words", {"word": "cat", "mode": "antonyms"}), code="bad_input")
+
+    @pytest.mark.external
     def test_search_arxiv(self):
         data = _expect_ok(call_mcp_tool("knowledge", "search_arxiv", {
             "query": "transformer attention",
