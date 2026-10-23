@@ -274,6 +274,38 @@ def get_arxiv_paper(arxiv_id: str) -> str:
     except Exception as exc:
         return tool_error(f"arXiv fetch failed: {exc}", code="upstream")
 
+# ── Books (Open Library) ───────────────────────────────────────────────
+
+@mcp.tool()
+def search_books(query: str, max_results: int = 5) -> str:
+    """Search books by title, author or subject using Open Library (no API key).
+
+    Returns title, authors, first publication year, number of editions and a link per book.
+
+    Args:
+        query: e.g. "the hobbit", "ursula le guin", "machine learning for beginners".
+        max_results: How many books to return (1–20, default 5).
+    """
+    if not (query or "").strip():
+        return tool_error("query must not be empty.", code="bad_input")
+    try:
+        data = get_json("https://openlibrary.org/search.json", params={
+            "q": query.strip(),
+            "limit": max(1, min(max_results, 20)),
+            "fields": "title,author_name,first_publish_year,edition_count,key",
+        })
+    except Exception as exc:
+        return tool_error(f"Open Library search failed: {exc}", code="upstream")
+    books = [{
+        "title":              d.get("title"),
+        "authors":            d.get("author_name") or [],
+        "first_publish_year": d.get("first_publish_year"),
+        "editions":           d.get("edition_count"),
+        "url":                f"https://openlibrary.org{d['key']}" if d.get("key") else None,
+    } for d in data.get("docs") or []]
+    if not books:
+        return tool_error(f"No books found for '{query}'.", code="not_found")
+    return tool_result({"query": query.strip(), "total_found": data.get("numFound"), "books": books})
 
 # ── Semantic Scholar ───────────────────────────────────────────────────
 _S2_API = "https://api.semanticscholar.org/graph/v1"
