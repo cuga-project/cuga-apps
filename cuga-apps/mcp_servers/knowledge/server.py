@@ -16,6 +16,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import quote
 
 _HERE = Path(__file__).resolve().parent
 _SERVERS_ROOT = _HERE.parent
@@ -41,6 +42,12 @@ mcp = make_server("mcp-knowledge")
 _WIKI_ACTION = "https://en.wikipedia.org/w/api.php"
 
 
+def _wiki_url(title: str) -> str:
+    # Titles go in the URL path, so characters like "?" and "%" must be
+    # percent-encoded or the link resolves to a different article.
+    return f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'))}"
+
+
 @mcp.tool()
 def search_wikipedia(query: str, max_results: int = 6) -> str:
     """Search Wikipedia for articles matching the query.
@@ -63,7 +70,7 @@ def search_wikipedia(query: str, max_results: int = 6) -> str:
         results = [{
             "title":   h.get("title"),
             "snippet": _strip_html(h.get("snippet", "")),
-            "url":     f"https://en.wikipedia.org/wiki/{h.get('title', '').replace(' ', '_')}",
+            "url":     _wiki_url(h.get("title", "")),
         } for h in hits]
         track_call("wikipedia", app="mcp-knowledge")
         return tool_result({"results": results})
@@ -113,7 +120,7 @@ def _wiki_article(title: str, full: bool) -> str:
             return tool_error(f"Wikipedia article not found: {title}", code="not_found")
         result = {
             "title":     page.get("title"),
-            "url":       page.get("fullurl") or f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}",
+            "url":       page.get("fullurl") or _wiki_url(title),
             "thumbnail": (page.get("thumbnail") or {}).get("source"),
         }
         # Preserve the per-mode field name callers already expect.
@@ -180,11 +187,10 @@ def get_related_articles(title: str, max_results: int = 8) -> str:
         pages = list((data.get("query", {}).get("pages") or {}).values())
         if not pages:
             return tool_result({"source": title, "related": []})
-        from urllib.parse import quote
         related = [
             {
                 "title": lnk.get("title", ""),
-                "url":   f"https://en.wikipedia.org/wiki/{quote(lnk.get('title', '').replace(' ', '_'))}",
+                "url":   _wiki_url(lnk.get("title", "")),
             }
             for lnk in pages[0].get("links", [])[:max_results]
         ]
