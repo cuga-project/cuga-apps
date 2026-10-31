@@ -58,6 +58,8 @@ def pytest_collection_modifyitems(config, items):
             )
         )
         for item in items:
+            if item.get_closest_marker("unit"):
+                continue
             item.add_marker(skip)
 
 
