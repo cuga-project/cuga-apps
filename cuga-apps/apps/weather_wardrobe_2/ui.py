@@ -3,7 +3,7 @@ HTML UI for the Weather Wardrobe demo app.
 Exported as _HTML — a single self-contained string served by the FastAPI root endpoint.
 
 Carbonized: IBM Carbon Design System (White / g10 light theme) via the shared
-`_carbon` foundation. Layout: left chat panel, right latest-summary + history panel.
+`_carbon` foundation. Layout: left chat panel, right latest-forecast + history panel.
 All ids, fetch routes, POST body shapes, and JS function names are preserved.
 """
 
@@ -305,7 +305,7 @@ _APP_CSS = """<style>
 
 _BODY = r"""
 <header class="cds-header">
-  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Webpage&nbsp;Summarizer</div>
+  <div class="cds-header__name"><span class="cds-header__prefix">IBM</span>&nbsp;Weather&nbsp;Wardrobe&nbsp;2</div>
   <div class="cds-header__actions status-badge">
     <div class="status-dot" id="statusDot"></div>
     <span id="statusText" class="cds-helper-01">Ready</span>
@@ -314,16 +314,16 @@ _BODY = r"""
 
 <div class="app-intro">
   <div class="app-intro__blurb">
-    <strong>Weather Wardrobe.</strong> Enter any city name and et what to wear for the next three days: layers, rain gear and shoes, based on the live forecast.
+    <strong>Weather Wardrobe 2.</strong> Enter any city name and get what to wear for the next three days: layers, rain gear and shoes, based on the live forecast.
   </div>
   <div class="app-intro__tools">
     <span class="tools-label">Tools</span>
     <span class="tool-pill">🌐 Geocode</span>
     <span class="tool-pill">📄 Get sunrise sunset</span>
-    <span class="tool-pill">🔗 Find hikes</span>search_attractions
-    <span class="tool-pill">🔗 Search attractions</span>convert_timezone
+    <span class="tool-pill">🔗 Find hikes</span>
+    <span class="tool-pill">🔗 Search attractions</span>
     <span class="tool-pill">🔗 Convert timezone</span>
-    <span class="tool-pill">🔗 Get weather</span>get_public_holidays
+    <span class="tool-pill">🔗 Get weather</span>
     <span class="tool-pill">🔗 Get public holidays</span>
   </div>
 </div>
@@ -347,7 +347,7 @@ _BODY = r"""
       <input
         type="text"
         id="userInput"
-        placeholder="Paste a URL or ask a question…"
+        placeholder="Type a city or ask about the weather…"
         onkeydown="if(event.key==='Enter') sendMessage()"
       />
       <button class="cds-btn btn" id="sendBtn" onclick="sendMessage()">Send</button>
@@ -357,19 +357,19 @@ _BODY = r"""
   <!-- Right: Summary display -->
   <div class="summary-panel">
     <div class="summary-header">
-      <span>Latest Summary</span>
+      <span>Latest Forecast</span>
       <div class="url-badge" id="lastUrl">—</div>
     </div>
 
     <div class="summary-content" id="summaryContent">
       <div class="empty-state" id="emptyState">
         <div class="icon">🌐</div>
-        <p>Enter any city and the agent will return on what to wear for the next 3 days based on the forecast.</p>
+        <p>Enter any city and the agent will suggest what to wear for the next 3 days based on the forecast.</p>
       </div>
     </div>
 
     <div class="history-list" id="historySection" style="display:none">
-      <div class="history-title">Previously summarized</div>
+      <div class="history-title">Previous lookups</div>
       <div id="historyItems"></div>
     </div>
   </div>
@@ -421,9 +421,10 @@ _BODY = r"""
     return div;
   }
 
-  function extractUrl(text) {
-    const m = text.match(/https?:\/\/[^\s"'<>)]+/);
-    return m ? m[0] : null;
+  function extractCity(text) {
+    // Best-effort: grab everything after "in " or "for " or just the whole query.
+    const m = text.match(/(?:in|for)\s+([A-Za-z\s,]+?)(?:\?|$)/i);
+    return m ? m[1].trim() : text.trim();
   }
 
   function timeStr() {
@@ -526,7 +527,7 @@ _BODY = r"""
     setStatus(true, 'Thinking…');
 
     addMessage(question, 'user');
-    const thinking = addMessage('Fetching and summarising…', 'thinking');
+    const thinking = addMessage('Checking the forecast…', 'thinking');
 
     try {
       const res = await fetch('/ask', {
@@ -541,7 +542,7 @@ _BODY = r"""
         addMessage('Error: ' + (data.answer || res.statusText), 'error');
       } else {
         addMessage(data.answer, 'agent');
-        const url = extractUrl(question);
+        const url = extractCity(question);
         showSummary(url, data.answer);
       }
     } catch (err) {
@@ -562,7 +563,7 @@ _BODY = r"""
 
 _HTML = (
     "<!DOCTYPE html><html lang=\"en\"><head>"
-    + carbon_head("Weather Wardrobe")
+    + carbon_head("Weather Wardrobe 2")
     + carbon_css("light")
     + _APP_CSS
     + "</head><body>"

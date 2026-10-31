@@ -1,4 +1,4 @@
-# webpage_summarizer — standalone Python deps.
+# weather_wardrobe_2 — standalone Python deps.
 # Install: pip install -r requirements.txt
 
 # cuga agent framework (every app builds a CugaAgent)
@@ -9,6 +9,6 @@ uvicorn[standard]>=0.27
 pydantic>=2.0
 langchain-core>=0.3
 
-# MCP bridge — calls hosted `web` MCP for fetch_webpage
+# MCP bridge — calls hosted `geo` MCP for get_weather
 mcp>=1.0
 langchain-mcp-adapters

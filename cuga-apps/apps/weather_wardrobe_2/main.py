@@ -1,5 +1,5 @@
 """
-Weather Wardrope — CUGA Demo App
+Weather Wardrobe 2 — CUGA Demo App
 
 A FastAPI server that accepts a city name and suggests what to wear for the next three days: 
 layers, rain gear and shoes, based on the live forecast.
@@ -69,7 +69,7 @@ from ui import _HTML
 # ---------------------------------------------------------------------------
 
 def _make_tools():
-    # Delegated to MCP server(s): web.
+    # Delegated to MCP server(s): geo.
     from _mcp_bridge import load_tools
     return load_tools(["geo"])
 
@@ -121,7 +121,7 @@ def make_agent():
 def _web(port: int):
     import uvicorn
 
-    app = FastAPI(title="Webpage Summarizer", version="1.0.0")
+    app = FastAPI(title="Weather Wardrobe 2", version="1.0.0")
 
     # Lazy-initialise the agent on first request so startup is instant
     _agent = None
@@ -174,7 +174,7 @@ def _web(port: int):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Weather Wardrobe — CUGA demo app")
+    parser = argparse.ArgumentParser(description="Weather Wardrobe 2 — CUGA demo app")
     parser.add_argument("--port", type=int, default=28842)
     parser.add_argument(
         "--provider", "-p", default=None,
@@ -188,5 +188,5 @@ if __name__ == "__main__":
     if args.model:
         os.environ["LLM_MODEL"] = args.model
 
-    print(f"\n  Weather Wardrobe  →  http://127.0.0.1:{args.port}\n")
+    print(f"\n  Weather Wardrobe 2  →  http://127.0.0.1:{args.port}\n")
     _web(args.port)
