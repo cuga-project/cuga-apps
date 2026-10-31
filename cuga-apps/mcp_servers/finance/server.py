@@ -70,6 +70,7 @@ def get_crypto_price(symbol: str, vs_currency: str = "usd") -> str:
                 "include_24hr_change": "true",
                 "include_market_cap": "true",
             },
+            cache_ttl=60,  # prices move; don't serve them for the default 10 min
         )
         if slug not in data:
             return tool_error(
@@ -115,7 +116,7 @@ def get_stock_quote(symbol: str, api_key: str | None = None) -> str:
             "function": "GLOBAL_QUOTE",
             "symbol": symbol.upper(),
             "apikey": api_key,
-        })
+        }, cache_ttl=60)  # prices move; don't serve them for the default 10 min
         track_call("alpha_vantage", app="mcp-finance")
     except Exception as exc:
         track_call("alpha_vantage", app="mcp-finance", ok=False, code=classify_error(exc))
