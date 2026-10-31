@@ -61,12 +61,15 @@ def get_crypto_price(symbol: str, vs_currency: str = "usd") -> str:
         vs_currency: Quote currency (default "usd").
     """
     slug = _CRYPTO_ALIASES.get(symbol.lower().strip(), symbol.lower().strip())
+    # CoinGecko accepts any case in vs_currencies but always answers with
+    # lowercase keys, so "USD" would make every d.get() below come back None.
+    vs = vs_currency.lower().strip()
     try:
         data = get_json(
             f"{_COINGECKO}/simple/price",
             params={
                 "ids": slug,
-                "vs_currencies": vs_currency,
+                "vs_currencies": vs,
                 "include_24hr_change": "true",
                 "include_market_cap": "true",
             },
@@ -80,10 +83,10 @@ def get_crypto_price(symbol: str, vs_currency: str = "usd") -> str:
         return tool_result({
             "symbol":       symbol,
             "coingecko_id": slug,
-            "vs_currency":  vs_currency,
-            "price":        d.get(vs_currency),
-            "change_24h":   d.get(f"{vs_currency}_24h_change"),
-            "market_cap":   d.get(f"{vs_currency}_market_cap"),
+            "vs_currency":  vs,
+            "price":        d.get(vs),
+            "change_24h":   d.get(f"{vs}_24h_change"),
+            "market_cap":   d.get(f"{vs}_market_cap"),
         })
     except Exception as exc:
         return tool_error(f"CoinGecko failed: {exc}", code="upstream")
