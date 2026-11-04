@@ -551,3 +551,125 @@ def urls_in(text: Any, limit: int = 12) -> list[str]:
             if len(out) >= limit:
                 return out
     return out
+
+
+# ── Grounding ─────────────────────────────────────────────────────────────
+# The model must not invent dependencies, files or quotes. The app runs the
+# inventory itself (deterministic, cheap) and hands it to the agent as fact,
+# then checks every finding the agent returns against that inventory and the
+# sources the agent actually read in this check.
+
+def inventory_brief(pack: str, root: Path) -> dict[str, Any]:
+    """The pack's inventory as prompt text plus what findings may refer to."""
+    root = Path(root)
+    if pack == "packages":
+        inv = inventory_packages(root)
+        rows = inv["packages"][:40]
+        lines = [f"- {p['package']} {', '.join(p['specs']) or '(no version spec)'} — "
+                 + ", ".join(p["files"][:2]) + (f" (+{p['file_count'] - 2} more)" if p["file_count"] > 2 else "")
+                 for p in rows]
+        head = (f"{inv['total_packages']} packages in {inv['dependency_files']} dependency files"
+                + (f"; the 40 most widely used are listed" if inv["total_packages"] > 40 else ""))
+        known = {p["package"]: p["files"] for p in inv["packages"]}
+    else:
+        inv = inventory_models(root)
+        rows = inv["models"]
+        lines = [f"- {m['model']} ({m['provider']}) — " + ", ".join(m["locations"][:3])
+                 + (f" (+{len(m['locations']) - 3} more)" if len(m["locations"]) > 3 else "")
+                 for m in rows]
+        head = f"{len(rows)} model ids referenced in code and config"
+        known = {m["model"]: m["locations"] for m in rows}
+    text = (f"[Inventory of this repo, computed by the app — authoritative: {head}. Only these "
+            "dependencies exist in the repo; never mention other models, packages or files.]\n"
+            + ("\n".join(lines) if lines else "- (none found)"))
+    return {"text": text, "known": known}
+
+
+def _match_dependency(dep: str, known: dict[str, Any], pack: str) -> str | None:
+    d = (dep or "").strip().strip("`*").lower()
+    if not d:
+        return None
+    if pack == "packages":
+        name = _norm(re.split(r"[\s<>=!~;\[(]", d, maxsplit=1)[0])
+        return name if name in known else None
+    for k in known:
+        kl = k.lower()
+        if d == kl or d.split("/")[-1] == kl.split("/")[-1]:
+            return k
+    return None
+
+
+def _same_page(url: str, read: list[str]) -> bool:
+    def key(u: str) -> str:
+        u = u.split("#", 1)[0].rstrip("/").lower()
+        return re.sub(r"^https?://(www\.)?", "", u)
+    k = key(url)
+    return bool(k) and any(key(r) == k or key(r).startswith(k) or k.startswith(key(r)) for r in read)
+
+
+def verify_findings(findings: list[dict[str, Any]], known: dict[str, Any], pack: str,
+                    sources_read: list[str], pypi_checked: list[str]) -> tuple[list, list]:
+    """Keep findings that refer to a real dependency and, unless severity is
+    'none', cite a page this check actually read (or PyPI for a package the
+    check looked up). Returns (kept, dropped) — dropped items carry a reason."""
+    kept, dropped = [], []
+    pypi = {_norm(p) for p in pypi_checked}
+    for f in findings:
+        dep = _match_dependency(f.get("dependency", ""), known, pack)
+        if not dep:
+            dropped.append({**f, "reason": "not a dependency of this repo"})
+            continue
+        f = {**f, "dependency": dep}
+        if not f.get("locations"):
+            f["locations"] = list(known[dep])[:4]
+        if f.get("severity") != "none":
+            url = f.get("source_url") or ""
+            on_pypi = (pack == "packages" and dep in pypi
+                       and re.match(r"https?://pypi\.org/(project|pypi)/", url or "") is not None)
+            if not url or not (_same_page(url, sources_read) or on_pypi):
+                dropped.append({**f, "reason": "its source was not read in this check"})
+                continue
+        kept.append(f)
+    return kept, dropped
+
+
+def render_findings(findings: list[dict[str, Any]]) -> str:
+    """A findings table built from verified data only (used when the model's own text can't be trusted)."""
+    changed = [f for f in findings if f.get("severity") != "none"]
+    if not changed:
+        return "No verified drift: nothing in this check showed a change for the repo's dependencies."
+    order = {"critical": 0, "review": 1, "fyi": 2}
+    changed.sort(key=lambda f: order.get(f.get("severity"), 3))
+    rows = ["| Dependency | Where it's used | Change (quote + link) | Impact |", "|---|---|---|---|"]
+    for f in changed:
+        quote = (f.get("quote") or f.get("summary") or "").replace("|", "\\|")
+        rows.append(f"| {f['dependency']} | {', '.join(f.get('locations', [])[:3])} | "
+                    f"“{quote}” [source]({f.get('source_url', '')}) | {f.get('severity')} |")
+    return f"{len(changed)} verified change(s), most urgent first.\n\n" + "\n".join(rows)
+
+
+def pypi_findings(rows: list[dict[str, Any]], known: dict[str, Any]) -> list[dict[str, Any]]:
+    """Findings straight from PyPI data (no model involved): a version spec in
+    the repo that blocks the latest release, or a project with no release in
+    18 months. Source: the package's PyPI page."""
+    out = []
+    for r in rows:
+        name = r.get("package")
+        if name not in known or r.get("error"):
+            continue
+        url = f"https://pypi.org/project/{name}/"
+        if r.get("blocked_by"):
+            out.append({"pack": "packages", "dependency": name, "kind": "breaking", "severity": "review",
+                        "summary": f"{', '.join(r['blocked_by'])} in the repo blocks the latest release, {r['latest']}.",
+                        "quote": f"{name} {r['latest']} (released {r.get('released') or 'date unknown'})",
+                        "source_url": url, "effective_date": r.get("released"),
+                        "locations": list(known[name])[:4],
+                        "recommendation": f"Test with {name} {r['latest']}, then raise or remove the cap."})
+        elif r.get("inactive"):
+            out.append({"pack": "packages", "dependency": name, "kind": "archived", "severity": "review",
+                        "summary": f"No release in 18 months; the latest is {r['latest']} ({r.get('released')}).",
+                        "quote": f"{name} {r['latest']} (released {r.get('released')})",
+                        "source_url": url, "effective_date": r.get("released"),
+                        "locations": list(known[name])[:4],
+                        "recommendation": "Check whether the project is maintained; plan a replacement if not."})
+    return out

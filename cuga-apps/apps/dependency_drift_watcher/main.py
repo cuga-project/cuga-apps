@@ -196,7 +196,8 @@ _RUN: dict = {"pack": DEFAULT_PACK, "repo": drift.DEFAULT_REPO, "root": None,
 
 def _reset_run(pack: str, snapshot: dict, job: Optional[dict] = None) -> None:
     _RUN.update(pack=pack, repo=snapshot["repo"], root=Path(snapshot["root"]),
-                events=[], sources=[], counts={}, suggestions=[], job=job)
+                events=[], sources=[], counts={}, suggestions=[], job=job, pypi_checked=[],
+                pypi_rows=[])
 
 
 def _event(policy: str, outcome: str, detail: str) -> None:
@@ -364,6 +365,7 @@ def _make_local_tools():
         """
         _count("pypi")
         _step(f"PyPI · latest releases of {len(packages)} package(s)")
+        _RUN["pypi_checked"].extend(packages)
         specs = {p["package"]: p["specs"]
                  for p in drift.inventory_packages(_RUN["root"], only=packages)["packages"]}
         try:
@@ -371,7 +373,9 @@ def _make_local_tools():
             track_call("pypi", n=len(packages))
         except Exception:  # noqa: BLE001 — usage tracking is optional
             pass
-        return drift.pypi_latest(packages, specs)
+        rows = drift.pypi_latest(packages, specs)
+        _RUN["pypi_rows"].extend(rows)
+        return rows
 
     @tool
     def get_usage() -> dict:
@@ -478,9 +482,11 @@ still assumes the old state. Each request names the repository being checked and
 active watch pack (Models or Packages).
 
 ## Workflow
-1. Inventory the repo first: inventory_models or inventory_packages. For packages,
-   start with the pack's priority list when those packages appear in the repo, then
-   the most widely used ones. Call get_usage when ranking impact (cuga-apps only).
+1. The request includes the repo's inventory, computed by the app: it is the complete
+   list of dependencies. Never mention a model, package or file that is not in it.
+   Call inventory_models / inventory_packages only for more locations. For packages,
+   start with the pack's priority list when the repo uses those packages, then the
+   most widely used ones. Call get_usage when ranking impact (cuga-apps only).
 2. For packages, call check_pypi for latest versions and for specs that block them.
 3. Read the world's side from official sources only, with the Tavily tools:
    - tavily_search for recent notices (set include_domains to the pack's domains),
@@ -494,7 +500,8 @@ active watch pack (Models or Packages).
    prepares a diff to copy; never say a fix was applied.
 
 ## Rules
-- Every finding needs a quote copied from the source and its URL. No quote, no finding.
+- Every finding needs a quote copied from a page you read in this check and that page's
+  URL. No quote, no finding. Findings citing pages you did not read are removed.
 - Never invent dates, versions or prices. If sources are unclear, say so.
 - If a tool answers "BLOCKED", explain to the user what was blocked and why; do not retry it.
 - Keep tool calls focused: a few targeted searches beat many broad ones.
@@ -724,17 +731,52 @@ def _web(port: int):
                 job["status"] = "running"
             _reset_run(pack, snapshot, job)
             started = time.time()
-            result = await agent.invoke(f"{_pack_preamble(pack, snapshot)}\n\n{question}",
-                                        thread_id=uuid.uuid4().hex)
+            # Ground the agent: the app computes the inventory itself and hands it
+            # over as fact, so the model can't invent dependencies or files.
+            brief = await asyncio.to_thread(drift.inventory_brief, pack, _RUN["root"])
+            _step(f"Inventory · {len(brief['known'])} {'packages' if pack == 'packages' else 'model ids'} found")
+            prompt = f"{_pack_preamble(pack, snapshot)}\n{brief['text']}\n\n{question}"
+            result = await agent.invoke(prompt, thread_id=uuid.uuid4().hex)
+            read_nothing = not _RUN["counts"].get("tavily") and not _RUN["counts"].get("pypi")
+            if read_nothing:
+                # The model sometimes answers from memory on its first turn. Retry
+                # once, saying so; whatever survives is still checked below.
+                _step("Retry · the agent answered without reading any source")
+                _event("Grounding check", "applied", "First answer read no sources; asked the agent to check them")
+                result = await agent.invoke(
+                    prompt + "\n\nImportant: answer only from what the tools return in this check. "
+                    "Call check_pypi (packages) or the Tavily tools (models) on official sources before "
+                    "you answer; quote only text you read here.", thread_id=uuid.uuid4().hex)
             answer = result.answer if hasattr(result, "answer") else str(result)
-            clean, findings = drift.split_findings(answer)
-            if findings:
+            clean, raw = drift.split_findings(answer)
+            findings, dropped = drift.verify_findings(raw, brief["known"], pack, _RUN["sources"],
+                                                      _RUN["pypi_checked"])
+            if pack == "packages":
+                # PyPI facts don't depend on the model formatting its findings block.
+                have = {f["dependency"] for f in findings if f.get("severity") != "none"}
+                findings += [f for f in drift.pypi_findings(_RUN["pypi_rows"], brief["known"])
+                             if f["dependency"] not in have]
+            read_nothing = not _RUN["counts"].get("tavily") and not _RUN["counts"].get("pypi")
+            if read_nothing:
+                findings = [f for f in findings if f.get("severity") == "none"]
+                clean = ("⚠ This check read no outside sources, so none of its claims are verified and "
+                         "nothing was saved. Please ask again.")
+                _event("Grounding check", "blocked", "No sources were read; findings discarded")
+            elif dropped:
+                # The model's prose may repeat what was dropped; show only verified data.
+                clean = drift.render_findings(findings) + "\n\n" + "\n".join(
+                    [f"⚠ Removed {len(dropped)} finding(s) that could not be verified:"]
+                    + [f"- {d.get('dependency', '?')}: {d['reason']}" for d in dropped[:10]])
+                _event("Grounding check", "applied",
+                       f"Removed {len(dropped)} unverified finding(s); answer rebuilt from verified data")
+            if findings and not read_nothing:
                 _save_findings(snapshot["repo"], pack, findings)
             return {
                 "answer": clean,
                 "pack": pack,
                 "repo": {k: snapshot[k] for k in ("repo", "ref", "url", "files", "fetched_at")},
                 "findings": findings,
+                "dropped": [{"dependency": d.get("dependency"), "reason": d["reason"]} for d in dropped],
                 "suggestions": list(_RUN["suggestions"]),
                 "policy_decisions": _decisions(result) + list(_RUN["events"]),
                 "sources": list(_RUN["sources"]),

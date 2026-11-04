@@ -226,3 +226,77 @@ def test_split_findings_parses_and_strips_block():
     clean, findings = drift.split_findings(answer)
     assert clean == "One package drifted."
     assert [(f["dependency"], f["severity"]) for f in findings] == [("mcp", "review")]
+
+
+# ── grounding ─────────────────────────────────────────────────────────────
+
+def _models_repo(tmp_path):
+    return _write(tmp_path, {
+        "apps/_llm.py": 'A = "meta-llama/llama-4-scout-17b"\nB = "gpt-4o"\n',
+    })
+
+
+def test_inventory_brief_lists_the_repo_as_fact(tmp_path):
+    brief = drift.inventory_brief("models", _models_repo(tmp_path))
+    assert set(brief["known"]) == {"meta-llama/llama-4-scout-17b", "gpt-4o"}
+    assert "authoritative" in brief["text"] and "apps/_llm.py:1" in brief["text"]
+
+
+def test_verify_drops_the_fabricated_staging_answer(tmp_path):
+    """The real failure on staging: an answer from memory, citing files, models
+    and pages the check never touched. None of it may survive."""
+    known = drift.inventory_brief("models", _models_repo(tmp_path))["known"]
+    fabricated = [
+        {"dependency": "claude-3-opus-20240229", "severity": "critical", "source_url": "https://docs.anthropic.com/x",
+         "locations": ["apps/assistant.py:22"]},
+        {"dependency": "gpt-4o", "severity": "review", "source_url": "https://openai.com/pricing",
+         "locations": ["apps/chatbot.py:45"]},
+        {"dependency": "llama-2-70b-chat", "severity": "fyi", "source_url": "https://llama.com/x"},
+    ]
+    kept, dropped = drift.verify_findings(fabricated, known, "models", sources_read=[], pypi_checked=[])
+    assert kept == []
+    assert [d["reason"] for d in dropped] == ["not a dependency of this repo",
+                                             "its source was not read in this check",
+                                             "not a dependency of this repo"]
+
+
+def test_verify_keeps_grounded_findings(tmp_path):
+    known = drift.inventory_brief("models", _models_repo(tmp_path))["known"]
+    read = ["https://www.ibm.com/docs/en/watsonx/w-and-w/2.3.x?topic=solutions-supported-foundation-models"]
+    found = [{"dependency": "meta-llama/llama-4-scout-17b", "severity": "review",
+              "source_url": "https://www.ibm.com/docs/en/watsonx/w-and-w/2.3.x?topic=solutions-supported-foundation-models",
+              "locations": []},
+             {"dependency": "gpt-4o", "severity": "none", "source_url": ""}]
+    kept, dropped = drift.verify_findings(found, known, "models", read, [])
+    assert [k["dependency"] for k in kept] == ["meta-llama/llama-4-scout-17b", "gpt-4o"] and not dropped
+    assert kept[0]["locations"] == ["apps/_llm.py:1"]          # filled from the inventory
+
+
+def test_verify_accepts_pypi_for_packages_it_looked_up(tmp_path):
+    root = _write(tmp_path, {"requirements.txt": "mcp>=1.0,<2\nfastapi\n"})
+    known = drift.inventory_brief("packages", root)["known"]
+    found = [{"dependency": "mcp (>=1.0,<2)", "severity": "review", "source_url": "https://pypi.org/project/mcp/"},
+             {"dependency": "fastapi", "severity": "review", "source_url": "https://pypi.org/project/fastapi/"}]
+    kept, dropped = drift.verify_findings(found, known, "packages", sources_read=[], pypi_checked=["mcp"])
+    assert [k["dependency"] for k in kept] == ["mcp"]
+    assert dropped[0]["dependency"] == "fastapi"                # PyPI not checked for it in this run
+
+
+def test_render_findings_uses_only_verified_rows():
+    text = drift.render_findings([{"dependency": "mcp", "severity": "review", "quote": "2.3.0",
+                                   "source_url": "https://pypi.org/project/mcp/", "locations": ["requirements.txt"]},
+                                  {"dependency": "fastapi", "severity": "none"}])
+    assert "mcp" in text and "fastapi" not in text
+    assert drift.render_findings([]).startswith("No verified drift")
+
+
+def test_pypi_findings_come_from_data_not_the_model(tmp_path):
+    root = _write(tmp_path, {"requirements.txt": "mcp>=1.0,<2\nfastapi>=0.110\n"})
+    known = drift.inventory_brief("packages", root)["known"]
+    rows = [{"package": "mcp", "latest": "2.3.0", "released": "2026-10-02", "blocked_by": [">=1.0,<2"]},
+            {"package": "fastapi", "latest": "0.162.0", "latest_allowed": True},
+            {"package": "oldlib", "latest": "1.0", "inactive": True}]          # not in the repo
+    found = drift.pypi_findings(rows, known)
+    assert [(f["dependency"], f["severity"]) for f in found] == [("mcp", "review")]
+    assert found[0]["source_url"] == "https://pypi.org/project/mcp/"
+    assert found[0]["locations"] == ["requirements.txt"]

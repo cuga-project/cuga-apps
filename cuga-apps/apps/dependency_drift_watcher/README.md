@@ -57,6 +57,27 @@ The app keeps its CUGA policies in its own store (`.cuga/policies.db`, set
 through `DYNACONF_POLICY__POLICY_DB_PATH`), so apps sharing a container can't
 clear each other's policies.
 
+## Grounding — no invented findings
+
+The model sometimes answers from memory instead of using its tools, with
+plausible files, models and quotes. The app doesn't rely on the model to avoid
+that:
+
+- **Inventory as fact.** The app runs the inventory itself and puts it in the
+  request as the complete list of dependencies.
+- **Every finding is checked.** A finding about a dependency the repo doesn't
+  have is removed; so is one whose source URL wasn't read in this check (PyPI
+  counts for packages the check looked up). When anything is removed, the
+  answer is rebuilt from the verified findings and lists what was removed and why.
+- **No sources, no answer.** If the agent read nothing outside the repo, the
+  app retries once; if it still reads nothing, the user is told nothing was
+  verified and nothing is saved.
+- **PyPI facts don't need the model.** For packages, pins that block the latest
+  release (and projects with no release in 18 months) become findings straight
+  from PyPI's data.
+
+These show in the **Why** tab as "Grounding check" events.
+
 ## Usage tracking
 
 Tavily calls go through the shared MCP bridge, so the usage dashboard counts
