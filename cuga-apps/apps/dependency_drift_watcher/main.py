@@ -194,9 +194,9 @@ _RUN: dict = {"pack": DEFAULT_PACK, "repo": drift.DEFAULT_REPO, "root": None,
               "events": [], "sources": [], "counts": {}, "suggestions": []}
 
 
-def _reset_run(pack: str, snapshot: dict) -> None:
+def _reset_run(pack: str, snapshot: dict, job: Optional[dict] = None) -> None:
     _RUN.update(pack=pack, repo=snapshot["repo"], root=Path(snapshot["root"]),
-                events=[], sources=[], counts={}, suggestions=[])
+                events=[], sources=[], counts={}, suggestions=[], job=job)
 
 
 def _event(policy: str, outcome: str, detail: str) -> None:
@@ -206,6 +206,22 @@ def _event(policy: str, outcome: str, detail: str) -> None:
 
 def _count(kind: str) -> None:
     _RUN["counts"][kind] = _RUN["counts"].get(kind, 0) + 1
+
+
+def _step(text: str) -> None:
+    """A line of live progress for the job the UI is polling."""
+    job = _RUN.get("job")
+    if job is not None:
+        job["steps"].append({"t": round(time.time() - job["started"], 1), "text": text[:160]})
+
+
+def _target(name: str, kwargs: dict) -> str:
+    if name == "tavily_search":
+        return f'"{kwargs.get("query", "")}"'
+    if name == "tavily_extract":
+        urls = kwargs.get("urls") or []
+        return ", ".join(drift._host(u) for u in urls[:3]) + (f" +{len(urls) - 3}" if len(urls) > 3 else "")
+    return drift._host(kwargs.get("url") or "")
 
 
 def _add_sources(result) -> None:
@@ -230,8 +246,45 @@ def _add_sources(result) -> None:
             _RUN["sources"].append(url)
 
 
+# Budgets that keep one check inside a few minutes. Tavily's crawl defaults to
+# 50 pages and follows external links; whole pages then flood the model's
+# context and every later LLM call slows down. Capped here, not just asked for.
+_CRAWL_LIMITS = {"limit": 8, "max_depth": 1, "max_breadth": 10}
+_MAP_LIMITS = {"limit": 30, "max_depth": 1, "max_breadth": 20}
+_PAGE_CHARS = {"tavily_crawl": 3000, "tavily_extract": 6000, "tavily_search": 1500}
+
+
+def _clamp(name: str, kwargs: dict) -> None:
+    """Cap crawl/map size and keep them on the starting site."""
+    limits = _CRAWL_LIMITS if name == "tavily_crawl" else _MAP_LIMITS if name == "tavily_map" else None
+    if not limits:
+        return
+    for key, cap in limits.items():
+        try:
+            kwargs[key] = min(int(kwargs.get(key) or cap), cap)
+        except (TypeError, ValueError):
+            kwargs[key] = cap
+    kwargs["allow_external"] = False
+    if name == "tavily_crawl" and kwargs.get("instructions"):
+        kwargs.setdefault("chunks_per_source", 3)      # only the relevant parts of each page
+
+
+def _trim(name: str, result):
+    """Shorten page text in a Tavily result before the model reads it."""
+    cap = _PAGE_CHARS.get(name)
+    if not cap or not isinstance(result, dict):
+        return result
+    for r in result.get("results") or []:
+        if isinstance(r, dict):
+            for key in ("raw_content", "content"):
+                text = r.get(key)
+                if isinstance(text, str) and len(text) > cap:
+                    r[key] = text[:cap] + f"\n…[trimmed {len(text) - cap} characters]"
+    return result
+
+
 def _guard_tavily(tool):
-    """Wrap a Tavily tool: egress guard, official-domain guard, source capture."""
+    """Wrap a Tavily tool: egress guard, official-domain guard, size budget, source capture."""
     original = tool.coroutine
     name = tool.name
 
@@ -254,10 +307,12 @@ def _guard_tavily(tool):
             _event("Official sources only", "blocked", f"{name}: {bad}")
             return (f"BLOCKED by tool guide: {bad}. Use only official sources for this pack: "
                     f"{', '.join(domains)}.")
+        _clamp(name, kwargs)
         _count("tavily")
+        _step(f"{name} · " + _target(name, kwargs))
         result = await original(*args, **kwargs)
         _add_sources(result)
-        return result
+        return _trim(name, result)
 
     tool.coroutine = guarded
     return tool
@@ -278,6 +333,7 @@ def _make_local_tools():
         shared: bool}], note}. shared=true means a shared default every app can fall back to.
         """
         _count("internal")
+        _step("Inventory · model ids in code and config")
         return drift.inventory_models(_RUN["root"])
 
     @tool
@@ -291,6 +347,7 @@ def _make_local_tools():
         pinned, files, file_count}]}. specs are the version constraints the repo declares.
         """
         _count("internal")
+        _step("Inventory · packages in requirements and pyproject")
         return drift.inventory_packages(_RUN["root"], only=only)
 
     @tool
@@ -306,6 +363,7 @@ def _make_local_tools():
         release), blocked_by}. Use this for versions; use Tavily to find out what changed.
         """
         _count("pypi")
+        _step(f"PyPI · latest releases of {len(packages)} package(s)")
         specs = {p["package"]: p["specs"]
                  for p in drift.inventory_packages(_RUN["root"], only=packages)["packages"]}
         try:
@@ -357,6 +415,7 @@ def _make_local_tools():
         Suggested fixes tab. Never say it was applied.
         """
         _count("internal")
+        _step(f"Suggested fix · {file_path}")
         return _create_suggestion(title, rationale, file_path, find, replace, evidence_url)
 
     return [inventory_models, inventory_packages, check_pypi, get_usage, get_watch_pack,
@@ -650,14 +709,20 @@ def _web(port: int):
                 log.info("CugaAgent ready.")
         return _agent
 
-    async def _run(question: str, pack: str, repo: str = "") -> dict:
+    async def _run(question: str, pack: str, repo: str = "", job: Optional[dict] = None) -> dict:
         if pack not in PACKS:
             pack = DEFAULT_PACK
         # Raises drift.RepoError (bad name, private/missing, too big) before any LLM call.
         snapshot = await asyncio.to_thread(drift.fetch_repo, repo)
+        if job is not None:
+            job["steps"].append({"t": round(time.time() - job["started"], 1),
+                                 "text": f"Repo · {snapshot['repo']} ({snapshot['files']} files read"
+                                         + (", cached" if snapshot.get("cached") else "") + ")"})
         agent = await _get_agent()
         async with _RUN_LOCK:
-            _reset_run(pack, snapshot)
+            if job is not None:
+                job["status"] = "running"
+            _reset_run(pack, snapshot, job)
             started = time.time()
             result = await agent.invoke(f"{_pack_preamble(pack, snapshot)}\n\n{question}",
                                         thread_id=uuid.uuid4().hex)
@@ -722,6 +787,49 @@ def _web(port: int):
         return [{"id": p["id"], "title": p["title"], "summary": p["summary"],
                  "domains": p["domains"], "examples": p.get("examples", [])} for p in PACKS.values()]
 
+    # Checks run as background jobs. A Models check can take several minutes, longer
+    # than Code Engine's 300 s request timeout, so POST /ask and /scan return a job
+    # id at once and the UI polls GET /jobs/{id} for live steps and the result.
+    jobs: dict[str, dict] = {}
+
+    def _start_job(question: str, pack: str, repo: str) -> dict:
+        drift.parse_repo(repo)                       # bad names fail now, with a 400
+        now = time.time()
+        for jid in [j for j, v in jobs.items() if now - v["created"] > 3600]:
+            jobs.pop(jid, None)
+        waiting = sum(1 for v in jobs.values() if v["status"] in ("queued", "running"))
+        job = {"id": uuid.uuid4().hex[:12], "status": "queued", "question": question, "pack": pack,
+               "repo": repo or drift.DEFAULT_REPO, "created": now, "started": now,
+               "ahead": waiting, "steps": [], "result": None, "error": None}
+        jobs[job["id"]] = job
+
+        async def work():
+            try:
+                job["result"] = await _run(question, pack, repo, job)
+                job["status"] = "done"
+            except drift.RepoError as exc:
+                job.update(status="error", error=str(exc))
+            except Exception as exc:  # noqa: BLE001
+                log.exception("drift check failed")
+                job.update(status="error", error=f"The check failed: {exc}")
+            finally:
+                job["seconds"] = round(time.time() - job["started"], 1)
+
+        asyncio.create_task(work())
+        return job
+
+    def _public(job: dict) -> dict:
+        return {k: job.get(k) for k in ("id", "status", "pack", "repo", "ahead", "steps",
+                                        "result", "error", "seconds")} | {
+            "elapsed": round(time.time() - job["started"], 1)}
+
+    @app.get("/jobs/{job_id}")
+    async def job_status(job_id: str):
+        job = jobs.get(job_id)
+        if job is None:
+            return JSONResponse(status_code=404, content={"error": "No such check (they expire after an hour)."})
+        return _public(job)
+
     @app.get("/repo")
     async def repo_info(repo: str = ""):
         """Check a repo can be scanned (and warm its snapshot) before asking."""
@@ -736,24 +844,18 @@ def _web(port: int):
         from _usage import track_utterance
         track_utterance(f"[{req.repo or drift.DEFAULT_REPO}] {req.question}")
         try:
-            return await _run(req.question, req.pack, req.repo)
+            return JSONResponse(status_code=202, content=_public(_start_job(req.question, req.pack, req.repo)))
         except drift.RepoError as exc:
             return JSONResponse(status_code=400, content={"answer": str(exc), "error": str(exc)})
-        except Exception as exc:
-            log.exception("Agent invocation failed")
-            return JSONResponse(status_code=500, content={"answer": f"Error: {exc}"})
 
     @app.post("/scan")
     async def scan(req: ScanRequest):
         try:
-            out = await _run(_SCAN_QUESTIONS.get(req.pack, "Run a drift check."), req.pack, req.repo)
-            _sched["last_scan"] = _now()
-            return out
+            job = _start_job(_SCAN_QUESTIONS.get(req.pack, "Run a drift check."), req.pack, req.repo)
         except drift.RepoError as exc:
             return JSONResponse(status_code=400, content={"answer": str(exc), "error": str(exc)})
-        except Exception as exc:
-            log.exception("Scan failed")
-            return JSONResponse(status_code=500, content={"answer": f"Error: {exc}"})
+        _sched["last_scan"] = _now()
+        return JSONResponse(status_code=202, content=_public(job))
 
     @app.get("/findings")
     async def findings(repo: Optional[str] = None, pack: Optional[str] = None):

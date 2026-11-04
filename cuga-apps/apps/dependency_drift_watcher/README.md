@@ -90,9 +90,16 @@ Env:
 | `DDW_INTERNAL_TERMS` | no | Extra comma-separated words the egress guard blocks |
 | `USAGE_COLLECTOR_URL`, `USAGE_DASHBOARD_TOKEN` | no | Real usage per app (cuga-apps only) |
 
-HTTP API: `GET /repo?repo=…` checks a repo can be scanned; `POST /ask`
-`{question, pack, repo}`; `POST /scan` `{pack, repo}`; `GET /findings?repo=…&pack=…`;
-`POST /decisions`; `GET /suggestions?repo=…`; `GET /status`; `GET /packs`.
+HTTP API: `GET /repo?repo=…` checks a repo can be scanned. `POST /ask`
+`{question, pack, repo}` and `POST /scan` `{pack, repo}` start a check and return
+`202 {id, status}` at once; poll `GET /jobs/{id}` for live steps and, when
+`status` is `done`, the `result`. (A Models check reads official sites and can
+take several minutes — longer than Code Engine's 300 s request timeout — so it
+never runs inside one request.) Also `GET /findings?repo=…&pack=…`,
+`POST /decisions`, `GET /suggestions?repo=…`, `GET /status`, `GET /packs`.
+
+Each check is bounded: crawls fetch at most 8 pages and maps 30 URLs, both on
+the starting site, and page text is trimmed before the model reads it.
 
 <!-- BEGIN: MCP usage (auto-generated, do not edit by hand) -->
 ## MCP usage

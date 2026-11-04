@@ -59,6 +59,7 @@ _APP_CSS = """<style>
   .msg.user { align-self: flex-end; background: var(--cds-interactive); color: var(--cds-text-on-color); }
   .msg.agent { align-self: flex-start; background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle); }
   .msg.thinking { align-self: flex-start; color: var(--cds-text-helper); font-style: italic; }
+  .msg.thinking .steps { font-style: normal; font-family: var(--cds-font-mono); font-size: 0.6875rem; margin-top: var(--cds-sp-02); display: grid; gap: 2px; color: var(--cds-text-secondary); }
   .msg.error { align-self: flex-start; background: var(--cds-support-error-bg); color: var(--cds-text-primary); border-left: 3px solid var(--cds-support-error); }
   .msg .pack-tag { display: inline-block; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.32px; opacity: .8; margin-bottom: 2px; }
   .input-row { display: flex; gap: 0; padding: var(--cds-sp-04) var(--cds-sp-06); border-top: 1px solid var(--cds-border-subtle); background: var(--cds-layer-01); }
@@ -359,18 +360,52 @@ _BODY = r"""
     setTimeout(() => { btn.textContent = 'Copy diff'; }, 2000);
   }
 
+  // A reply that isn't JSON (a proxy's timeout page, an HTML error) must not crash the UI.
+  async function readJson(res) {
+    const text = await res.text();
+    try { return JSON.parse(text); }
+    catch (e) { return { error: (res.status ? 'HTTP ' + res.status + ': ' : '') + text.slice(0, 200) }; }
+  }
+
+  function showProgress(el, label, job) {
+    const secs = Math.round(job.elapsed || 0);
+    const wait = job.status === 'queued'
+      ? 'Waiting for ' + (job.ahead || 1) + ' other check' + ((job.ahead || 1) > 1 ? 's' : '') + ' to finish… '
+      : '';
+    const steps = (job.steps || []).slice(-6).map(s => '<span>' + escHtml(s.t + 's  ' + s.text) + '</span>').join('');
+    el.innerHTML = escHtml(wait + label) + ' <span class="cds-helper-01">(' + secs + ' s)</span>'
+      + (steps ? '<div class="steps">' + steps + '</div>' : '');
+    $('messages').scrollTop = $('messages').scrollHeight;
+  }
+
   async function run(url, body, label) {
     setBusy(true, 'Checking…');
     const thinking = addMessage(label, 'thinking');
     try {
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const data = await res.json();
+      let job = await readJson(res);
+      if (!res.ok || !job.id) { thinking.remove(); addMessage(job.answer || job.error || res.statusText, 'error'); return; }
+      // Checks run in the background; poll until done (a Models check can take minutes).
+      let misses = 0;
+      while (job.status === 'queued' || job.status === 'running') {
+        showProgress(thinking, label, job);
+        await new Promise(r => setTimeout(r, 2500));
+        try {
+          const r = await fetch('/jobs/' + job.id);
+          const next = await readJson(r);
+          if (r.ok && next.id) { job = next; misses = 0; }
+          else if (r.status === 404) { job = { status: 'error', error: next.error }; }
+          else if (++misses > 8) { job = { status: 'error', error: next.error || 'Lost contact with the check.' }; }
+        } catch (e) { if (++misses > 8) job = { status: 'error', error: 'Network error: ' + e.message }; }
+      }
       thinking.remove();
-      if (!res.ok) { addMessage(data.answer || res.statusText, 'error'); return; }
+      if (job.status !== 'done') { addMessage(job.error || 'The check failed.', 'error'); return; }
+      const data = job.result || {};
       const pack = PACKS.find(p => p.id === data.pack);
       if (data.repo) currentRepo = data.repo.repo;
       addMessage(data.answer || '(no answer)', 'agent',
-        (pack ? pack.title + ' pack' : '') + (data.repo ? ' · ' + data.repo.repo : ''));
+        (pack ? pack.title + ' pack' : '') + (data.repo ? ' · ' + data.repo.repo : '')
+        + (job.seconds ? ' · ' + Math.round(job.seconds) + ' s' : ''));
       renderWhy(data); showTab('why');
       await loadFindings(); await loadSuggestions(); loadStatus();
       if ((data.suggestions || []).length) showTab('fixes');
@@ -384,13 +419,13 @@ _BODY = r"""
     if (!q) return;
     $('userInput').value = '';
     addMessage(q, 'user');
-    run('/ask', { question: q, pack: currentPack, repo: repoText() }, 'Reading ' + repoText() + ', checking PyPI, then official sources with Tavily…');
+    run('/ask', { question: q, pack: currentPack, repo: repoText() }, 'Checking ' + repoText() + '. A Models check reads official sites and can take a few minutes.');
   }
   function sendChip(el) { $('userInput').value = el.textContent.trim(); sendMessage(); }
   function runScan() {
     const pack = PACKS.find(p => p.id === currentPack);
     addMessage('Scan ' + repoText() + ' with the ' + (pack ? pack.title : currentPack) + ' pack', 'user');
-    run('/scan', { pack: currentPack, repo: repoText() }, 'Running a full scan. This can take a minute or two…');
+    run('/scan', { pack: currentPack, repo: repoText() }, 'Running a full scan of ' + repoText() + '. This can take a few minutes.');
   }
 
   (async function init() {
