@@ -147,6 +147,9 @@ def _save_findings(repo: str, pack: str, findings: list[dict]) -> None:
     with _db() as con:
         for f in findings:
             pk = f.get("pack") or pack
+            # One row per dependency: a new check's finding replaces older ones of any kind.
+            con.execute("DELETE FROM findings WHERE repo = ? AND pack = ? AND dependency = ? AND kind != ?",
+                        (repo, pk, f["dependency"], f["kind"]))
             con.execute("""
                 INSERT INTO findings (id, repo, pack, dependency, kind, severity, summary, quote,
                     source_url, effective_date, locations, recommendation, created_at, updated_at)
@@ -756,6 +759,7 @@ def _web(port: int):
                 have = {f["dependency"] for f in findings if f.get("severity") != "none"}
                 findings += [f for f in drift.pypi_findings(_RUN["pypi_rows"], brief["known"])
                              if f["dependency"] not in have]
+            findings = drift.dedupe_findings(findings)
             read_nothing = not _RUN["counts"].get("tavily") and not _RUN["counts"].get("pypi")
             if read_nothing:
                 findings = [f for f in findings if f.get("severity") == "none"]

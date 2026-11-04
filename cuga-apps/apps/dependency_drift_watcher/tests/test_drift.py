@@ -300,3 +300,13 @@ def test_pypi_findings_come_from_data_not_the_model(tmp_path):
     assert [(f["dependency"], f["severity"]) for f in found] == [("mcp", "review")]
     assert found[0]["source_url"] == "https://pypi.org/project/mcp/"
     assert found[0]["locations"] == ["requirements.txt"]
+
+
+def test_no_duplicate_findings(tmp_path):
+    root = _write(tmp_path, {"requirements.txt": "httpx\nmcp<2\n"})
+    known = drift.inventory_brief("packages", root)["known"]
+    row = {"package": "httpx", "latest": "0.28.1", "released": "2024-12-06", "inactive": True}
+    assert len(drift.pypi_findings([row, dict(row)], known)) == 1          # PyPI checked twice
+    merged = drift.dedupe_findings([{"dependency": "mcp", "severity": "fyi", "kind": "new_version"},
+                                    {"dependency": "mcp", "severity": "review", "kind": "breaking"}])
+    assert [(f["dependency"], f["severity"]) for f in merged] == [("mcp", "review")]

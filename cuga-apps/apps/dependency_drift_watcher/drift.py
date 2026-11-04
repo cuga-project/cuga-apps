@@ -652,11 +652,12 @@ def pypi_findings(rows: list[dict[str, Any]], known: dict[str, Any]) -> list[dic
     """Findings straight from PyPI data (no model involved): a version spec in
     the repo that blocks the latest release, or a project with no release in
     18 months. Source: the package's PyPI page."""
-    out = []
+    out, seen = [], set()
     for r in rows:
         name = r.get("package")
-        if name not in known or r.get("error"):
+        if name not in known or r.get("error") or name in seen:
             continue
+        seen.add(name)
         url = f"https://pypi.org/project/{name}/"
         if r.get("blocked_by"):
             out.append({"pack": "packages", "dependency": name, "kind": "breaking", "severity": "review",
@@ -673,3 +674,14 @@ def pypi_findings(rows: list[dict[str, Any]], known: dict[str, Any]) -> list[dic
                         "locations": list(known[name])[:4],
                         "recommendation": "Check whether the project is maintained; plan a replacement if not."})
     return out
+
+
+def dedupe_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One finding per dependency — the most severe; ties keep the first."""
+    rank = {"critical": 0, "review": 1, "fyi": 2, "none": 3}
+    best: dict[str, dict[str, Any]] = {}
+    for f in findings:
+        cur = best.get(f["dependency"])
+        if cur is None or rank.get(f.get("severity"), 3) < rank.get(cur.get("severity"), 3):
+            best[f["dependency"]] = f
+    return list(best.values())
