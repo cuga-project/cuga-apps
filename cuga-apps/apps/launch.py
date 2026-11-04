@@ -174,9 +174,10 @@ PROCS: list[dict] = [
     dict(name="usage_collector",    kind="app", port=APP_PORTS["usage_collector"],    cwd=HERE / "usage_collector",    cmd=_app_cmd()),
     dict(name="weather_wardrobe",   kind="app", port=APP_PORTS["weather_wardrobe"],   cwd=HERE / "weather_wardrobe",   cmd=_app_cmd()),
     dict(name="weather_wardrobe_2", kind="app", port=APP_PORTS["weather_wardrobe_2"], cwd=HERE / "weather_wardrobe_2", cmd=_app_cmd()),
+    dict(name="dependency_drift_watcher", kind="app", port=APP_PORTS["dependency_drift_watcher"], cwd=HERE / "dependency_drift_watcher", cmd=_app_cmd()),
 ]
 
-# The 21 "ship-ready" apps (mirrors the umbrella UI: in usecases.ts and NOT in
+# The 22 "ship-ready" apps (mirrors the umbrella UI: in usecases.ts and NOT in
 # Home.tsx's FOR_LATER_IDS / EXPLORATORY_IDS). Used by the --ship-ready flag so
 # you can start/stop/kill exactly this set, e.g.:
 #   python launch.py kill --ship-ready
@@ -185,12 +186,12 @@ SHIP_READY = [
     "youtube_research", "arch_diagram", "hiking_research", "movie_recommender",
     "webpage_summarizer", "paper_scout", "wiki_dive", "ibm_cloud_advisor", "ibm_docs_qa",
     "recipe_composer", "city_beat", "ouroboros", "github_trending", "ai_labs_news",
-    "find_a_doctor", "meetup_finder",
+    "find_a_doctor", "meetup_finder", "dependency_drift_watcher",
 ]
 
 # The MCP servers the ship-ready apps depend on — every one except
 # invocable_apis (BIRD-only; needs host data mounts and is used by no
-# ship-ready app). `--ship-ready` brings these up *with* the 21 apps so the
+# ship-ready app). `--ship-ready` brings these up *with* the 22 apps so the
 # MCP-backed apps (travel_planner, city_beat, movie_recommender, …) can
 # actually reach their tools. Starting apps without these leaves them unable
 # to connect.
@@ -199,7 +200,7 @@ SHIP_READY_MCP = [
     "mcp-code", "mcp-local", "mcp-text",
 ]
 
-# The full ship-ready stack = its MCP servers + the 21 apps. MCP first so the
+# The full ship-ready stack = its MCP servers + the 22 apps. MCP first so the
 # apps can initialise against them (cmd_start already sorts mcp before app).
 SHIP_READY_STACK = SHIP_READY_MCP + SHIP_READY
 
@@ -496,7 +497,7 @@ def main() -> None:
                         choices=["start", "stop", "kill", "status", "logs"])
     parser.add_argument("names", nargs="*", help="Optional process-name filter")
     parser.add_argument("--ship-ready", action="store_true",
-                        help="Target the ship-ready stack: the 21 ship-ready "
+                        help="Target the ship-ready stack: the 22 ship-ready "
                              "apps + the 7 MCP servers they depend on")
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV)
     parser.add_argument("--tail", type=int, default=30)
@@ -504,7 +505,7 @@ def main() -> None:
 
     filter_names = list(args.names) if args.names else None
     if args.ship_ready:
-        # The ship-ready stack is its MCP servers + the 21 apps; intersect with
+        # The ship-ready stack is its MCP servers + the 22 apps; intersect with
         # any explicit names the user also passed.
         filter_names = (SHIP_READY_STACK if not filter_names
                         else [n for n in filter_names if n in SHIP_READY_STACK])

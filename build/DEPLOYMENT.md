@@ -19,7 +19,7 @@ There are **three deployment targets**, built from the same source tree:
    ┌──────────────────────────┐        ┌────────────────────────────────────────┐
    │  Hugging Face Space       │ links  │  Code Engine: ONE all-in-one service    │
    │  (static umbrella UI)     │ ─────▶ │  nginx :8080                            │
-   │  no backend — just a       │        │   /a/<app>/         → 21 ship-ready apps │
+   │  no backend — just a       │        │   /a/<app>/         → 22 ship-ready apps │
    │  public "front door"       │        │   /a/usage-collector/ → stats dashboard │
    └──────────────────────────┘        │   5 MCP servers (loopback)              │
                                          └────────────────────────────────────────┘

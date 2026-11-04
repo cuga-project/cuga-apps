@@ -1,0 +1,38 @@
+# Models pack — LLM lifecycle and pricing drift.
+# Every Tavily call made while this pack is active is limited to `domains`
+# (enforced in code, not just asked for in the prompt).
+id: models
+title: Models
+summary: Retirement dates, deprecations, price changes and newer versions of the LLMs our apps call.
+inventory: inventory_models
+
+domains:
+  - ibm.com                 # watsonx.ai model lifecycle (cloud.ibm.com, dataplatform.cloud.ibm.com)
+  - openai.com              # developers.openai.com deprecations, platform.openai.com pricing
+  - anthropic.com           # docs.anthropic.com model deprecations
+  - claude.com              # docs.claude.com / platform.claude.com
+  - meta.com                # Llama model cards
+  - llama.com
+  - mistral.ai
+  - ollama.com
+  - huggingface.co          # official model cards
+
+# Starting points for tavily_map / tavily_crawl. If one moves, fall back to search.
+seeds:
+  - https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-model-lifecycle.html
+  - https://developers.openai.com/api/docs/deprecations
+  - https://docs.anthropic.com/en/docs/about-claude/model-deprecations
+
+crawl_instructions: Only model lifecycle, deprecation, withdrawal and pricing pages.
+time_range: year
+
+severity:
+  critical: Withdrawal or retirement within 60 days of a model our apps reference.
+  review: Price change, or withdrawal within 180 days.
+  fyi: A newer version is available; nothing breaks.
+  none: No change found in official sources.
+
+examples:
+  - Which models do our apps depend on, and has anything drifted?
+  - Is any watsonx model we use deprecated or scheduled for withdrawal?
+  - Compare replacement candidates for our most-used model.

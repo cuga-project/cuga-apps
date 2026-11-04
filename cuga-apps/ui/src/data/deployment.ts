@@ -62,6 +62,7 @@ const CE_APP_BY_ID: Record<string, string> = {
   'github-trending':    'cuga-apps-github-trending',
   'ai-labs-news':       'cuga-apps-ai-labs-news',
   'find-a-doctor':      'cuga-apps-find-a-doctor',
+  'dependency-drift-watcher': 'cuga-apps-dependency-drift-watcher',  // all-in-one route; no per-app CE app yet
 
   // Tier 2 — in-memory state
   'newsletter':         'cuga-apps-newsletter',

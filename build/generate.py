@@ -27,14 +27,14 @@ import argparse
 import sys
 from pathlib import Path
 
-# The 21 ship-ready apps (dir names). Mirrors launch.py SHIP_READY and the
+# The 22 ship-ready apps (dir names). Mirrors launch.py SHIP_READY and the
 # umbrella UI's ship-ready set.
 SHIP_READY = [
     "stock_alert", "server_monitor", "newsletter", "web_researcher", "travel_planner",
     "youtube_research", "arch_diagram", "hiking_research", "movie_recommender",
     "webpage_summarizer", "paper_scout", "wiki_dive", "ibm_cloud_advisor", "ibm_docs_qa",
     "recipe_composer", "city_beat", "ouroboros", "github_trending", "ai_labs_news",
-    "find_a_doctor", "meetup_finder",
+    "find_a_doctor", "meetup_finder", "dependency_drift_watcher",
 ]
 
 # travel_planner is served via uvicorn.run("main:app") and reads PORT from the
@@ -57,6 +57,8 @@ EXTRA_SERVICES = ["usage_collector"]
 #   local → server_monitor
 # (text/code/invocable_apis serve only non-ship-ready apps and are not bundled;
 #  invocable_apis also needs external BIRD data.)
+# dependency_drift_watcher uses no bundled server: it reaches Tavily's and
+# GitHub's hosted MCP servers over HTTPS (see REMOTE_MCP in _mcp_bridge.py).
 MCP_SERVERS = ["web", "knowledge", "geo", "finance", "local"]
 
 

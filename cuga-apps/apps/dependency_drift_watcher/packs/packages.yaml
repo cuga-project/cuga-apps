@@ -1,0 +1,47 @@
+# Packages pack — Python dependency drift: vulnerabilities, breaking releases,
+# abandoned projects. Tavily calls are limited to `domains`; GitHub release
+# data comes from GitHub's official MCP server.
+id: packages
+title: Packages
+summary: New vulnerabilities, breaking releases and archived projects in the Python packages our apps install.
+inventory: inventory_packages
+
+domains:
+  - github.com              # security advisories and release notes
+  - osv.dev
+  - nvd.nist.gov
+  - cisa.gov                # Known Exploited Vulnerabilities catalog
+  - pypi.org
+  - python.org
+
+seeds:
+  - https://osv.dev/list?ecosystem=PyPI
+
+crawl_instructions: Only security advisories, release notes and changelogs.
+time_range: month
+
+# The packages that matter most to every app, with their GitHub repos so the
+# agent can read releases through the GitHub MCP server.
+watch:
+  - {package: cuga,                   repo: cuga-project/cuga-agent}
+  - {package: mcp,                    repo: modelcontextprotocol/python-sdk}
+  - {package: langchain-mcp-adapters, repo: langchain-ai/langchain-mcp-adapters}
+  - {package: langchain-core,         repo: langchain-ai/langchain}
+  - {package: langgraph,              repo: langchain-ai/langgraph}
+  - {package: langchain-ibm,          repo: langchain-ai/langchain-ibm}
+  - {package: fastapi,                repo: fastapi/fastapi}
+  - {package: uvicorn,                repo: Kludex/uvicorn}
+  - {package: httpx,                  repo: encode/httpx}
+  - {package: pydantic,               repo: pydantic/pydantic}
+  - {package: tavily-python,          repo: tavily-ai/tavily-python}
+
+severity:
+  critical: A known or exploited vulnerability affects the installed version, or a pin blocks a required upgrade.
+  review: A breaking release, an archived repository, or the installed version is two or more minor versions behind.
+  fyi: A newer patch or minor release with no known impact.
+  none: Up to date with no advisories.
+
+examples:
+  - Any new vulnerabilities this month in packages our apps use?
+  - Are any of our key dependencies archived or far behind their latest release?
+  - Does any version pin in our requirements block a newer cuga release?

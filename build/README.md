@@ -1,6 +1,6 @@
 # build/ — all-in-one image (every ship-ready app + MCP servers + the umbrella UI)
 
-This directory packages the **complete environment** — the **umbrella UI + all 21
+This directory packages the **complete environment** — the **umbrella UI + all 22
 ship-ready cuga-apps + the MCP servers they need** — into a **single Docker image
 behind one port (8080)**. One `docker compose up` brings the whole thing up
 locally, and the same image deploys to **Code Engine as one microservice**.
@@ -17,7 +17,7 @@ Everything here is self-contained — **no existing repo files are modified** an
    │   ├─ /a/<app>/    → reverse-proxy → 127.0.0.1:288xx   (one per app)              │
    │   └─ /healthz     → 200                                                          │
    │                                                                                  │
-   │  21 uvicorn apps on 127.0.0.1:288xx  ──MCP tool calls──┐  (started by run_all.sh)│
+   │  22 uvicorn apps on 127.0.0.1:288xx  ──MCP tool calls──┐  (started by run_all.sh)│
    │                                                        ▼                         │
    │  5 MCP servers on 127.0.0.1:291xx  (web, knowledge, geo, finance, local)         │
    └──────────────────────────────────────────────────────────────────────────────────┘
@@ -80,7 +80,7 @@ The umbrella UI loads at `/`; click any ship-ready app — it opens at
 
 ## Start / stop / restart the container
 
-The image runs everything (UI + 21 apps + 5 MCP servers + the stats dashboard)
+The image runs everything (UI + 22 apps + 5 MCP servers + the stats dashboard)
 as one container on port **8080**.
 
 ### With `docker compose` (from `build/`)
@@ -191,7 +191,7 @@ checks hit the port (the UI at `/` returns 200; `/healthz` is also available).
 
 ## Sizing & caveats
 
-- **Memory**: all 21 apps **and the 5 MCP servers** share one container. The MCP
+- **Memory**: all 22 apps **and the 5 MCP servers** share one container. The MCP
   servers are lightweight (httpx-based) and start at boot; the apps import `cuga`
   lazily (on the first `/ask`), so idle is moderate, but each *used* app loads the
   full cuga stack. Start at **4 vCPU / 16 GB** and adjust. `meetup_finder`

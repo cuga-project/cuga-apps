@@ -191,6 +191,7 @@ const SHIP_READY_ORDER = [
   'hiking-research', 'arch-diagram', 'youtube-research', 'github-trending', 'ai-labs-news',
   'recipe-composer', 'movie-recommender', 'web-researcher', 'newsletter', 'webpage-summarizer',
   'server-monitor', 'stock-alert', 'ibm-cloud-advisor', 'ibm-docs-qa', 'meetup-finder', 'ouroboros',
+  'dependency-drift-watcher',
 ]
 const shipOrderIndex = (id: string) => {
   const i = SHIP_READY_ORDER.indexOf(id)
@@ -236,7 +237,7 @@ const BUCKETS: Bucket[] = [
   { id: 'ops',          title: 'Ops & Alerts',          accent: 'cyan',
     ids: ['server-monitor','stock-alert'] },
   { id: 'developer',    title: 'Developer & Eval Tools', accent: 'violet',
-    ids: ['code-reviewer','bird-invocable-api'] },
+    ids: ['code-reviewer','bird-invocable-api','dependency-drift-watcher'] },
   { id: 'ibm',          title: 'IBM Stack',             accent: 'slate',
     ids: ['ibm-cloud-advisor','ibm-docs-qa','ibm-whats-new'] },
 ]
