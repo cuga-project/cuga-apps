@@ -17,6 +17,9 @@ domains:
 seeds:
   - https://osv.dev/list?ecosystem=PyPI
 
+# Outside reads (Tavily calls) one check may make.
+tavily_budget: 8
+
 crawl_instructions: Only security advisories, release notes and changelogs.
 time_range: month
 

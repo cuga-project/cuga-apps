@@ -310,3 +310,92 @@ def test_no_duplicate_findings(tmp_path):
     merged = drift.dedupe_findings([{"dependency": "mcp", "severity": "fyi", "kind": "new_version"},
                                     {"dependency": "mcp", "severity": "review", "kind": "breaking"}])
     assert [(f["dependency"], f["severity"]) for f in merged] == [("mcp", "review")]
+
+
+# ── quotes must be on the cited page ──────────────────────────────────────
+
+_ANTHROPIC_PAGE = """## Model status
+| Retirement date | Deprecated model | Recommended replacement |
+| October 28, 2025 | `claude-3-5-sonnet-20241022` | `claude-sonnet-5-5` |
+| January 5, 2026 | `claude-3-opus-20240229` | `claude-opus-5-1` |"""
+
+_IBM_PAGE = """Foundation model lifecycle. The following models are deprecated and will be withdrawn:
+llama-3-2-11b-vision-instruct, withdrawal date 2026-02-01."""
+
+
+def test_quote_supported_accepts_real_table_quotes():
+    # the model's own rendering of a table row: pipes, curly quotes, a non-breaking hyphen
+    assert drift.quote_supported("“October 28, 2025 | claude-3-5-sonnet-20241022 | claude‑sonnet‑5‑5”",
+                                 _ANTHROPIC_PAGE)
+
+
+def test_quote_supported_rejects_invented_quotes():
+    # the real fabrication from a local run: right page, words not on it
+    assert not drift.quote_supported(
+        "The gpt-oss-120b model will be retired on 2025-12-01. Please migrate to gpt-oss-130b.", _IBM_PAGE)
+    # a real sentence with a changed date is still rejected
+    assert not drift.quote_supported("October 28, 2026 | claude-3-5-sonnet-20241022 | claude-sonnet-5-5",
+                                     _ANTHROPIC_PAGE)
+
+
+def test_verify_drops_findings_whose_quote_is_not_on_the_page(tmp_path):
+    root = _write(tmp_path, {"apps/a.py": 'A = "claude-3-5-sonnet-20241022"\nB = "openai/gpt-oss-120b"\n'})
+    known = drift.inventory_brief("models", root)["known"]
+    anth = "https://docs.anthropic.com/en/docs/about-claude/model-deprecations"
+    ibm = "https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-model-lifecycle.html"
+    found = [{"dependency": "claude-3-5-sonnet-20241022", "severity": "critical", "source_url": anth,
+              "quote": "October 28, 2025 | claude-3-5-sonnet-20241022 | claude-sonnet-5-5"},
+             {"dependency": "openai/gpt-oss-120b", "severity": "review", "source_url": ibm,
+              "quote": "The gpt-oss-120b model will be retired on 2025-12-01. Please migrate to gpt-oss-130b."}]
+    kept, dropped = drift.verify_findings(found, known, "models", [anth, ibm], [],
+                                          pages={anth: _ANTHROPIC_PAGE, ibm: _IBM_PAGE})
+    assert [k["dependency"] for k in kept] == ["claude-3-5-sonnet-20241022"]
+    assert dropped[0]["reason"] == "its quote is not on the cited page"
+
+
+def test_typographic_ids_and_quotes_still_match(tmp_path):
+    """The real case from a run: non-breaking hyphens, narrow no-break spaces,
+    an arrow instead of a table pipe, and a "(provider)" suffix."""
+    root = _write(tmp_path, {"apps/a.py": 'A = "claude-3-5-sonnet-20241022"\n'})
+    known = drift.inventory_brief("models", root)["known"]
+    url = "https://docs.anthropic.com/en/docs/about-claude/model-deprecations"
+    found = [{"dependency": "claude‑3‑5‑sonnet‑20241022 (anthropic)", "severity": "review",
+              "source_url": url,
+              "quote": "“| October 28, 2025 | claude‑3‑5‑sonnet‑20241022 → claude‑sonnet‑5‑5”"}]
+    kept, dropped = drift.verify_findings(found, known, "models", [url], [], pages={url: _ANTHROPIC_PAGE})
+    assert [k["dependency"] for k in kept] == ["claude-3-5-sonnet-20241022"] and not dropped
+
+
+def test_line_mentioning_finds_the_real_row_but_not_replacements():
+    url = "https://docs.anthropic.com/x"
+    pages = {url: _ANTHROPIC_PAGE + "\n| gpt-4o-mini | 2026-01-01 |"}
+    assert drift.line_mentioning("claude-3-5-sonnet-20241022", pages) == (
+        url, "| October 28, 2025 | `claude-3-5-sonnet-20241022` | `claude-sonnet-5-5` |")
+    assert drift.line_mentioning("claude-sonnet-5-5", pages) is None      # only ever the replacement
+    assert drift.line_mentioning("gpt-4o", pages) is None                 # gpt-4o-mini is another model
+
+
+def test_retyped_quote_is_replaced_by_the_page_line(tmp_path):
+    """Real run: the model merged two sentences into a quote that isn't on the page."""
+    root = _write(tmp_path, {"apps/a.py": 'A = "claude-3-5-sonnet-20241022"\n'})
+    known = drift.inventory_brief("models", root)["known"]
+    url = "https://docs.anthropic.com/en/docs/about-claude/model-deprecations"
+    found = [{"dependency": "claude-3-5-sonnet-20241022", "severity": "critical", "source_url": url,
+              "quote": "On October 28, 2025, Anthropic notified developers using Claude 3-5 Sonnet-20241022"}]
+    kept, dropped = drift.verify_findings(found, known, "models", [url], [], pages={url: _ANTHROPIC_PAGE})
+    assert not dropped and kept[0]["quote_from"] == "page"
+    assert "October 28, 2025" in kept[0]["quote"] and "claude-3-5-sonnet-20241022" in kept[0]["quote"]
+
+
+def test_severity_comes_from_the_date_in_the_evidence():
+    from datetime import date
+    today = date(2026, 11, 4)
+    row = {"kind": "retirement", "severity": "fyi", "quote_from": "page",
+           "quote": "| October 28, 2025 | claude-3-5-sonnet-20241022 | claude-sonnet-5-5 |"}
+    assert drift.severity_from_dates(row, today) == "critical"                    # already retired
+    soon = {**row, "quote": "withdrawal date 2027-03-01"}
+    assert drift.severity_from_dates(soon, today) == "review"                     # within 180 days
+    later = {**row, "quote": "Retirement: Dec 1, 2027"}
+    assert drift.severity_from_dates(later, today) == "fyi"
+    price = {"kind": "price", "severity": "review", "quote": "from January 1, 2026 prices change"}
+    assert drift.severity_from_dates(price, today) == "review"                    # not a retirement: unchanged

@@ -23,6 +23,20 @@ seeds:
   - https://developers.openai.com/api/docs/deprecations
   - https://docs.anthropic.com/en/docs/about-claude/model-deprecations
 
+# Each provider's official lifecycle page. The app reads the pages for the
+# providers the repo uses ONCE, before the agent starts, and hands over the
+# excerpts — one read per provider instead of one search per model.
+provider_pages:
+  watsonx:
+    - https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-model-lifecycle.html
+  openai:
+    - https://developers.openai.com/api/docs/deprecations
+  anthropic:
+    - https://docs.anthropic.com/en/docs/about-claude/model-deprecations
+
+# Outside reads (Tavily calls) one check may make, the app's own page reads included.
+tavily_budget: 12
+
 crawl_instructions: Only model lifecycle, deprecation, withdrawal and pricing pages.
 time_range: year
 

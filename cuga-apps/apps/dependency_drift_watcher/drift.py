@@ -586,7 +586,8 @@ def inventory_brief(pack: str, root: Path) -> dict[str, Any]:
 
 
 def _match_dependency(dep: str, known: dict[str, Any], pack: str) -> str | None:
-    d = (dep or "").strip().strip("`*").lower()
+    d = _plain(dep or "").strip().strip("`*").lower()
+    d = re.sub(r"\s*\([^)]*\)\s*$", "", d).strip().strip("`*")     # "gpt-4o (openai)" → "gpt-4o"
     if not d:
         return None
     if pack == "packages":
@@ -607,11 +608,68 @@ def _same_page(url: str, read: list[str]) -> bool:
     return bool(k) and any(key(r) == k or key(r).startswith(k) or k.startswith(key(r)) for r in read)
 
 
+# Models write ids and dates with typographic characters: non-breaking hyphens
+# (claude‑3‑5‑sonnet), narrow no-break spaces (October 28, 2025), en dashes.
+_DASHES = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2015\u2212\ufe63\uff0d"), "-")
+_SPACES = dict.fromkeys(map(ord, "\u00a0\u2007\u2009\u200a\u202f\u205f\u3000"), " ")
+
+
+def _plain(text: str) -> str:
+    return (text or "").translate(_DASHES).translate(_SPACES)
+
+
+def _words(text: str) -> list[str]:
+    """Lowercased word tokens; markdown, table pipes, arrows, quotes and dashes don't count."""
+    return re.findall(r"[a-z0-9]+(?:[.:-][a-z0-9]+)*", _plain(text).lower())
+
+
+def quote_supported(quote: str, page_text: str, min_run: int = 6) -> bool:
+    """Is the quote really on the page? Its words must appear on the page in order
+    as one run — the whole quote, or at least `min_run` consecutive words of it
+    (models trim and re-punctuate). Every number and model id in the quote must
+    also appear on the page, so a fabricated date or version can't ride along."""
+    q, page = _words(quote), _words(page_text)
+    if not q or not page:
+        return False
+    hay = " " + " ".join(page) + " "
+    for tok in q:
+        if any(c.isdigit() for c in tok) and f" {tok} " not in hay:
+            return False
+    if len(q) <= min_run:
+        return f" {' '.join(q)} " in hay
+    return any(f" {' '.join(q[i:i + min_run])} " in hay for i in range(len(q) - min_run + 1))
+
+
+def line_mentioning(dep: str, pages: dict[str, str]) -> tuple[str, str] | None:
+    """(page url, the line on that page that names `dep`) — the evidence itself, in the
+    page's own words. Matches the id as a whole token, so "gpt-4o" doesn't match
+    "gpt-4o-mini". None when no page read in this check names it."""
+    target = " ".join(_words(dep))
+    if not target:
+        return None
+    def names(text: str) -> bool:
+        return f" {target} " in " " + " ".join(_words(text)) + " "
+
+    for url, text in pages.items():
+        for line in _plain(text).splitlines():
+            if not names(line):
+                continue
+            cells = [c for c in line.split("|") if c.strip()]
+            # Deprecation tables end with the recommended replacement; a model named
+            # only there is the replacement, not the one being retired.
+            if len(cells) >= 3 and not any(names(c) for c in cells[:-1]):
+                continue
+            return url, line.strip()[:300]
+    return None
+
+
 def verify_findings(findings: list[dict[str, Any]], known: dict[str, Any], pack: str,
-                    sources_read: list[str], pypi_checked: list[str]) -> tuple[list, list]:
+                    sources_read: list[str], pypi_checked: list[str],
+                    pages: dict[str, str] | None = None) -> tuple[list, list]:
     """Keep findings that refer to a real dependency and, unless severity is
     'none', cite a page this check actually read (or PyPI for a package the
-    check looked up). Returns (kept, dropped) — dropped items carry a reason."""
+    check looked up) and quote text that is really on that page.
+    Returns (kept, dropped) — dropped items carry a reason."""
     kept, dropped = [], []
     pypi = {_norm(p) for p in pypi_checked}
     for f in findings:
@@ -627,8 +685,23 @@ def verify_findings(findings: list[dict[str, Any]], known: dict[str, Any], pack:
             on_pypi = (pack == "packages" and dep in pypi
                        and re.match(r"https?://pypi\.org/(project|pypi)/", url or "") is not None)
             if not url or not (_same_page(url, sources_read) or on_pypi):
-                dropped.append({**f, "reason": "its source was not read in this check"})
-                continue
+                evidence = line_mentioning(dep, pages) if pages else None
+                if not evidence:
+                    dropped.append({**f, "reason": "its source was not read in this check"})
+                    continue
+                f = {**f, "source_url": evidence[0], "quote": evidence[1], "quote_from": "page"}
+                url = evidence[0]
+            if pages is not None and not on_pypi:
+                text = " ".join(t for u, t in pages.items() if _same_page(url, [u]))
+                if not quote_supported(f.get("quote", ""), text):
+                    # The model often re-types the evidence (reformatted dates, merged
+                    # sentences). If a page read in this check names the dependency,
+                    # show that line, in the page's words, instead of the model's version.
+                    evidence = line_mentioning(dep, pages)
+                    if not evidence:
+                        dropped.append({**f, "reason": "its quote is not on the cited page"})
+                        continue
+                    f = {**f, "source_url": evidence[0], "quote": evidence[1], "quote_from": "page"}
         kept.append(f)
     return kept, dropped
 
@@ -643,8 +716,9 @@ def render_findings(findings: list[dict[str, Any]]) -> str:
     rows = ["| Dependency | Where it's used | Change (quote + link) | Impact |", "|---|---|---|---|"]
     for f in changed:
         quote = (f.get("quote") or f.get("summary") or "").replace("|", "\\|")
+        note = " (the page's own words)" if f.get("quote_from") == "page" else ""
         rows.append(f"| {f['dependency']} | {', '.join(f.get('locations', [])[:3])} | "
-                    f"“{quote}” [source]({f.get('source_url', '')}) | {f.get('severity')} |")
+                    f"“{quote}”{note} [source]({f.get('source_url', '')}) | {f.get('severity')} |")
     return f"{len(changed)} verified change(s), most urgent first.\n\n" + "\n".join(rows)
 
 
@@ -685,3 +759,42 @@ def dedupe_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if cur is None or rank.get(f.get("severity"), 3) < rank.get(cur.get("severity"), 3):
             best[f["dependency"]] = f
     return list(best.values())
+
+
+_MONTHS = {m: i for i, m in enumerate(
+    ["january", "february", "march", "april", "may", "june", "july", "august",
+     "september", "october", "november", "december"], 1)}
+
+
+def dates_in(text: str) -> list:
+    """Dates written as 2025-10-28 or October 28, 2025 (or Oct 28 2025)."""
+    from datetime import date
+    out, t = [], _plain(text or "")
+    for y, m, d in re.findall(r"\b(20\d\d)-(\d\d)-(\d\d)\b", t):
+        try:
+            out.append(date(int(y), int(m), int(d)))
+        except ValueError:
+            pass
+    for mon, d, y in re.findall(r"\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(20\d\d)\b", t):
+        m = next((v for k, v in _MONTHS.items() if k.startswith(mon.lower()) and len(mon) >= 3), None)
+        if m:
+            try:
+                out.append(date(int(y), m, int(d)))
+            except ValueError:
+                pass
+    return out
+
+
+def severity_from_dates(f: dict[str, Any], today=None) -> str:
+    """The Models pack's own rule, applied to the date in the evidence: a
+    retirement or withdrawal already past or within 60 days is critical, within
+    180 days review, later fyi. Other kinds keep the agent's severity."""
+    from datetime import date
+    kind = (f.get("kind") or "").lower()
+    if kind not in ("retirement", "withdrawal", "deprecation") and f.get("quote_from") != "page":
+        return f.get("severity", "fyi")
+    found = dates_in(f.get("quote", ""))
+    if not found:
+        return f.get("severity", "fyi")
+    days = (min(found) - (today or date.today())).days
+    return "critical" if days <= 60 else "review" if days <= 180 else "fyi"

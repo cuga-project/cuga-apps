@@ -105,6 +105,7 @@ DEFAULT_PACK = "models"
 TAVILY_TOOLS = {"tavily_search", "tavily_extract", "tavily_crawl", "tavily_map", "tavily_research"}
 
 _STATUS: dict = {"tavily": "not loaded"}
+_TAVILY: dict = {}          # guarded Tavily tools by name, for reads the app makes itself
 _POLICIES: list[str] = []
 
 
@@ -200,7 +201,7 @@ _RUN: dict = {"pack": DEFAULT_PACK, "repo": drift.DEFAULT_REPO, "root": None,
 def _reset_run(pack: str, snapshot: dict, job: Optional[dict] = None) -> None:
     _RUN.update(pack=pack, repo=snapshot["repo"], root=Path(snapshot["root"]),
                 events=[], sources=[], counts={}, suggestions=[], job=job, pypi_checked=[],
-                pypi_rows=[])
+                pypi_rows=[], cache={}, pages={})
 
 
 def _event(policy: str, outcome: str, detail: str) -> None:
@@ -287,6 +288,15 @@ def _trim(name: str, result):
     return result
 
 
+def _keep_pages(result) -> None:
+    """Remember the text of every page read in this check, to verify quotes against."""
+    if isinstance(result, dict):
+        for r in result.get("results") or []:
+            if isinstance(r, dict) and r.get("url"):
+                text = (r.get("raw_content") or "") + "\n" + (r.get("content") or "")
+                _RUN["pages"][r["url"]] = _RUN["pages"].get(r["url"], "") + "\n" + text
+
+
 def _guard_tavily(tool):
     """Wrap a Tavily tool: egress guard, official-domain guard, size budget, source capture."""
     original = tool.coroutine
@@ -312,11 +322,25 @@ def _guard_tavily(tool):
             return (f"BLOCKED by tool guide: {bad}. Use only official sources for this pack: "
                     f"{', '.join(domains)}.")
         _clamp(name, kwargs)
+        # The agent tends to re-read pages it already has. Same call, same check →
+        # the earlier result, free; and a hard budget makes every check finish.
+        key = name + json.dumps(kwargs, sort_keys=True, default=str)
+        if key in _RUN["cache"]:
+            _event("Read budget", "applied", f"{name}: repeated call answered from this check's earlier read")
+            return {"note": "You already read this in this check. Use what you have; do not repeat it.",
+                    **(_RUN["cache"][key] if isinstance(_RUN["cache"][key], dict) else {"result": _RUN["cache"][key]})}
+        budget = int(pack.get("tavily_budget") or 12)
+        if _RUN["counts"].get("tavily", 0) >= budget:
+            _event("Read budget", "blocked", f"{name}: this check's {budget} outside reads are used up")
+            return (f"BUDGET REACHED: this check may make {budget} outside reads and has used them. "
+                    "Do not call Tavily again; answer now from what you have read.")
         _count("tavily")
         _step(f"{name} · " + _target(name, kwargs))
-        result = await original(*args, **kwargs)
+        result = _trim(name, await original(*args, **kwargs))
         _add_sources(result)
-        return _trim(name, result)
+        _keep_pages(result)
+        _RUN["cache"][key] = result
+        return result
 
     tool.coroutine = guarded
     return tool
@@ -492,7 +516,8 @@ active watch pack (Models or Packages).
    most widely used ones. Call get_usage when ranking impact (cuga-apps only).
 2. For packages, call check_pypi for latest versions and for specs that block them.
 3. Read the world's side from official sources only, with the Tavily tools:
-   - tavily_search for recent notices (set include_domains to the pack's domains),
+   - tavily_search for recent notices (set include_domains to the pack's domains);
+     group related ids into one query per provider — never one search per model,
    - tavily_map / tavily_crawl on the pack's seed pages to find lifecycle, pricing or
      release pages,
    - tavily_extract with a `query` to pull the exact sentence that proves a change,
@@ -594,7 +619,9 @@ def _make_tools():
     if remote_mcp_configured("tavily"):
         try:
             tav = [t for t in load_tools(["tavily"]) if t.name in TAVILY_TOOLS]
-            tools += [_guard_tavily(t) for t in tav]
+            guarded = [_guard_tavily(t) for t in tav]
+            _TAVILY.update({t.name: t for t in guarded})
+            tools += guarded
             _STATUS["tavily"] = f"ready · {len(tav)} tools"
         except Exception as exc:  # noqa: BLE001
             _STATUS["tavily"] = f"error: {exc}"
@@ -622,6 +649,67 @@ def make_agent():
         enable_knowledge=False,
         auto_load_policies=False,
     )
+
+
+async def _read_provider_pages(pack: dict, known: dict) -> str:
+    """Models pack: read each used provider's official lifecycle page once (one
+    tavily_extract per provider, through the same guards and metering) and return
+    excerpts for the prompt. Empty when Tavily isn't available."""
+    extract = _TAVILY.get("tavily_extract")
+    pages = pack.get("provider_pages") or {}
+    if not extract or not pages:
+        return ""
+    by_provider: dict[str, list[str]] = {}
+    for model in known:
+        by_provider.setdefault(drift._provider_for(model), []).append(model)
+    blocks = []
+    for provider, models in by_provider.items():
+        urls = pages.get(provider) or []
+        if not urls:
+            continue
+        try:
+            res = await extract.coroutine(
+                urls=urls, extract_depth="basic", format="text",
+                query="deprecation, retirement or withdrawal dates and replacements for: " + ", ".join(models))
+        except Exception as exc:  # noqa: BLE001 — the agent can still search
+            log.warning("provider page read failed for %s: %s", provider, exc)
+            continue
+        for r in (res.get("results") if isinstance(res, dict) else None) or []:
+            text = (r.get("raw_content") or r.get("content") or "").strip()
+            if text:
+                blocks.append(f"### {provider} — {r.get('url')}\n{text}")
+    if not blocks:
+        return ""
+    return ("[Official lifecycle pages, read by the app in this check — use these first and quote "
+            "from them; search only for models they don't cover, one search per provider, never "
+            "one per model]\n" + "\n\n".join(blocks))
+
+
+_EXTRACT_PROMPT = """From the drift report below, return ONLY a JSON object, no prose:
+{"findings": [{"dependency": "...", "kind": "retirement|price|vulnerability|breaking|archived|new_version|none",
+  "severity": "critical|review|fyi|none", "summary": "...", "quote": "...", "source_url": "https://...",
+  "effective_date": "YYYY-MM-DD or null", "locations": ["path:line"], "recommendation": "..."}]}
+One entry per dependency the report says changed. Copy quotes and URLs exactly as written in the
+report; if the report gives no URL for a change, use "" for source_url. Do not add anything.
+
+Report:
+"""
+
+
+async def _findings_from_prose(answer: str) -> list[dict]:
+    """The model wrote its report but left out the findings block: pull the claims
+    out as JSON (one small LLM call) so they can be verified like any other."""
+    from _llm import create_llm
+    try:
+        llm = create_llm(provider=os.getenv("LLM_PROVIDER"), model=os.getenv("LLM_MODEL"))
+        msg = await llm.ainvoke(_EXTRACT_PROMPT + answer[:12000])
+        text = getattr(msg, "content", "") or ""
+        if "```" not in text:
+            text = f"```json\n{text.strip()}\n```"
+        return drift.split_findings(text)[1]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("findings extraction failed: %s", exc)
+        return []
 
 
 def _pack_preamble(pack_id: str, snapshot: dict) -> str:
@@ -738,7 +826,11 @@ def _web(port: int):
             # over as fact, so the model can't invent dependencies or files.
             brief = await asyncio.to_thread(drift.inventory_brief, pack, _RUN["root"])
             _step(f"Inventory · {len(brief['known'])} {'packages' if pack == 'packages' else 'model ids'} found")
-            prompt = f"{_pack_preamble(pack, snapshot)}\n{brief['text']}\n\n{question}"
+            pages = ""
+            if pack == "models":
+                pages = await _read_provider_pages(PACKS[pack], brief["known"])
+            prompt = (f"{_pack_preamble(pack, snapshot)}\n{brief['text']}\n"
+                      + (f"\n{pages}\n" if pages else "") + f"\n{question}")
             result = await agent.invoke(prompt, thread_id=uuid.uuid4().hex)
             read_nothing = not _RUN["counts"].get("tavily") and not _RUN["counts"].get("pypi")
             if read_nothing:
@@ -752,13 +844,35 @@ def _web(port: int):
                     "you answer; quote only text you read here.", thread_id=uuid.uuid4().hex)
             answer = result.answer if hasattr(result, "answer") else str(result)
             clean, raw = drift.split_findings(answer)
+            from_prose = False
+            if not raw and clean.strip():
+                _step("Findings · reading the claims out of the report to verify them")
+                raw, from_prose = await _findings_from_prose(clean), True
+            if not raw and (_RUN["counts"].get("tavily") or _RUN["counts"].get("pypi")):
+                # Read sources but produced no report (the model sometimes stops mid-task).
+                _step("Retry · the agent stopped before finishing its report")
+                _event("Grounding check", "applied", "No findings in the answer; asked the agent to finish")
+                result = await agent.invoke(
+                    prompt + "\n\nFinish the drift report now, from the pages above and what you read. "
+                    "End with the fenced json findings block.", thread_id=uuid.uuid4().hex)
+                answer = result.answer if hasattr(result, "answer") else str(result)
+                clean, raw = drift.split_findings(answer)
+                if not raw and clean.strip():
+                    raw, from_prose = await _findings_from_prose(clean), True
             findings, dropped = drift.verify_findings(raw, brief["known"], pack, _RUN["sources"],
-                                                      _RUN["pypi_checked"])
+                                                      _RUN["pypi_checked"], _RUN["pages"])
             if pack == "packages":
                 # PyPI facts don't depend on the model formatting its findings block.
                 have = {f["dependency"] for f in findings if f.get("severity") != "none"}
                 findings += [f for f in drift.pypi_findings(_RUN["pypi_rows"], brief["known"])
                              if f["dependency"] not in have]
+            for d in dropped:
+                log.info("grounding dropped %s (%s): quote=%r url=%s", d.get("dependency"), d["reason"],
+                         (d.get("quote") or "")[:200], d.get("source_url"))
+            if pack == "models":
+                for f in findings:
+                    if f.get("severity") != "none":
+                        f["severity"] = drift.severity_from_dates(f)
             findings = drift.dedupe_findings(findings)
             read_nothing = not _RUN["counts"].get("tavily") and not _RUN["counts"].get("pypi")
             if read_nothing:
@@ -766,13 +880,15 @@ def _web(port: int):
                 clean = ("⚠ This check read no outside sources, so none of its claims are verified and "
                          "nothing was saved. Please ask again.")
                 _event("Grounding check", "blocked", "No sources were read; findings discarded")
-            elif dropped:
+            elif dropped or any(f.get("quote_from") == "page" for f in findings) or (
+                    from_prose and any(f.get("severity") != "none" for f in findings)):
                 # The model's prose may repeat what was dropped; show only verified data.
-                clean = drift.render_findings(findings) + "\n\n" + "\n".join(
+                clean = drift.render_findings(findings) + ("\n\n" + "\n".join(
                     [f"⚠ Removed {len(dropped)} finding(s) that could not be verified:"]
-                    + [f"- {d.get('dependency', '?')}: {d['reason']}" for d in dropped[:10]])
+                    + [f"- {d.get('dependency', '?')}: {d['reason']}" for d in dropped[:10]]) if dropped else "")
                 _event("Grounding check", "applied",
-                       f"Removed {len(dropped)} unverified finding(s); answer rebuilt from verified data")
+                       f"Removed {len(dropped)} unverified finding(s); answer rebuilt from verified data"
+                       if dropped else "Answer rebuilt from verified findings, with quotes in the pages' own words")
             if findings and not read_nothing:
                 _save_findings(snapshot["repo"], pack, findings)
             return {
@@ -780,7 +896,9 @@ def _web(port: int):
                 "pack": pack,
                 "repo": {k: snapshot[k] for k in ("repo", "ref", "url", "files", "fetched_at")},
                 "findings": findings,
-                "dropped": [{"dependency": d.get("dependency"), "reason": d["reason"]} for d in dropped],
+                "dropped": [{"dependency": d.get("dependency"), "reason": d["reason"],
+                             "quote": (d.get("quote") or "")[:300], "source_url": d.get("source_url", "")}
+                            for d in dropped],
                 "suggestions": list(_RUN["suggestions"]),
                 "policy_decisions": _decisions(result) + list(_RUN["events"]),
                 "sources": list(_RUN["sources"]),
