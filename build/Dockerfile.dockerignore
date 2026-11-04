@@ -16,3 +16,9 @@ cuga-skills-ui
 # the UI is rebuilt in-image; don't ship its prebuilt dist or local env
 cuga-apps/ui/dist
 cuga-apps/ui/node_modules
+# runtime state from local runs — the image must start clean (and never ship
+# someone's findings, cached repo snapshots or policy stores)
+**/.cuga
+**/.cuga_*
+cuga-apps/apps/dependency_drift_watcher/drift.db
+cuga-apps/apps/dependency_drift_watcher/.repos

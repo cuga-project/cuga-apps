@@ -1,19 +1,23 @@
 """
 Dependency Drift Watcher — CUGA Demo App
 
-Our code stays still. Its dependencies don't. This app watches the models and
-Python packages our apps depend on, finds where the outside world has drifted
-from what our code assumes, and drafts the fix for a person to approve.
+Our code stays still. Its dependencies don't. Point this app at any public
+GitHub repo: it inventories the models and Python packages the repo depends on,
+finds where the outside world has drifted from what the code assumes, and
+suggests the fix.
 
-  * Our side  — inline tools inventory this repo (model ids, requirements files,
-                installed versions) and read real usage from usage_collector.
-  * The world — Tavily's MCP server (search, extract, map, crawl, research) reads
-                official sources; GitHub's MCP server reads upstream releases.
+  * Our side  — the repo is downloaded as a public snapshot (no token) and
+                inventoried by inline tools: model ids with file:line, and
+                package specs from requirements*.txt and pyproject.toml.
+  * The world — PyPI's public JSON API gives each package's latest release and
+                whether our version spec still admits it; Tavily's MCP server
+                (search, extract, map, crawl, research) reads official sources
+                for what changed and why.
   * The rules — CUGA policies (intent guard, playbook, tool guide, output
                 formatter) plus code guards on every Tavily call: no secrets or
                 internal names leave, and searches stay on the pack's official
-                domains. Fixes are proposals; nothing is written until a person
-                approves it in the UI.
+                domains. Fixes are suggestions to copy; the app never writes to
+                any repository.
 
 Usage:
   python main.py [--port 28843] [--provider watsonx] [--model openai/gpt-oss-120b]
@@ -23,12 +27,9 @@ Required env vars:
   TAVILY_API_KEY          — Tavily's hosted MCP server (search, extract, map, crawl, research)
 
 Optional env vars:
-  GITHUB_TOKEN            — GitHub's MCP server: upstream release data, and PRs on approval
-  DDW_GITHUB_REPO         — owner/repo that approved fixes open a draft PR against (use a fork)
-  DDW_GITHUB_BASE         — base branch for those PRs (default main)
-  DDW_GITHUB_PATH_PREFIX  — repo path of this checkout's root (default cuga-apps/)
-  DDW_REPO_PATH           — directory to inventory (default: the cuga-apps root)
-  DDW_SCAN_EVERY_HOURS    — background scan of every pack (default 0 = off)
+  DDW_DEFAULT_REPO        — repo scanned when none is given (default cuga-project/cuga-apps)
+  DDW_REPO_MAX_MB         — refuse repos whose download is larger (default 60)
+  DDW_SCAN_EVERY_HOURS    — background scan of the default repo, every pack (default 0 = off)
   DDW_INTERNAL_TERMS      — extra comma-separated words the egress guard blocks
   USAGE_COLLECTOR_URL, USAGE_DASHBOARD_TOKEN — read real usage per app
 """
@@ -102,16 +103,13 @@ PACKS = drift.load_packs()
 DEFAULT_PACK = "models"
 
 TAVILY_TOOLS = {"tavily_search", "tavily_extract", "tavily_crawl", "tavily_map", "tavily_research"}
-# Read-only GitHub tools the agent may call. Writes (branch, file, PR) are made
-# by this app, and only after a person approves a proposal.
-GITHUB_READ_TOOLS = {"get_latest_release", "list_releases", "list_tags", "get_file_contents"}
 
-_STATUS: dict = {"tavily": "not loaded", "github": "not loaded"}
+_STATUS: dict = {"tavily": "not loaded"}
 _POLICIES: list[str] = []
 
 
 # ---------------------------------------------------------------------------
-# Store — findings, fix proposals, decisions
+# Store — findings (per repo), suggested fixes, decisions
 # ---------------------------------------------------------------------------
 
 _DB_PATH = _DIR / "drift.db"
@@ -120,19 +118,21 @@ _DB_PATH = _DIR / "drift.db"
 def _db() -> sqlite3.Connection:
     con = sqlite3.connect(_DB_PATH)
     con.row_factory = sqlite3.Row
+    cols = {r[1] for r in con.execute("PRAGMA table_info(findings)")}
+    if cols and "repo" not in cols:
+        # Store from before findings were per repo: start over (local data only).
+        con.executescript("DROP TABLE IF EXISTS findings; DROP TABLE IF EXISTS proposals;")
     con.executescript("""
         CREATE TABLE IF NOT EXISTS findings (
-            id TEXT PRIMARY KEY, pack TEXT, dependency TEXT, kind TEXT, severity TEXT,
+            id TEXT PRIMARY KEY, repo TEXT, pack TEXT, dependency TEXT, kind TEXT, severity TEXT,
             summary TEXT, quote TEXT, source_url TEXT, effective_date TEXT,
             locations TEXT, recommendation TEXT, status TEXT DEFAULT 'open',
             note TEXT DEFAULT '', created_at TEXT, updated_at TEXT,
-            UNIQUE(pack, dependency, kind)
+            UNIQUE(repo, pack, dependency, kind)
         );
-        CREATE TABLE IF NOT EXISTS proposals (
-            id TEXT PRIMARY KEY, title TEXT, rationale TEXT, file_path TEXT,
-            find_text TEXT, replace_text TEXT, evidence_url TEXT, diff TEXT,
-            status TEXT DEFAULT 'pending', pr_url TEXT DEFAULT '', note TEXT DEFAULT '',
-            created_at TEXT, decided_at TEXT
+        CREATE TABLE IF NOT EXISTS suggestions (
+            id TEXT PRIMARY KEY, repo TEXT, title TEXT, rationale TEXT, file_path TEXT,
+            evidence_url TEXT, diff TEXT, created_at TEXT
         );
     """)
     return con
@@ -142,29 +142,33 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _save_findings(pack: str, findings: list[dict]) -> None:
+def _save_findings(repo: str, pack: str, findings: list[dict]) -> None:
     now = _now()
     with _db() as con:
         for f in findings:
             pk = f.get("pack") or pack
             con.execute("""
-                INSERT INTO findings (id, pack, dependency, kind, severity, summary, quote,
+                INSERT INTO findings (id, repo, pack, dependency, kind, severity, summary, quote,
                     source_url, effective_date, locations, recommendation, created_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(pack, dependency, kind) DO UPDATE SET
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(repo, pack, dependency, kind) DO UPDATE SET
                     severity=excluded.severity, summary=excluded.summary, quote=excluded.quote,
                     source_url=excluded.source_url, effective_date=excluded.effective_date,
                     locations=excluded.locations, recommendation=excluded.recommendation,
                     updated_at=excluded.updated_at
-            """, (uuid.uuid4().hex[:10], pk, f["dependency"], f["kind"], f["severity"],
+            """, (uuid.uuid4().hex[:10], repo, pk, f["dependency"], f["kind"], f["severity"],
                   f["summary"], f["quote"], f["source_url"], f.get("effective_date"),
                   json.dumps(f["locations"]), f["recommendation"], now, now))
 
 
-def _list_findings(pack: Optional[str] = None) -> list[dict]:
-    q, args = "SELECT * FROM findings", []
+def _list_findings(repo: Optional[str] = None, pack: Optional[str] = None) -> list[dict]:
+    q, where, args = "SELECT * FROM findings", [], []
+    if repo:
+        where.append("repo = ?"); args.append(repo)
     if pack:
-        q, args = q + " WHERE pack = ?", [pack]
+        where.append("pack = ?"); args.append(pack)
+    if where:
+        q += " WHERE " + " AND ".join(where)
     order = " ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'review' THEN 1 WHEN 'fyi' THEN 2 ELSE 3 END, updated_at DESC"
     with _db() as con:
         rows = [dict(r) for r in con.execute(q + order, args)]
@@ -173,9 +177,12 @@ def _list_findings(pack: Optional[str] = None) -> list[dict]:
     return rows
 
 
-def _list_proposals() -> list[dict]:
+def _list_suggestions(repo: Optional[str] = None) -> list[dict]:
+    q, args = "SELECT * FROM suggestions", []
+    if repo:
+        q, args = q + " WHERE repo = ?", [repo]
     with _db() as con:
-        return [dict(r) for r in con.execute("SELECT * FROM proposals ORDER BY created_at DESC LIMIT 50")]
+        return [dict(r) for r in con.execute(q + " ORDER BY created_at DESC LIMIT 50", args)]
 
 
 # ---------------------------------------------------------------------------
@@ -183,11 +190,13 @@ def _list_proposals() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 _RUN_LOCK = asyncio.Lock()
-_RUN: dict = {"pack": DEFAULT_PACK, "events": [], "sources": [], "counts": {}, "proposals": []}
+_RUN: dict = {"pack": DEFAULT_PACK, "repo": drift.DEFAULT_REPO, "root": None,
+              "events": [], "sources": [], "counts": {}, "suggestions": []}
 
 
-def _reset_run(pack: str) -> None:
-    _RUN.update(pack=pack, events=[], sources=[], counts={}, proposals=[])
+def _reset_run(pack: str, snapshot: dict) -> None:
+    _RUN.update(pack=pack, repo=snapshot["repo"], root=Path(snapshot["root"]),
+                events=[], sources=[], counts={}, suggestions=[])
 
 
 def _event(policy: str, outcome: str, detail: str) -> None:
@@ -200,7 +209,23 @@ def _count(kind: str) -> None:
 
 
 def _add_sources(result) -> None:
-    for url in drift.urls_in(result):
+    """Record the pages a Tavily call returned (its results' URLs, not every URL in
+    the payload — the hosted server's JSON also carries links to its own docs)."""
+    urls: list[str] = []
+    if isinstance(result, dict):
+        for key in ("results", "failed_results"):
+            for r in result.get(key) or []:
+                if isinstance(r, dict) and r.get("url"):
+                    urls.append(r["url"])
+                elif isinstance(r, str) and r.startswith("http"):     # tavily_map returns plain URLs
+                    urls.append(r)
+        if not urls and result.get("base_url"):
+            urls.append(result["base_url"])
+    else:
+        urls = drift.urls_in(result)
+    for url in urls:
+        if "docs.tavily.com" in url:
+            continue
         if url not in _RUN["sources"] and len(_RUN["sources"]) < 25:
             _RUN["sources"].append(url)
 
@@ -238,20 +263,8 @@ def _guard_tavily(tool):
     return tool
 
 
-def _count_github(tool):
-    original = tool.coroutine
-
-    @functools.wraps(original)
-    async def counted(*args, **kwargs):
-        _count("github")
-        return await original(*args, **kwargs)
-
-    tool.coroutine = counted
-    return tool
-
-
 # ---------------------------------------------------------------------------
-# Inline tools — our side of the gap, and the proposal queue
+# Inline tools — the repo side of the gap, PyPI, and suggested fixes
 # ---------------------------------------------------------------------------
 
 def _make_local_tools():
@@ -259,72 +272,95 @@ def _make_local_tools():
 
     @tool
     def inventory_models() -> dict:
-        """List every LLM model id referenced in this repo's code and config.
+        """List every LLM model id referenced in the repo's code and config.
 
-        Returns {repo_root, in_use_now: {provider, model}, models: [{model, provider,
-        locations: ["path:line", ...], apps: [...], shared: bool}], note}.
-        shared=true means a shared default every app can fall back to.
+        Returns {models: [{model, provider, locations: ["path:line", ...], apps: [...],
+        shared: bool}], note}. shared=true means a shared default every app can fall back to.
         """
         _count("internal")
-        return drift.inventory_models()
+        return drift.inventory_models(_RUN["root"])
 
     @tool
     def inventory_packages(only: Optional[list[str]] = None) -> dict:
-        """List the Python packages in this repo's requirements*.txt files.
+        """List the Python packages in the repo's requirements*.txt and pyproject.toml files.
 
         Args:
-            only: optional package names to limit the result to (e.g. the pack's watch list).
+            only: optional package names to limit the result to (e.g. the pack's priority list).
 
-        Returns {requirements_files, unpinned, packages: [{package, specs, pinned,
-        installed, files, file_count}]}. `installed` is the version in the running
-        environment, i.e. what is actually deployed; None if not installed here.
+        Returns {dependency_files, total_packages, unpinned, packages: [{package, specs,
+        pinned, files, file_count}]}. specs are the version constraints the repo declares.
         """
         _count("internal")
-        return drift.inventory_packages(only=only)
+        return drift.inventory_packages(_RUN["root"], only=only)
+
+    @tool
+    def check_pypi(packages: list[str]) -> list:
+        """Latest release of each package on PyPI, compared with the repo's version specs.
+
+        Args:
+            packages: package names from inventory_packages (at most 40 per call).
+
+        Returns one entry per package: {package, latest, released (date), yanked,
+        requires_python, inactive (no release in 18 months), links (changelog/source),
+        our_specs, latest_allowed (false = a pin or cap in the repo blocks the latest
+        release), blocked_by}. Use this for versions; use Tavily to find out what changed.
+        """
+        _count("pypi")
+        specs = {p["package"]: p["specs"]
+                 for p in drift.inventory_packages(_RUN["root"], only=packages)["packages"]}
+        try:
+            from _usage import track_call
+            track_call("pypi", n=len(packages))
+        except Exception:  # noqa: BLE001 — usage tracking is optional
+            pass
+        return drift.pypi_latest(packages, specs)
 
     @tool
     def get_usage() -> dict:
-        """Real usage from the usage collector: requests per app and calls per provider.
+        """Real usage of this gallery's apps from the usage collector: requests per app and
+        calls per provider. Only meaningful when the repo is cuga-project/cuga-apps.
 
         Returns {available, apps: [...], providers: [...]} or {available: false, reason}.
         Use it to rank impact: a change to a heavily used app matters more.
         """
         _count("internal")
+        if _RUN["repo"] != "cuga-project/cuga-apps":
+            return {"available": False, "reason": "usage is only recorded for cuga-project/cuga-apps"}
         return _usage_stats()
 
     @tool
     def get_watch_pack() -> dict:
         """The active watch pack: official source domains, seed pages, crawl
-        instructions, severity rules and (for packages) the watch list with GitHub repos."""
+        instructions, severity rules and (for packages) a priority list."""
         return PACKS.get(_RUN["pack"], {})
 
     @tool
     def list_accepted_risks() -> list:
-        """Findings a person has marked as accepted risk. Do not raise these as new alerts."""
+        """Findings a person has marked as accepted risk for this repo. Do not raise these again."""
         return [{"pack": f["pack"], "dependency": f["dependency"], "kind": f["kind"], "note": f["note"]}
-                for f in _list_findings() if f["status"] == "accepted"]
+                for f in _list_findings(repo=_RUN["repo"]) if f["status"] == "accepted"]
 
     @tool
-    def propose_fix(title: str, rationale: str, file_path: str, find: str,
+    def suggest_fix(title: str, rationale: str, file_path: str, find: str,
                     replace: str, evidence_url: str) -> dict:
-        """Queue a one-line fix for a person to approve. This does NOT change anything.
+        """Prepare a one-line fix as a diff the user can copy. This changes nothing anywhere.
 
         Args:
-            title: short pull-request title, e.g. "Replace llama-3-3-70b-instruct before withdrawal".
+            title: short title, e.g. "Raise the mcp cap to allow 2.x".
             rationale: one or two sentences: what drifted, quoting the source.
-            file_path: repo-relative path from inventory results, e.g. "apps/_llm.py".
-            find: exact text currently in the file (copy it from the file, one line is best).
+            file_path: repo-relative path from the inventory results, e.g. "build/requirements.apps.txt".
+            find: exact text currently in the file (copy it, one line is best).
             replace: the replacement text.
             evidence_url: the official URL that proves the change.
 
-        Returns {id, status: "pending", diff} or {error}. After calling it, tell the
-        user the fix is waiting for approval in the panel. Never say it was applied.
+        Returns {id, diff} or {error}. Tell the user the suggested fix is in the
+        Suggested fixes tab. Never say it was applied.
         """
         _count("internal")
-        return _create_proposal(title, rationale, file_path, find, replace, evidence_url)
+        return _create_suggestion(title, rationale, file_path, find, replace, evidence_url)
 
-    return [inventory_models, inventory_packages, get_usage, get_watch_pack,
-            list_accepted_risks, propose_fix]
+    return [inventory_models, inventory_packages, check_pypi, get_usage, get_watch_pack,
+            list_accepted_risks, suggest_fix]
 
 
 def _usage_stats() -> dict:
@@ -347,10 +383,11 @@ def _usage_stats() -> dict:
     }
 
 
-def _create_proposal(title, rationale, file_path, find, replace, evidence_url) -> dict:
+def _create_suggestion(title, rationale, file_path, find, replace, evidence_url) -> dict:
+    root = _RUN["root"]
     rel = file_path.strip().lstrip("/")
-    path = (drift.REPO_ROOT / rel).resolve()
-    if drift.REPO_ROOT not in path.parents or not path.is_file():
+    path = (root / rel).resolve()
+    if root.resolve() not in path.parents or not path.is_file():
         return {"error": f"{file_path} is not a file in the repo; use a path from the inventory"}
     text = path.read_text(errors="ignore")
     if not find or find not in text:
@@ -361,68 +398,13 @@ def _create_proposal(title, rationale, file_path, find, replace, evidence_url) -
     diff = "".join(difflib.unified_diff(
         text.splitlines(keepends=True), new.splitlines(keepends=True),
         fromfile=f"a/{rel}", tofile=f"b/{rel}", n=1))
-    pid = uuid.uuid4().hex[:8]
+    sid = uuid.uuid4().hex[:8]
     with _db() as con:
-        con.execute("""INSERT INTO proposals (id, title, rationale, file_path, find_text,
-            replace_text, evidence_url, diff, created_at) VALUES (?,?,?,?,?,?,?,?,?)""",
-            (pid, title, rationale, rel, find, replace, evidence_url, diff, _now()))
-    _RUN["proposals"].append(pid)
-    return {"id": pid, "status": "pending", "diff": diff}
-
-
-# ---------------------------------------------------------------------------
-# Applying an approved proposal — GitHub MCP, called by the app, not the agent
-# ---------------------------------------------------------------------------
-
-async def _github_call(tool: str, args: dict) -> tuple[str, list[str]]:
-    """Call a GitHub MCP tool; return (text blocks, resource texts)."""
-    from mcp.client.session import ClientSession
-    from mcp.client.streamable_http import streamablehttp_client
-    from _mcp_bridge import server_endpoint
-
-    url, headers = server_endpoint("github")
-    async with streamablehttp_client(url, headers=headers) as (read, write, _close):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            res = await session.call_tool(tool, args)
-    texts, resources = [], []
-    for block in res.content or []:
-        if getattr(block, "type", "") == "text":
-            texts.append(block.text)
-        elif getattr(block, "resource", None) is not None:
-            resources.append(getattr(block.resource, "text", "") or "")
-    if res.isError:
-        raise RuntimeError(f"GitHub {tool} failed: {' '.join(texts)[:300]}")
-    return "\n".join(texts), resources
-
-
-async def _apply_on_github(p: dict) -> str:
-    owner, repo = os.environ["DDW_GITHUB_REPO"].split("/", 1)
-    base = os.getenv("DDW_GITHUB_BASE", "main")
-    path = os.getenv("DDW_GITHUB_PATH_PREFIX", "cuga-apps/") + p["file_path"]
-    text, resources = await _github_call("get_file_contents",
-                                         {"owner": owner, "repo": repo, "path": path, "ref": base})
-    sha = re.search(r"SHA:\s*([0-9a-f]{40})", text)
-    if not resources or not sha:
-        raise RuntimeError(f"could not read {path} on {owner}/{repo}@{base}")
-    content = resources[0]
-    if p["find_text"] not in content:
-        raise RuntimeError(f"{path} on {base} no longer contains the text to replace")
-    branch = f"drift-watcher/{p['id']}"
-    await _github_call("create_branch", {"owner": owner, "repo": repo, "branch": branch, "from_branch": base})
-    await _github_call("create_or_update_file", {
-        "owner": owner, "repo": repo, "path": path, "branch": branch, "sha": sha.group(1),
-        "content": content.replace(p["find_text"], p["replace_text"], 1),
-        "message": p["title"],
-    })
-    body = (f"{p['rationale']}\n\nEvidence: {p['evidence_url']}\n\n"
-            "Drafted by Dependency Drift Watcher (CUGA + Tavily) and approved by a person.")
-    pr_text, _ = await _github_call("create_pull_request", {
-        "owner": owner, "repo": repo, "title": p["title"], "body": body,
-        "head": branch, "base": base, "draft": True,
-    })
-    pr_urls = [u for u in drift.urls_in(pr_text) if "/pull/" in u]
-    return pr_urls[0] if pr_urls else f"https://github.com/{owner}/{repo}/tree/{branch}"
+        con.execute("""INSERT INTO suggestions (id, repo, title, rationale, file_path,
+            evidence_url, diff, created_at) VALUES (?,?,?,?,?,?,?,?)""",
+            (sid, _RUN["repo"], title, rationale, rel, evidence_url, diff, _now()))
+    _RUN["suggestions"].append(sid)
+    return {"id": sid, "diff": diff}
 
 
 # ---------------------------------------------------------------------------
@@ -432,23 +414,25 @@ async def _apply_on_github(p: dict) -> str:
 _SYSTEM = """\
 # Dependency Drift Watcher
 
-You find drift: places where the outside world has changed but our code still
-assumes the old state. Each request names an active watch pack (Models or Packages).
+You find drift: places where the outside world has changed but a repository's code
+still assumes the old state. Each request names the repository being checked and an
+active watch pack (Models or Packages).
 
 ## Workflow
-1. Inventory our side first: inventory_models or inventory_packages (use the pack's
-   watch list for packages). Call get_usage when ranking impact.
-2. Read the world's side from official sources only, with the Tavily tools:
+1. Inventory the repo first: inventory_models or inventory_packages. For packages,
+   start with the pack's priority list when those packages appear in the repo, then
+   the most widely used ones. Call get_usage when ranking impact (cuga-apps only).
+2. For packages, call check_pypi for latest versions and for specs that block them.
+3. Read the world's side from official sources only, with the Tavily tools:
    - tavily_search for recent notices (set include_domains to the pack's domains),
    - tavily_map / tavily_crawl on the pack's seed pages to find lifecycle, pricing or
      release pages,
    - tavily_extract with a `query` to pull the exact sentence that proves a change,
    - tavily_research only when the user asks for a comparison of replacements.
-   For packages, GitHub tools (get_latest_release, list_releases) give upstream versions.
-3. Compare: does the change affect a model or package we actually use? Where (file:line)?
-4. Skip anything in list_accepted_risks.
-5. For a clear one-line fix (a model id, a version pin), call propose_fix. It only
-   queues the change for a person; say it is waiting for approval.
+4. Compare: does the change affect a model or package the repo actually uses? Where (file:line)?
+5. Skip anything in list_accepted_risks.
+6. For a clear one-line fix (a model id, a version pin), call suggest_fix. It only
+   prepares a diff to copy; never say a fix was applied.
 
 ## Rules
 - Every finding needs a quote copied from the source and its URL. No quote, no finding.
@@ -475,7 +459,7 @@ _PLAYBOOK = """\
 3. Evidence: extract the exact sentence that proves each change, with its URL and date.
 4. Rank: critical (breaks within 60 days or exploitable), review, fyi, none — using the pack's severity rules
    and real usage.
-5. Draft: for a one-line fix, call propose_fix; never claim a fix was applied.
+5. Draft: for a one-line fix, call suggest_fix; never claim a fix was applied.
 """
 
 
@@ -549,17 +533,6 @@ def _make_tools():
     else:
         _STATUS["tavily"] = "TAVILY_API_KEY not set"
 
-    if remote_mcp_configured("github"):
-        try:
-            gh = [t for t in load_tools(["github"]) if t.name in GITHUB_READ_TOOLS]
-            tools += [_count_github(t) for t in gh]
-            _STATUS["github"] = f"ready · {len(gh)} read tools"
-        except Exception as exc:  # noqa: BLE001
-            _STATUS["github"] = f"error: {exc}"
-            log.exception("GitHub MCP failed to load")
-    else:
-        _STATUS["github"] = "GITHUB_TOKEN not set (optional)"
-
     return tools
 
 
@@ -582,9 +555,11 @@ def make_agent():
     )
 
 
-def _pack_preamble(pack_id: str) -> str:
+def _pack_preamble(pack_id: str, snapshot: dict) -> str:
     p = PACKS[pack_id]
     lines = [
+        f"[Repository: {snapshot['repo']} ({snapshot['ref']}), {snapshot['url']}; "
+        f"paths in the inventory are relative to its root]",
         f"[Active watch pack: {p['title']}] {p['summary']}",
         f"Official source domains (Tavily calls are limited to these): {', '.join(p['domains'])}",
         f"Seed pages for tavily_map / tavily_crawl: {', '.join(p.get('seeds', []))}",
@@ -592,18 +567,18 @@ def _pack_preamble(pack_id: str) -> str:
         f"Search time_range: {p.get('time_range', 'month')}",
         "Severity rules: " + "; ".join(f"{k}: {v}" for k, v in p.get("severity", {}).items()),
     ]
-    if p.get("watch"):
-        lines.append("Watch list (package → GitHub repo): "
-                     + ", ".join(f"{w['package']} → {w['repo']}" for w in p["watch"]))
+    if p.get("priority"):
+        lines.append("Priority packages (check these first when the repo uses them): "
+                     + ", ".join(p["priority"]))
     return "\n".join(lines)
 
 
 _SCAN_QUESTIONS = {
     "models": ("Run a full Models drift check: inventory our models, check each provider's "
                "official lifecycle and pricing sources, and report what drifted."),
-    "packages": ("Run a Packages drift check on the watch list: compare installed versions with "
-                 "the latest releases, and look for advisories, archived repos and pins that "
-                 "block upgrades."),
+    "packages": ("Run a Packages drift check: compare the repo's version specs with the latest "
+                 "releases on PyPI, and look for advisories, inactive projects and pins or caps "
+                 "that block upgrades."),
 }
 
 
@@ -623,7 +598,7 @@ def _receipt(result, started: float) -> dict:
     r = getattr(result, "receipt", None)
     out = {
         "tavily_calls": _RUN["counts"].get("tavily", 0),
-        "github_calls": _RUN["counts"].get("github", 0),
+        "pypi_calls": _RUN["counts"].get("pypi", 0),
         "internal_calls": _RUN["counts"].get("internal", 0),
         "seconds": round(time.time() - started, 1),
         "model": os.getenv("LLM_MODEL", ""),
@@ -640,10 +615,12 @@ def _receipt(result, started: float) -> dict:
 class AskRequest(BaseModel):
     question: str
     pack: str = DEFAULT_PACK
+    repo: str = ""          # owner/repo, owner/repo@ref or a github.com URL; "" = default
 
 
 class ScanRequest(BaseModel):
     pack: str = DEFAULT_PACK
+    repo: str = ""
 
 
 class DecisionRequest(BaseModel):
@@ -673,24 +650,27 @@ def _web(port: int):
                 log.info("CugaAgent ready.")
         return _agent
 
-    async def _run(question: str, pack: str) -> dict:
+    async def _run(question: str, pack: str, repo: str = "") -> dict:
         if pack not in PACKS:
             pack = DEFAULT_PACK
+        # Raises drift.RepoError (bad name, private/missing, too big) before any LLM call.
+        snapshot = await asyncio.to_thread(drift.fetch_repo, repo)
         agent = await _get_agent()
         async with _RUN_LOCK:
-            _reset_run(pack)
+            _reset_run(pack, snapshot)
             started = time.time()
-            result = await agent.invoke(f"{_pack_preamble(pack)}\n\n{question}",
+            result = await agent.invoke(f"{_pack_preamble(pack, snapshot)}\n\n{question}",
                                         thread_id=uuid.uuid4().hex)
             answer = result.answer if hasattr(result, "answer") else str(result)
             clean, findings = drift.split_findings(answer)
             if findings:
-                _save_findings(pack, findings)
+                _save_findings(snapshot["repo"], pack, findings)
             return {
                 "answer": clean,
                 "pack": pack,
+                "repo": {k: snapshot[k] for k in ("repo", "ref", "url", "files", "fetched_at")},
                 "findings": findings,
-                "proposals": list(_RUN["proposals"]),
+                "suggestions": list(_RUN["suggestions"]),
                 "policy_decisions": _decisions(result) + list(_RUN["events"]),
                 "sources": list(_RUN["sources"]),
                 "receipt": _receipt(result, started),
@@ -703,7 +683,7 @@ def _web(port: int):
             await asyncio.sleep(every * 3600)
             for pack in PACKS:
                 try:
-                    await _run(_SCAN_QUESTIONS.get(pack, "Run a drift check."), pack)
+                    await _run(_SCAN_QUESTIONS.get(pack, "Run a drift check."), pack, drift.DEFAULT_REPO)
                 except Exception:  # noqa: BLE001
                     log.exception("scheduled scan failed for %s", pack)
             _sched["last_scan"] = _now()
@@ -729,13 +709,10 @@ def _web(port: int):
             "tavily": _STATUS["tavily"] if _agent else
                       ("key set · loads on first question" if remote_mcp_configured("tavily")
                        else "TAVILY_API_KEY not set"),
-            "github": _STATUS["github"] if _agent else
-                      ("token set · loads on first question" if remote_mcp_configured("github")
-                       else "GITHUB_TOKEN not set (optional)"),
-            "pr_target": os.getenv("DDW_GITHUB_REPO") or None,
+            "pypi": "public API · no key",
             "policies": list(_POLICIES),
             "model": os.getenv("LLM_MODEL"),
-            "repo_root": str(drift.REPO_ROOT),
+            "default_repo": drift.DEFAULT_REPO,
             "scan_every_hours": _sched["every_hours"],
             "last_scan": _sched["last_scan"],
         }
@@ -745,11 +722,23 @@ def _web(port: int):
         return [{"id": p["id"], "title": p["title"], "summary": p["summary"],
                  "domains": p["domains"], "examples": p.get("examples", [])} for p in PACKS.values()]
 
+    @app.get("/repo")
+    async def repo_info(repo: str = ""):
+        """Check a repo can be scanned (and warm its snapshot) before asking."""
+        try:
+            snap = await asyncio.to_thread(drift.fetch_repo, repo)
+        except drift.RepoError as exc:
+            return JSONResponse(status_code=400, content={"error": str(exc)})
+        return {k: snap[k] for k in ("repo", "ref", "url", "files", "fetched_at", "cached")}
+
     @app.post("/ask")
     async def ask(req: AskRequest):
-        from _usage import track_utterance; track_utterance(req.question)
+        from _usage import track_utterance
+        track_utterance(f"[{req.repo or drift.DEFAULT_REPO}] {req.question}")
         try:
-            return await _run(req.question, req.pack)
+            return await _run(req.question, req.pack, req.repo)
+        except drift.RepoError as exc:
+            return JSONResponse(status_code=400, content={"answer": str(exc), "error": str(exc)})
         except Exception as exc:
             log.exception("Agent invocation failed")
             return JSONResponse(status_code=500, content={"answer": f"Error: {exc}"})
@@ -757,16 +746,23 @@ def _web(port: int):
     @app.post("/scan")
     async def scan(req: ScanRequest):
         try:
-            out = await _run(_SCAN_QUESTIONS.get(req.pack, "Run a drift check."), req.pack)
+            out = await _run(_SCAN_QUESTIONS.get(req.pack, "Run a drift check."), req.pack, req.repo)
             _sched["last_scan"] = _now()
             return out
+        except drift.RepoError as exc:
+            return JSONResponse(status_code=400, content={"answer": str(exc), "error": str(exc)})
         except Exception as exc:
             log.exception("Scan failed")
             return JSONResponse(status_code=500, content={"answer": f"Error: {exc}"})
 
     @app.get("/findings")
-    async def findings(pack: Optional[str] = None):
-        return _list_findings(pack)
+    async def findings(repo: Optional[str] = None, pack: Optional[str] = None):
+        if repo:
+            try:
+                repo = drift.parse_repo(repo)[0]
+            except drift.RepoError:
+                return []
+        return _list_findings(repo, pack)
 
     @app.post("/decisions")
     async def decisions(req: DecisionRequest):
@@ -779,39 +775,14 @@ def _web(port: int):
             return JSONResponse(status_code=404, content={"error": "finding not found"})
         return {"ok": True}
 
-    @app.get("/proposals")
-    async def proposals():
-        return _list_proposals()
-
-    @app.post("/proposals/{pid}/{action}")
-    async def decide_proposal(pid: str, action: str):
-        if action not in ("approve", "reject"):
-            return JSONResponse(status_code=400, content={"error": "action must be approve or reject"})
-        with _db() as con:
-            row = con.execute("SELECT * FROM proposals WHERE id = ?", (pid,)).fetchone()
-        if row is None:
-            return JSONResponse(status_code=404, content={"error": "proposal not found"})
-        p = dict(row)
-        if p["status"] != "pending":
-            return JSONResponse(status_code=409, content={"error": f"proposal is already {p['status']}"})
-        status, pr_url, note = "rejected", "", "Rejected. Nothing changed."
-        if action == "approve":
-            from _mcp_bridge import remote_mcp_configured
-            if remote_mcp_configured("github") and os.getenv("DDW_GITHUB_REPO"):
-                try:
-                    pr_url = await _apply_on_github(p)
-                    status, note = "approved", "Draft pull request opened."
-                except Exception as exc:  # noqa: BLE001
-                    log.exception("GitHub apply failed")
-                    status, note = "failed", f"GitHub step failed: {exc}"
-            else:
-                status = "approved"
-                note = ("Approved. GitHub is not configured (GITHUB_TOKEN + DDW_GITHUB_REPO), "
-                        "so nothing was pushed: apply the diff locally.")
-        with _db() as con:
-            con.execute("UPDATE proposals SET status = ?, pr_url = ?, note = ?, decided_at = ? WHERE id = ?",
-                        (status, pr_url, note, _now(), pid))
-        return {"id": pid, "status": status, "pr_url": pr_url, "note": note, "diff": p["diff"]}
+    @app.get("/suggestions")
+    async def suggestions(repo: Optional[str] = None):
+        if repo:
+            try:
+                repo = drift.parse_repo(repo)[0]
+            except drift.RepoError:
+                return []
+        return _list_suggestions(repo)
 
     # Public deployment: layered, in-memory rate limiting on POST.
     from _ratelimit import install_rate_limit

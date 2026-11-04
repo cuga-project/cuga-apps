@@ -1,10 +1,14 @@
 """
 drift.py — the app-specific logic behind Dependency Drift Watcher.
 
-Pure functions (no CUGA, no network) so they are easy to test:
+No CUGA here, so it is easy to test:
 
-  * inventory_models / inventory_packages — scan the repo for the models and
-    packages our apps depend on (the "our side" half of the drift).
+  * fetch_repo — download a public GitHub repo snapshot (no token) and unpack
+    only the files the inventory reads, safely, into a per-repo cache.
+  * inventory_models / inventory_packages — scan that snapshot for the models
+    and packages it depends on (the "our side" half of the drift).
+  * pypi_latest — the latest release of each package on PyPI, and whether the
+    repo's version spec still admits it.
   * egress_violations / domain_violation — the guards wrapped around every
     outbound Tavily call: no secrets or internal names leave, and searches stay
     on the active pack's official domains.
@@ -13,11 +17,16 @@ Pure functions (no CUGA, no network) so they are easy to test:
 """
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
-from importlib import metadata
-from pathlib import Path
+import shutil
+import tarfile
+import time
+import tomllib
+from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
@@ -25,15 +34,139 @@ import yaml
 
 _DIR = Path(__file__).resolve().parent
 
-# Repo root to inventory. In the all-in-one image the app runs from /app/apps,
-# so the parent of apps/ (/app) holds apps/, mcp_servers/ and requirements files.
-# Locally that is the cuga-apps/ directory of the checkout.
-REPO_ROOT = Path(os.getenv("DDW_REPO_PATH") or _DIR.parent.parent).resolve()
+DEFAULT_REPO = os.getenv("DDW_DEFAULT_REPO", "cuga-project/cuga-apps")
+_CACHE_DIR = Path(os.getenv("DDW_CACHE_DIR") or (_DIR / ".repos"))
+_MAX_MB = float(os.getenv("DDW_REPO_MAX_MB", "60"))        # compressed download cap
+_MAX_FILES = 4000                                          # files kept after filtering
+_MAX_FILE_BYTES = 1_000_000                                # skip anything bigger
+_CACHE_TTL_S = 3600                                        # re-download after an hour
 
 _SKIP_DIRS = {
-    ".git", "node_modules", ".venv", "venv", "__pycache__", "ui", "dist",
-    ".cuga", "tests", _DIR.name,
+    ".git", "node_modules", ".venv", "venv", "__pycache__", "dist",
+    ".cuga", "tests", "test", "site-packages",
 }
+# Only these files are unpacked: what the two inventories read.
+_KEEP = ("*.py", "*.toml", "*.env.example", ".env.example", "requirements*.txt")
+
+
+# ── Repo snapshots ────────────────────────────────────────────────────────
+
+_REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}$")
+_REF_RE = re.compile(r"^[A-Za-z0-9._/-]{1,100}$")
+
+
+class RepoError(ValueError):
+    """The repo can't be scanned; the message is safe to show the user."""
+
+
+def parse_repo(text: str) -> tuple[str, str | None]:
+    """'owner/repo', 'owner/repo@ref' or a github.com URL → (owner/repo, ref or None)."""
+    t = (text or "").strip()
+    if not t:
+        t = DEFAULT_REPO
+    ref = None
+    if t.startswith(("http://", "https://", "github.com/", "www.github.com/")):
+        u = urlparse(t if "://" in t else "https://" + t)
+        if (u.hostname or "").lower() not in ("github.com", "www.github.com"):
+            raise RepoError("Only public github.com repositories are supported.")
+        parts = [p for p in u.path.split("/") if p]
+        if len(parts) < 2:
+            raise RepoError("Give the repo as owner/repo or a github.com/owner/repo URL.")
+        t = f"{parts[0]}/{parts[1]}"
+        if len(parts) >= 4 and parts[2] == "tree":
+            ref = "/".join(parts[3:])
+    elif "@" in t:
+        t, ref = t.split("@", 1)
+    t = t.removesuffix(".git")
+    if not _REPO_RE.match(t):
+        raise RepoError(f"'{text}' is not a GitHub repo. Use owner/repo, e.g. {DEFAULT_REPO}.")
+    if ref is not None and (not _REF_RE.match(ref) or ".." in ref):
+        raise RepoError("That branch or tag name isn't valid.")
+    return t, ref
+
+
+def _keep(name: str) -> bool:
+    path = PurePosixPath(name)
+    if any(part in _SKIP_DIRS or (part.startswith(".") and part != ".env.example")
+           for part in path.parts[:-1]):
+        return False
+    return any(path.match(p) for p in _KEEP)
+
+
+def fetch_repo(text: str) -> dict[str, Any]:
+    """Download a public repo snapshot (GitHub's codeload tarball — no token,
+    not counted against the API rate limit) and unpack the inventory's files.
+
+    Returns {repo, ref, root, files, fetched_at, cached}. Raises RepoError with
+    a message for the user (not found / private, too big, network).
+    """
+    import httpx
+
+    repo, ref = parse_repo(text)
+    key = repo.replace("/", "__") + ("@" + re.sub(r"[^A-Za-z0-9._-]", "_", ref) if ref else "")
+    dest = _CACHE_DIR / key
+    meta_path = dest / ".ddw.json"
+    if meta_path.is_file():
+        meta = json.loads(meta_path.read_text())
+        if time.time() - meta.get("fetched_ts", 0) < _CACHE_TTL_S:
+            return {**meta, "root": str(dest / "src"), "cached": True}
+
+    url = f"https://codeload.github.com/{repo}/tar.gz/{ref or 'HEAD'}"
+    limit = int(_MAX_MB * 1024 * 1024)
+    buf = io.BytesIO()
+    try:
+        with httpx.stream("GET", url, timeout=httpx.Timeout(30.0, connect=10.0),
+                          follow_redirects=True) as r:
+            if r.status_code == 404:
+                raise RepoError(f"{repo}{'@' + ref if ref else ''} was not found, or it is private. "
+                                "Only public repositories can be scanned.")
+            if r.status_code != 200:
+                raise RepoError(f"GitHub returned HTTP {r.status_code} for {repo}.")
+            for chunk in r.iter_bytes():
+                buf.write(chunk)
+                if buf.tell() > limit:
+                    raise RepoError(f"{repo} is larger than {int(_MAX_MB)} MB; it is too big to scan.")
+    except httpx.HTTPError as exc:
+        raise RepoError(f"Could not download {repo}: {type(exc).__name__}") from exc
+
+    tmp = dest.with_name(dest.name + f".tmp{os.getpid()}")
+    shutil.rmtree(tmp, ignore_errors=True)
+    src = tmp / "src"
+    src.mkdir(parents=True)
+    kept = 0
+    buf.seek(0)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        for m in tar:
+            # Only plain files; drop the top folder (repo-<ref>/); never follow links,
+            # never write outside src/.
+            if not m.isfile() or m.size > _MAX_FILE_BYTES:
+                continue
+            if PurePosixPath(m.name).is_absolute():
+                continue
+            parts = PurePosixPath(m.name).parts[1:]
+            if not parts or any(p in ("", "..") or p.startswith("/") for p in parts):
+                continue
+            rel = "/".join(parts)
+            if not _keep(rel):
+                continue
+            out = (src / rel).resolve()
+            if src.resolve() not in out.parents:
+                continue
+            out.parent.mkdir(parents=True, exist_ok=True)
+            fh = tar.extractfile(m)
+            if fh is None:
+                continue
+            out.write_bytes(fh.read())
+            kept += 1
+            if kept >= _MAX_FILES:
+                break
+    meta = {"repo": repo, "ref": ref or "default branch", "files": kept,
+            "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "fetched_ts": time.time(), "url": f"https://github.com/{repo}"}
+    (tmp / ".ddw.json").write_text(json.dumps(meta))
+    shutil.rmtree(dest, ignore_errors=True)
+    tmp.rename(dest)
+    return {**meta, "root": str(dest / "src"), "cached": False}
 
 
 def _walk(root: Path, patterns: tuple[str, ...]):
@@ -44,18 +177,27 @@ def _walk(root: Path, patterns: tuple[str, ...]):
                 yield Path(dirpath) / fn
 
 
-def _rel(path: Path) -> str:
+def _rel(path: Path, root: Path) -> str:
     try:
-        return str(path.relative_to(REPO_ROOT))
+        return str(path.relative_to(root))
     except ValueError:
         return str(path)
 
 
 def _app_of(rel_path: str) -> str | None:
+    """The app a file belongs to, for repos laid out as .../apps/<app>/... (cuga-apps)."""
     parts = rel_path.split("/")
-    if len(parts) > 2 and parts[0] == "apps" and not parts[1].startswith("_"):
-        return parts[1]
+    if "apps" in parts[:-2]:
+        i = parts.index("apps")
+        if not parts[i + 1].startswith("_"):
+            return parts[i + 1]
     return None
+
+
+def _shared(rel_path: str) -> bool:
+    """A shared default every app falls back to (cuga-apps: apps/_llm.py, apps/settings.*)."""
+    parts = rel_path.split("/")
+    return "apps" in parts[:-1] and parts[-2] == "apps" and parts[-1].startswith(("_", "settings"))
 
 
 # ── Models ────────────────────────────────────────────────────────────────
@@ -86,16 +228,16 @@ def _provider_for(model: str) -> str:
     return "openai"
 
 
-def inventory_models(root: Path | None = None) -> dict[str, Any]:
+def inventory_models(root: Path) -> dict[str, Any]:
     """Every model id referenced in code and config, with where it appears."""
-    root = root or REPO_ROOT
+    root = Path(root)
     found: dict[str, dict[str, Any]] = {}
     for path in _walk(root, ("*.py", "*.toml", ".env.example", "*.env.example")):
         try:
             lines = path.read_text(errors="ignore").splitlines()
         except OSError:
             continue
-        rel = _rel(path)
+        rel = _rel(path, root)
         for i, line in enumerate(lines, 1):
             for match in _MODEL_ID.finditer(line):
                 model = match.group(1)
@@ -108,8 +250,7 @@ def inventory_models(root: Path | None = None) -> dict[str, Any]:
                 app = _app_of(rel)
                 if app:
                     entry["apps"].add(app)
-                # apps/_llm.py, apps/settings.*.toml … are shared by every app.
-                if rel.startswith("apps/_") or rel.startswith("apps/settings"):
+                if _shared(rel):
                     entry["shared"] = True
     models = []
     for entry in found.values():
@@ -117,11 +258,9 @@ def inventory_models(root: Path | None = None) -> dict[str, Any]:
         models.append(entry)
     models.sort(key=lambda e: (-len(e["locations"]), e["model"]))
     return {
-        "repo_root": str(root),
-        "in_use_now": {"provider": os.getenv("LLM_PROVIDER"), "model": os.getenv("LLM_MODEL")},
-        "models": models,
+        "models": models[:60],
         "note": ("provider is inferred from the model id; locations are capped at 8 per model; "
-                 "shared=true means a shared default (apps/_llm.py or apps/settings.*.toml) "
+                 "shared=true means a shared default (e.g. apps/_llm.py or apps/settings.*.toml) "
                  "that every app can fall back to"),
     }
 
@@ -131,34 +270,53 @@ def inventory_models(root: Path | None = None) -> dict[str, Any]:
 _REQ_LINE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.\-]*)(\[[^\]]*\])?\s*(.*)$")
 
 
-def _installed(name: str) -> str | None:
-    try:
-        return metadata.version(name)
-    except metadata.PackageNotFoundError:
+def _norm(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _parse_req(line: str) -> tuple[str, str] | None:
+    line = line.split("#", 1)[0].strip()
+    if not line or line.startswith(("-", "git+", "http://", "https://", "file:")):
         return None
+    match = _REQ_LINE.match(line)
+    if not match:
+        return None
+    spec = match.group(3).split(";", 1)[0].replace(" ", "")
+    return _norm(match.group(1)), spec
 
 
-def inventory_packages(root: Path | None = None, only: list[str] | None = None) -> dict[str, Any]:
-    """Every package in requirements*.txt, its version specs, and the version
-    installed in this running environment (the one actually deployed)."""
-    root = root or REPO_ROOT
-    wanted = {o.lower().replace("_", "-") for o in (only or [])}
+def _pyproject_reqs(path: Path) -> list[str]:
+    try:
+        data = tomllib.loads(path.read_text(errors="ignore"))
+    except (tomllib.TOMLDecodeError, OSError):
+        return []
+    project = data.get("project") or {}
+    reqs = list(project.get("dependencies") or [])
+    for extra in (project.get("optional-dependencies") or {}).values():
+        reqs.extend(extra or [])
+    for group in (data.get("dependency-groups") or {}).values():
+        reqs.extend(r for r in group or [] if isinstance(r, str))
+    return [r for r in reqs if isinstance(r, str)]
+
+
+def inventory_packages(root: Path, only: list[str] | None = None) -> dict[str, Any]:
+    """Every package in requirements*.txt and pyproject.toml, with its version specs."""
+    root = Path(root)
+    wanted = {_norm(o) for o in (only or [])}
     found: dict[str, dict[str, Any]] = {}
     files = 0
-    for path in _walk(root, ("requirements*.txt",)):
+    for path in _walk(root, ("requirements*.txt", "pyproject.toml")):
         files += 1
-        rel = _rel(path)
-        for raw in path.read_text(errors="ignore").splitlines():
-            line = raw.split("#", 1)[0].strip()
-            if not line or line.startswith(("-", "git+", "http")):
+        rel = _rel(path, root)
+        lines = (_pyproject_reqs(path) if path.name == "pyproject.toml"
+                 else path.read_text(errors="ignore").splitlines())
+        for raw in lines:
+            parsed = _parse_req(raw)
+            if not parsed:
                 continue
-            match = _REQ_LINE.match(line)
-            if not match:
-                continue
-            name = match.group(1).lower().replace("_", "-")
+            name, spec = parsed
             if wanted and name not in wanted:
                 continue
-            spec = match.group(3).split(";", 1)[0].replace(" ", "")
             entry = found.setdefault(name, {"package": name, "specs": set(), "files": []})
             if spec:
                 entry["specs"].add(spec)
@@ -171,17 +329,80 @@ def inventory_packages(root: Path | None = None, only: list[str] | None = None) 
             "package": entry["package"],
             "specs": specs,
             "pinned": any(s.startswith("==") for s in specs),
-            "installed": _installed(entry["package"]),
             "files": entry["files"][:6],
             "file_count": len(entry["files"]),
         })
     packages.sort(key=lambda p: (-p["file_count"], p["package"]))
     return {
-        "repo_root": str(root),
-        "requirements_files": files,
-        "packages": packages,
+        "dependency_files": files,
+        "packages": packages[:150],
+        "total_packages": len(packages),
         "unpinned": sum(1 for p in packages if not p["pinned"]),
     }
+
+
+# ── PyPI ──────────────────────────────────────────────────────────────────
+
+def pypi_latest(packages: list[str], specs: dict[str, list[str]] | None = None) -> list[dict[str, Any]]:
+    """Latest release of each package on PyPI (public JSON API, no token).
+
+    For each: latest version and its upload date, whether every spec the repo
+    uses still admits it (False = a pin or cap blocks the upgrade), whether the
+    project looks inactive (no release in 18 months) and its changelog/source links.
+    """
+    import httpx
+    from packaging.specifiers import InvalidSpecifier, SpecifierSet
+    from packaging.version import InvalidVersion, Version
+
+    specs = {_norm(k): v for k, v in (specs or {}).items()}
+    out: list[dict[str, Any]] = []
+    with httpx.Client(timeout=8.0, headers={"User-Agent": "cuga-dependency-drift-watcher"}) as client:
+        for raw in list(dict.fromkeys(packages))[:40]:
+            name = _norm(raw)
+            if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,99}", name):
+                out.append({"package": raw, "error": "not a valid package name"})
+                continue
+            try:
+                r = client.get(f"https://pypi.org/pypi/{name}/json")
+            except httpx.HTTPError as exc:
+                out.append({"package": name, "error": type(exc).__name__})
+                continue
+            if r.status_code == 404:
+                out.append({"package": name, "error": "not on PyPI"})
+                continue
+            if r.status_code != 200:
+                out.append({"package": name, "error": f"HTTP {r.status_code}"})
+                continue
+            info = r.json().get("info") or {}
+            latest = info.get("version") or ""
+            files = (r.json().get("urls") or [])
+            uploaded = min((f.get("upload_time_iso_8601") or "" for f in files), default="") or None
+            row: dict[str, Any] = {"package": name, "latest": latest, "released": (uploaded or "")[:10] or None,
+                                   "yanked": bool(info.get("yanked")),
+                                   "requires_python": info.get("requires_python")}
+            if uploaded:
+                try:
+                    age = datetime.now(timezone.utc) - datetime.fromisoformat(uploaded.replace("Z", "+00:00"))
+                    row["inactive"] = age.days > 548
+                except ValueError:
+                    pass
+            urls = info.get("project_urls") or {}
+            links = {k: v for k, v in urls.items()
+                     if re.search(r"change|release|history|news|source|repo|github", k, re.I)}
+            row["links"] = dict(list(links.items())[:4])
+            ours = specs.get(name) or []
+            if ours and latest:
+                try:
+                    v = Version(latest)
+                    blocking = [s for s in ours if s and not SpecifierSet(s).contains(v, prereleases=True)]
+                    row["our_specs"] = ours
+                    row["latest_allowed"] = not blocking
+                    if blocking:
+                        row["blocked_by"] = blocking
+                except (InvalidSpecifier, InvalidVersion):
+                    row["our_specs"] = ours
+            out.append(row)
+    return out
 
 
 # ── Packs ─────────────────────────────────────────────────────────────────

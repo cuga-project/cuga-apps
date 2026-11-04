@@ -16,7 +16,7 @@
 # Self-contained: the 5 MCP servers the ship-ready apps use (web, knowledge,
 # geo, finance, local) are bundled and run on loopback inside this container
 # (CUGA_TARGET=local). No external MCP deployment is required — the whole
-# environment (UI + 21 apps + MCP servers) comes up from one image / one
+# environment (UI + 22 apps + MCP servers) comes up from one image / one
 # `docker compose up`. Service keys (Tavily/OpenTripMap/AlphaVantage) come in
 # via env (see build/.env.example).
 # =====================================================================

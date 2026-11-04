@@ -12,8 +12,11 @@ The server URL for each name is resolved from:
      - local:   http://localhost:<port>/mcp
 
 Remote servers (REMOTE_MCP below) are third-party MCP servers we don't run,
-such as Tavily's and GitHub's. They resolve to their public URL (overridable
-with MCP_<NAME>_URL) and send `Authorization: Bearer $<TOKEN_ENV>`.
+such as Tavily's. They resolve to their public URL (overridable with
+MCP_<NAME>_URL) and send `Authorization: Bearer $<TOKEN_ENV>`. Their calls are
+counted twice in the usage collector: as MCP tool calls (server/tool) and as
+provider API calls under the server's name, since each one spends that
+provider's credits directly (local servers count their own provider calls).
 """
 from __future__ import annotations
 
@@ -108,8 +111,7 @@ def _default_url(name: str, port: int) -> str:
 # Third-party MCP servers, reached over HTTPS with a bearer token. Not in
 # MCP_PORTS because we don't run them (nothing to launch, bundle or port-map).
 REMOTE_MCP: dict[str, dict[str, str]] = {
-    "tavily": {"url": "https://mcp.tavily.com/mcp/",       "token_env": "TAVILY_API_KEY"},
-    "github": {"url": "https://api.githubcopilot.com/mcp/", "token_env": "GITHUB_TOKEN"},
+    "tavily": {"url": "https://mcp.tavily.com/mcp/", "token_env": "TAVILY_API_KEY"},
 }
 
 
@@ -279,6 +281,11 @@ def _track_mcp(server: str | None, tool_name: str, ok: bool, code: str | None = 
     try:
         from _usage import track_mcp
         track_mcp(server, tool_name, ok=ok, code=code)
+        if server in REMOTE_MCP:
+            # A hosted server spends the provider's credits directly; count it on
+            # the dashboard's API-calls tab too, next to mcp-web's own calls.
+            from _usage import track_call
+            track_call(server, ok=ok, code=code)
     except Exception:  # noqa: BLE001 — tracking must never break a tool call
         pass
 
@@ -377,7 +384,7 @@ def load_tools(servers: List[str]) -> list:
     Args:
         servers: List of MCP server names from MCP_PORTS keys
                  (web | knowledge | geo | finance | code | local) or
-                 REMOTE_MCP keys (tavily | github).
+                 REMOTE_MCP keys (tavily).
     """
     try:
         from langchain_mcp_adapters.client import MultiServerMCPClient

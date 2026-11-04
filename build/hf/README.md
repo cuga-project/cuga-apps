@@ -10,7 +10,7 @@ Space. It pairs with the all-in-one image deployed to Code Engine ([build/ce/](.
    │ links →            │  travel    │  /a/travel-planner/ → travel_planner   │
    │  <ce>/a/<app>/      │  planner   │  /a/city-beat/      → city_beat        │
    │  <ce>/a/usage-..    │            │  /a/usage-collector/→ stats dashboard  │
-   └────────────────────┘            │  21 apps + 5 MCP (loopback) + stats   │
+   └────────────────────┘            │  22 apps + 5 MCP (loopback) + stats   │
      no backend                      └──────────────────────────────────────┘
 ```
 

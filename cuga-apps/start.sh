@@ -126,8 +126,8 @@ python ouroboros/main.py --port 28822 &
 log "Starting meetup_finder       on :28826"
 python meetup_finder/main.py --port 28826 &
 
-# dependency_drift_watcher reaches Tavily's and GitHub's hosted MCP servers
-# (TAVILY_API_KEY, optional GITHUB_TOKEN) — no local MCP server needed.
+# dependency_drift_watcher reaches Tavily's hosted MCP server (TAVILY_API_KEY)
+# and public GitHub/PyPI endpoints — no local MCP server needed.
 log "Starting dependency_drift_watcher on :28843"
 python dependency_drift_watcher/main.py --port 28843 &
 

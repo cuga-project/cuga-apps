@@ -63,7 +63,7 @@ use the in-container MCP servers (never set it to `ce` for this image).
 ## Sizing
 
 Defaults: `--cpu 12 --memory 48G --ephemeral-storage 5G --min-scale 1
---max-scale 1`. The image runs ~26 Python processes (21 apps + 5 MCP) plus
+--max-scale 1`. The image runs ~27 Python processes (22 apps + 5 MCP) plus
 nginx; measured idle footprint is ~8 GB, and **12 vCPU / 48 GB** (the platform
 maximum) leaves ample headroom for request load and Chromium (`meetup_finder`).
 Ephemeral storage must be ≤ memory; 5 GB covers build/scratch space. Keep **one

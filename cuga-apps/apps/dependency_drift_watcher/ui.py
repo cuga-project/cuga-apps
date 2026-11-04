@@ -2,9 +2,10 @@
 HTML UI for Dependency Drift Watcher.
 Exported as _HTML — a single self-contained string served by the FastAPI root endpoint.
 
-Carbonized via the shared `_carbon` foundation. Layout: left rail (watch packs,
-scan, status, policies), centre chat, right panel with three tabs — Why (policy
-decisions, sources, run receipt for the last answer), Findings, Approvals.
+Carbonized via the shared `_carbon` foundation. Layout: left rail (repository,
+watch packs, scan, status, policies), centre chat, right panel with three tabs —
+Why (policy decisions, sources, run receipt for the last answer), Findings, and
+Suggested fixes (diffs to copy; the app never writes to a repository).
 """
 
 from _carbon import carbon_head, carbon_css
@@ -88,6 +89,11 @@ _APP_CSS = """<style>
   .sev.none { background: var(--cds-support-success-bg); color: var(--cds-support-success); }
   .finding .dep { font-family: var(--cds-font-mono); font-weight: 600; }
   .finding .quote { font-style: italic; color: var(--cds-text-secondary); }
+  .repo-box { display: grid; gap: var(--cds-sp-02); }
+  .repo-box input { width: 100%; background: var(--cds-field-01); border: 0; border-bottom: 1px solid var(--cds-border-strong); min-height: 2.25rem; padding: 0 var(--cds-sp-03); font: inherit; font-family: var(--cds-font-mono); font-size: 0.75rem; color: var(--cds-text-primary); }
+  .repo-box input:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+  .repo-box .msg-line { font-size: 0.6875rem; color: var(--cds-text-helper); line-height: 1.4; overflow-wrap: anywhere; }
+  .repo-box .msg-line.err { color: var(--cds-support-error); }
   .finding .acts, .proposal .acts { display: flex; gap: var(--cds-sp-03); flex-wrap: wrap; margin-top: var(--cds-sp-02); }
   .linkbtn { background: none; border: 0; color: var(--cds-link-primary); cursor: pointer; font: inherit; font-size: 0.75rem; padding: 0; }
   .proposal pre { margin: 0; font-family: var(--cds-font-mono); font-size: 0.6875rem; background: var(--cds-layer-accent); padding: var(--cds-sp-03); overflow-x: auto; white-space: pre; }
@@ -117,20 +123,27 @@ _BODY = r"""
 <div class="app-intro">
   <div class="app-intro__blurb">
     <strong>Our code stays still. Its dependencies don't.</strong>
-    The agent inventories the models and packages our apps use, checks official sources for what changed,
-    and drafts the fix. Every claim is quoted and linked; nothing changes until you approve it.
+    Pick any public GitHub repo. The agent inventories the models and Python packages it uses, checks PyPI
+    and official sources for what changed, and suggests the fix. Every claim is quoted and linked; the app
+    never writes to the repo.
   </div>
   <div class="app-intro__tools">
     <span class="tools-label">Tools</span>
     <span class="tool-pill tav">Tavily MCP · search · extract · map · crawl · research</span>
-    <span class="tool-pill">GitHub MCP · releases · PRs</span>
-    <span class="tool-pill">Repo inventory</span>
+    <span class="tool-pill">PyPI · latest releases</span>
+    <span class="tool-pill">Public repo inventory</span>
     <span class="tool-pill">CUGA policies</span>
   </div>
 </div>
 
 <main>
   <aside class="rail">
+    <div class="repo-box">
+      <div class="label">Repository</div>
+      <input type="text" id="repoInput" spellcheck="false" placeholder="owner/repo or GitHub URL"
+             onkeydown="if(event.key==='Enter') checkRepo()" onchange="checkRepo()" />
+      <div class="msg-line" id="repoMsg">Any public GitHub repo. Add @branch for a branch or tag.</div>
+    </div>
     <div>
       <div class="label">Watch packs</div>
       <div class="packs" id="packs"></div>
@@ -161,19 +174,22 @@ _BODY = r"""
     <div class="tabs" role="tablist">
       <button class="tab on" data-pane="why" onclick="showTab('why')">Why</button>
       <button class="tab" data-pane="findings" onclick="showTab('findings')">Findings<span class="n" id="nFindings"></span></button>
-      <button class="tab" data-pane="approvals" onclick="showTab('approvals')">Approvals<span class="n" id="nApprovals"></span></button>
+      <button class="tab" data-pane="fixes" onclick="showTab('fixes')">Suggested fixes<span class="n" id="nFixes"></span></button>
     </div>
     <div class="pane on" id="pane-why">
       <p class="empty">Ask a question or run a scan. This panel shows which policies fired, the sources the agent read, and what the run cost.</p>
     </div>
     <div class="pane" id="pane-findings"><p class="empty">No findings yet.</p></div>
-    <div class="pane" id="pane-approvals"><p class="empty">No fixes waiting. When the agent drafts one, it appears here for you to approve or reject.</p></div>
+    <div class="pane" id="pane-fixes"><p class="empty">No suggested fixes yet. When the agent finds a one-line fix (a model id, a version pin), its diff appears here to copy.</p></div>
   </aside>
 </main>
 
 <script>
   let PACKS = [];
   let currentPack = 'models';
+  let DEFAULT_REPO = 'cuga-project/cuga-apps';
+  let currentRepo = '';       // as resolved by the server (owner/repo)
+  function repoText() { return $('repoInput').value.trim() || DEFAULT_REPO; }
   const $ = id => document.getElementById(id);
 
   function escHtml(s) {
@@ -206,13 +222,13 @@ _BODY = r"""
   function setBusy(busy, label) {
     $('statusDot').className = 'status-dot' + (busy ? ' busy' : '');
     $('statusText').textContent = label;
-    $('sendBtn').disabled = busy; $('scanBtn').disabled = busy;
+    $('sendBtn').disabled = busy; $('scanBtn').disabled = busy; $('repoInput').disabled = busy;
   }
 
   function addMessage(text, cls, packTitle) {
     const div = document.createElement('div');
     div.className = 'msg ' + cls;
-    if (cls === 'agent') div.innerHTML = (packTitle ? '<span class="pack-tag">' + escHtml(packTitle) + ' pack</span><br>' : '') + mdToHtml(text);
+    if (cls === 'agent') div.innerHTML = (packTitle ? '<span class="pack-tag">' + escHtml(packTitle) + '</span><br>' : '') + mdToHtml(text);
     else div.textContent = text;
     $('messages').appendChild(div);
     $('messages').scrollTop = $('messages').scrollHeight;
@@ -237,10 +253,11 @@ _BODY = r"""
   async function loadStatus() {
     try {
       const s = await (await fetch('/status')).json();
+      if (s.default_repo) DEFAULT_REPO = s.default_repo;
+      $('repoInput').placeholder = DEFAULT_REPO;
       $('conn').innerHTML =
         '<span>Tavily: <b>' + escHtml(s.tavily) + '</b></span>' +
-        '<span>GitHub: <b>' + escHtml(s.github) + '</b></span>' +
-        '<span>PR target: <b>' + escHtml(s.pr_target || 'none (diff only)') + '</b></span>' +
+        '<span>PyPI: <b>' + escHtml(s.pypi || '—') + '</b></span>' +
         '<span>Model: <b>' + escHtml(s.model || '—') + '</b></span>' +
         (s.scan_every_hours ? '<span>Scan every <b>' + s.scan_every_hours + ' h</b></span>' : '');
       if (s.policies && s.policies.length)
@@ -265,7 +282,7 @@ _BODY = r"""
       ? '<div class="sources">' + data.sources.map(u => '<a href="' + escHtml(u) + '" target="_blank" rel="noopener">' + escHtml(u) + '</a>').join('') + '</div>'
       : '<p class="empty">No outside sources for this answer.</p>';
     html += '<div><div class="label">Run receipt</div></div><dl class="rcpt">'
-      + row('Tavily calls', r.tavily_calls) + row('GitHub calls', r.github_calls)
+      + row('Tavily calls', r.tavily_calls) + row('PyPI lookups', r.pypi_calls)
       + row('Repo and usage calls', r.internal_calls) + row('LLM calls', r.llm_calls)
       + row('Tokens', r.tokens != null ? Number(r.tokens).toLocaleString() : null)
       + row('Time', r.seconds != null ? r.seconds + ' s' : null) + row('Model', r.model) + '</dl>';
@@ -273,8 +290,24 @@ _BODY = r"""
     function row(k, v) { return v == null || v === '' ? '' : '<dt>' + k + '</dt><dd>' + escHtml(v) + '</dd>'; }
   }
 
+  async function checkRepo() {
+    const text = repoText();
+    $('repoMsg').className = 'msg-line'; $('repoMsg').textContent = 'Checking ' + text + '…';
+    try {
+      const res = await fetch('/repo?repo=' + encodeURIComponent(text));
+      const d = await res.json();
+      if (!res.ok) { $('repoMsg').className = 'msg-line err'; $('repoMsg').textContent = d.error || res.statusText; return false; }
+      currentRepo = d.repo;
+      $('repoMsg').innerHTML = '<a href="' + escHtml(d.url) + '" target="_blank" rel="noopener">' + escHtml(d.repo) + '</a> · '
+        + escHtml(d.ref) + ' · ' + d.files + ' files read';
+      loadFindings(); loadSuggestions();
+      return true;
+    } catch (e) { $('repoMsg').className = 'msg-line err'; $('repoMsg').textContent = 'Could not reach the app: ' + e.message; return false; }
+  }
+
   async function loadFindings() {
-    const rows = await (await fetch('/findings?pack=' + encodeURIComponent(currentPack))).json();
+    const rows = await (await fetch('/findings?pack=' + encodeURIComponent(currentPack)
+      + '&repo=' + encodeURIComponent(currentRepo || repoText()))).json();
     const open = rows.filter(f => f.status === 'open' && f.severity !== 'none').length;
     $('nFindings').textContent = rows.length ? '(' + open + ' open)' : '';
     $('pane-findings').innerHTML = rows.length ? rows.map(f =>
@@ -291,7 +324,7 @@ _BODY = r"""
       + (f.status !== 'accepted' ? '<button class="linkbtn" onclick="decide(\'' + f.id + '\',\'accepted\')">Accept risk</button>' : '')
       + (f.status !== 'resolved' ? '<button class="linkbtn" onclick="decide(\'' + f.id + '\',\'resolved\')">Mark resolved</button>' : '')
       + (f.status !== 'open' ? '<button class="linkbtn" onclick="decide(\'' + f.id + '\',\'open\')">Reopen</button>' : '')
-      + '</div></div>').join('') : '<p class="empty">No findings for this pack yet. Run a scan.</p>';
+      + '</div></div>').join('') : '<p class="empty">No findings for this repo and pack yet. Run a scan.</p>';
   }
 
   async function decide(id, decision) {
@@ -305,31 +338,25 @@ _BODY = r"""
     loadFindings();
   }
 
-  async function loadProposals() {
-    const rows = await (await fetch('/proposals')).json();
-    const pending = rows.filter(p => p.status === 'pending').length;
-    $('nApprovals').textContent = pending ? '(' + pending + ')' : '';
-    $('pane-approvals').innerHTML = rows.length ? rows.map(p =>
-      '<div class="card proposal ' + escHtml(p.status) + '">'
-      + '<span class="k">' + escHtml(p.status) + ' · ' + escHtml(p.file_path) + '</span>'
+  async function loadSuggestions() {
+    const rows = await (await fetch('/suggestions?repo=' + encodeURIComponent(currentRepo || repoText()))).json();
+    $('nFixes').textContent = rows.length ? '(' + rows.length + ')' : '';
+    $('pane-fixes').innerHTML = rows.length ? rows.map((p, i) =>
+      '<div class="card proposal">'
+      + '<span class="k">' + escHtml(p.file_path) + '</span>'
       + '<b>' + escHtml(p.title) + '</b>'
       + '<span class="muted">' + escHtml(p.rationale) + '</span>'
       + (p.evidence_url ? '<a class="k" href="' + escHtml(p.evidence_url) + '" target="_blank" rel="noopener">' + escHtml(p.evidence_url) + '</a>' : '')
-      + '<pre>' + escHtml(p.diff) + '</pre>'
-      + (p.status === 'pending'
-          ? '<div class="acts"><button class="cds-btn" onclick="decideProposal(\'' + p.id + '\',\'approve\')">Approve</button>'
-            + '<button class="cds-btn cds-btn--secondary" onclick="decideProposal(\'' + p.id + '\',\'reject\')">Reject</button></div>'
-          : '<span class="muted">' + escHtml(p.note) + (p.pr_url ? ' <a href="' + escHtml(p.pr_url) + '" target="_blank" rel="noopener">Open PR</a>' : '') + '</span>')
-      + '</div>').join('') : '<p class="empty">No fixes waiting. When the agent drafts one, it appears here for you to approve or reject.</p>';
+      + '<pre id="diff' + i + '">' + escHtml(p.diff) + '</pre>'
+      + '<div class="acts"><button class="linkbtn" onclick="copyDiff(' + i + ', this)">Copy diff</button>'
+      + '<span class="muted">Apply with <code>git apply</code> in your clone. Nothing was changed.</span></div>'
+      + '</div>').join('') : '<p class="empty">No suggested fixes for this repo yet. When the agent finds a one-line fix (a model id, a version pin), its diff appears here to copy.</p>';
   }
 
-  async function decideProposal(id, action) {
-    setBusy(true, action === 'approve' ? 'Applying…' : 'Rejecting…');
-    try {
-      const res = await fetch('/proposals/' + id + '/' + action, { method: 'POST' });
-      const d = await res.json();
-      if (!res.ok) addMessage('Error: ' + (d.error || res.statusText), 'error');
-    } finally { setBusy(false, 'Ready'); loadProposals(); }
+  async function copyDiff(i, btn) {
+    try { await navigator.clipboard.writeText($('diff' + i).textContent); btn.textContent = 'Copied'; }
+    catch (e) { btn.textContent = 'Select the diff and copy it'; }
+    setTimeout(() => { btn.textContent = 'Copy diff'; }, 2000);
   }
 
   async function run(url, body, label) {
@@ -341,10 +368,12 @@ _BODY = r"""
       thinking.remove();
       if (!res.ok) { addMessage(data.answer || res.statusText, 'error'); return; }
       const pack = PACKS.find(p => p.id === data.pack);
-      addMessage(data.answer || '(no answer)', 'agent', pack ? pack.title : '');
+      if (data.repo) currentRepo = data.repo.repo;
+      addMessage(data.answer || '(no answer)', 'agent',
+        (pack ? pack.title + ' pack' : '') + (data.repo ? ' · ' + data.repo.repo : ''));
       renderWhy(data); showTab('why');
-      await loadFindings(); await loadProposals(); loadStatus();
-      if ((data.proposals || []).length) showTab('approvals');
+      await loadFindings(); await loadSuggestions(); loadStatus();
+      if ((data.suggestions || []).length) showTab('fixes');
     } catch (err) {
       thinking.remove(); addMessage('Network error: ' + err.message, 'error');
     } finally { setBusy(false, 'Ready'); }
@@ -355,18 +384,20 @@ _BODY = r"""
     if (!q) return;
     $('userInput').value = '';
     addMessage(q, 'user');
-    run('/ask', { question: q, pack: currentPack }, 'Inventorying our side, then reading official sources with Tavily…');
+    run('/ask', { question: q, pack: currentPack, repo: repoText() }, 'Reading ' + repoText() + ', checking PyPI, then official sources with Tavily…');
   }
   function sendChip(el) { $('userInput').value = el.textContent.trim(); sendMessage(); }
   function runScan() {
     const pack = PACKS.find(p => p.id === currentPack);
-    addMessage('Scan the ' + (pack ? pack.title : currentPack) + ' pack', 'user');
-    run('/scan', { pack: currentPack }, 'Running a full scan. This can take a minute or two…');
+    addMessage('Scan ' + repoText() + ' with the ' + (pack ? pack.title : currentPack) + ' pack', 'user');
+    run('/scan', { pack: currentPack, repo: repoText() }, 'Running a full scan. This can take a minute or two…');
   }
 
   (async function init() {
     try { PACKS = await (await fetch('/packs')).json(); } catch (e) { PACKS = []; }
-    renderPacks(); loadStatus(); loadFindings(); loadProposals();
+    const fromUrl = new URLSearchParams(location.search).get('repo');
+    if (fromUrl) $('repoInput').value = fromUrl;
+    renderPacks(); await loadStatus(); checkRepo();
   })();
 </script>
 """

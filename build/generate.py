@@ -57,8 +57,8 @@ EXTRA_SERVICES = ["usage_collector"]
 #   local → server_monitor
 # (text/code/invocable_apis serve only non-ship-ready apps and are not bundled;
 #  invocable_apis also needs external BIRD data.)
-# dependency_drift_watcher uses no bundled server: it reaches Tavily's and
-# GitHub's hosted MCP servers over HTTPS (see REMOTE_MCP in _mcp_bridge.py).
+# dependency_drift_watcher uses no bundled server: it reaches Tavily's hosted
+# MCP server over HTTPS (see REMOTE_MCP in _mcp_bridge.py).
 MCP_SERVERS = ["web", "knowledge", "geo", "finance", "local"]
 
 

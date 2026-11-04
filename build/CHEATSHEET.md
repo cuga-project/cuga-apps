@@ -17,7 +17,7 @@ For the full walkthrough (prereqs, COS setup, troubleshooting) see
 ### 1. All-in-one gallery — apps + UI + MCP + stats (the real backend)
 - **Lives at:** CE app **`cuga-agent-apps`** → `https://cuga-agent-apps.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud` (nginx :8080)
 - **Image:** `icr.io/routing_namespace/cuga-agent-apps:latest`
-- **Contains:** 21 ship-ready apps + `usage-collector` (stats) + the umbrella UI + **5 bundled MCP servers** (web, knowledge, geo, finance, local) on loopback. `CUGA_TARGET=local` is baked in — it never calls the standalone MCP servers.
+- **Contains:** 22 ship-ready apps + `usage-collector` (stats) + the umbrella UI + **5 bundled MCP servers** (web, knowledge, geo, finance, local) on loopback. `CUGA_TARGET=local` is baked in — it never calls the standalone MCP servers.
 - **Builds from:** `build/Dockerfile` via `build/ce/build_and_push.sh` → `build/ce/deploy.sh`
 - **Local:** `build/docker-compose.yml`, or `docker run --network host` on **:8080**
 
@@ -53,7 +53,7 @@ For the full walkthrough (prereqs, COS setup, troubleshooting) see
 
 ```
 HF Space (static UI) ──links──▶ CE: cuga-agent-apps (all-in-one)
-                                  ├─ 21 apps + usage-collector + UI
+                                  ├─ 22 apps + usage-collector + UI
                                   ├─ 5 MCP servers (loopback, CUGA_TARGET=local)
                                   └─ usage-collector ──S3──▶ COS: cuga-usage
 

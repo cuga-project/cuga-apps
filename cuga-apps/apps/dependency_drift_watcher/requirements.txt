@@ -10,7 +10,8 @@ pydantic>=2.0
 langchain-core>=0.3
 httpx
 pyyaml
+packaging          # version specs vs PyPI releases
 
-# MCP bridge — Tavily's and GitHub's hosted MCP servers (streamable HTTP)
+# MCP bridge — Tavily's hosted MCP server (streamable HTTP)
 mcp>=1.0,<2
 langchain-mcp-adapters

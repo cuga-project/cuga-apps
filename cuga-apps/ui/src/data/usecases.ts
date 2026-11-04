@@ -14,7 +14,7 @@ export type UseCaseType = 'event-driven' | 'document-intelligence' | 'audio-vide
 /** MCP server usage — which tools an app consumes from each shared server. */
 export interface McpServerUsage {
   /** mcp-server name (keys in apps/_ports.MCP_PORTS, or a hosted REMOTE_MCP server) */
-  server: 'web' | 'knowledge' | 'geo' | 'finance' | 'code' | 'local' | 'text' | 'invocable_apis' | 'tavily' | 'github'
+  server: 'web' | 'knowledge' | 'geo' | 'finance' | 'code' | 'local' | 'text' | 'invocable_apis' | 'tavily'
   /** tools from that server the app actually uses */
   tools: string[]
 }
@@ -2380,56 +2380,58 @@ Right panel: ranked event cards (date chip, venue, host, RSVP link)`,
   {
     id: 'dependency-drift-watcher',
     name: 'Dependency Drift Watcher',
-    tagline: 'Our code stays still. Its dependencies don\'t — find what drifted in our models and packages, with proof',
+    tagline: 'Our code stays still. Its dependencies don\'t — point it at any public GitHub repo and find what drifted, with proof',
     type: 'other',
     surface: 'gateway',
     description:
-      'Watches the models and Python packages our apps depend on and finds drift: places where the outside world changed but our code still assumes the old state. It inventories this repo (model ids in code and config, 58 requirements files, installed versions) and real usage, then reads official sources through Tavily\'s hosted MCP server — search, extract, map, crawl and research — and upstream releases through GitHub\'s MCP server. Every finding quotes the source sentence and links it. For a one-line fix the agent drafts a proposal; nothing changes until a person approves it, and with a GitHub token the approval opens a draft PR. CUGA policies (intent guard, playbook, tool guide, output formatter) plus code guards on every Tavily call keep it governed: no secrets or internal names leave, and searches stay on each pack\'s official domains.',
+      'Finds drift in any public GitHub repo: places where the outside world changed but the code still assumes the old state. Enter owner/repo (or a GitHub URL); the app downloads a public snapshot — no token — and inventories the model ids in code and config and the packages in requirements*.txt and pyproject.toml. PyPI\'s public API gives each package\'s latest release and flags pins or caps that block it; Tavily\'s hosted MCP server (search, extract, map, crawl, research) reads official sources for what changed and why. Every finding quotes the source sentence and links it. For a one-line fix the agent prepares a diff to copy; the app never writes to any repository. CUGA policies (intent guard, playbook, tool guide, output formatter) plus code guards on every Tavily call keep it governed: no secrets or internal names leave, and searches stay on each pack\'s official domains.',
     category: 'enterprise',
     status: 'partial',
     channels: [],
-    tools: ['inventory_models()', 'inventory_packages()', 'tavily_* [Tavily MCP]', 'get_latest_release [GitHub MCP]', 'propose_fix()'],
+    tools: ['inventory_models()', 'inventory_packages()', 'check_pypi()', 'tavily_* [Tavily MCP]', 'suggest_fix()'],
     demoPath: 'apps/dependency_drift_watcher',
     howToRun: {
-      envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'TAVILY_API_KEY', 'GITHUB_TOKEN', 'DDW_GITHUB_REPO'],
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'TAVILY_API_KEY'],
       setup: ['cd apps/dependency_drift_watcher', 'pip install -r requirements.txt'],
       command: 'python main.py --port 28843',
     },
     architecture:
-      'FastAPI serves the single-page UI. POST /ask (or /scan) with a watch pack (Models or Packages) → CugaAgent inventories our side with inline tools (inventory_models, inventory_packages, get_usage), then reads the world\'s side through Tavily\'s hosted MCP server (tavily_search, tavily_extract, tavily_map, tavily_crawl, tavily_research) and GitHub\'s MCP server (get_latest_release, list_releases). Every Tavily call passes through code guards: an egress guard blocks secrets and internal host names, and a domain guard limits searches and URLs to the pack\'s official domains (injecting them when the agent omits include_domains). The agent ends with a JSON findings block the app stores in SQLite; propose_fix queues a diff, and POST /proposals/{id}/approve applies it as a draft PR through GitHub MCP. The Why panel shows CUGA policy decisions, the app guards that fired, the sources read and the run receipt.',
+      'FastAPI serves the single-page UI. POST /ask (or /scan) with a repo (owner/repo, owner/repo@ref or a GitHub URL) and a watch pack (Models or Packages) → the app downloads the repo\'s public snapshot from GitHub (no token; size-capped, cached for an hour, unpacked safely) → CugaAgent inventories it with inline tools (inventory_models, inventory_packages), checks latest releases with check_pypi, and reads the world\'s side through Tavily\'s hosted MCP server (tavily_search, tavily_extract, tavily_map, tavily_crawl, tavily_research). Every Tavily call passes through code guards: an egress guard blocks secrets and internal host names, and a domain guard limits searches and URLs to the pack\'s official domains (injecting them when the agent omits include_domains). The agent ends with a JSON findings block the app stores in SQLite per repo; suggest_fix stores a diff for the user to copy. The Why panel shows CUGA policy decisions, the app guards that fired, the sources read and the run receipt. Tavily calls appear on the usage dashboard under both MCP and API calls.',
     diagram: `python main.py  →  http://127.0.0.1:28843
 
-User: "Which models do our apps depend on, and has anything drifted?"  [Models pack]
+Repo: cuga-project/cuga-apps        [Packages pack]
+User: "Which pins or caps block the latest release of a dependency?"
       │  POST /ask
       ▼
+public snapshot (codeload.github.com, no token)  →  requirements*.txt · pyproject.toml · *.py
+      ▼
 CugaAgent  (policies: intent guard · playbook · tool guide · output formatter)
-      ├─ inventory_models()                → 12 model ids with file:line
-      ├─ get_usage()                       → requests per app (usage_collector)
-      ├─ tavily_map / tavily_crawl(seed)   ─► Tavily MCP  ┐ egress guard +
-      ├─ tavily_extract(url, query)        ─► Tavily MCP  ┘ official domains only
-      ├─ propose_fix(file, find, replace)  → queued, nothing written
+      ├─ inventory_packages()              → 37 packages, specs, file paths
+      ├─ check_pypi([...])                 → mcp 2.3.0 blocked by ">=1.0,<2"
+      ├─ tavily_search / tavily_extract    ─► Tavily MCP   egress guard +
+      │                                                    official domains only
+      ├─ suggest_fix(file, find, replace)  → a diff to copy, nothing written
       ▼
 Answer: table (dependency · where · quoted change · impact) + findings
-Right panel: Why (policies, sources, receipt) · Findings · Approvals → draft PR`,
+Right panel: Why (policies, sources, receipt) · Findings · Suggested fixes`,
     cugaContribution: [
-      'Pairs inline tools for our side (repo inventory, usage) with two hosted, standard MCP servers for the world\'s side (Tavily, GitHub)',
+      'Pairs inline tools for the repo\'s side (public snapshot inventory, PyPI) with a hosted, standard MCP server for the world\'s side (Tavily)',
       'Four CUGA policies registered in code: an intent guard against exploit requests, a drift-triage playbook, an official-sources tool guide and an output formatter that keeps the findings block',
       'Code guards on every Tavily call: secrets and internal names never leave; searches and URLs stay on the pack\'s official domains',
-      'Human approval before any write: the agent proposes a diff, a person approves, and only then the app opens a draft PR through GitHub MCP',
-      'Each answer carries its policy decisions, sources and a run receipt (tokens, LLM calls, Tavily and GitHub calls)',
+      'Read-only by design: no tokens, no writes — fixes are diffs for a person to copy and apply',
+      'Each answer carries its policy decisions, sources and a run receipt (tokens, LLM calls, Tavily and PyPI calls)',
     ],
     examples: [
-      'Which models do our apps depend on, and has anything drifted?',
-      'Is any watsonx model we use deprecated or scheduled for withdrawal?',
-      'Any new vulnerabilities this month in packages our apps use?',
-      'Does any version pin in our requirements block a newer cuga release?',
+      'Which models does this repo depend on, and has anything drifted?',
+      'Is any watsonx model this repo uses deprecated or scheduled for withdrawal?',
+      'Which pins or caps block the latest release of a dependency?',
+      'Any new vulnerabilities this month in packages this repo uses?',
     ],
     appUrl: 'http://localhost:28843',
     mcpUsage: [
       { server: 'tavily', tools: ['tavily_search', 'tavily_extract', 'tavily_map', 'tavily_crawl', 'tavily_research'] },
-      { server: 'github', tools: ['get_latest_release', 'list_releases', 'list_tags', 'get_file_contents'] },
     ],
-    inlineTools: ['inventory_models', 'inventory_packages', 'get_usage', 'get_watch_pack', 'list_accepted_risks', 'propose_fix'],
+    inlineTools: ['inventory_models', 'inventory_packages', 'check_pypi', 'get_usage', 'get_watch_pack', 'list_accepted_risks', 'suggest_fix'],
   },
 ]
 
