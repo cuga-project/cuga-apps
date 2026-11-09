@@ -25,6 +25,8 @@ MCP_CODE_PORT           = 29104
 MCP_LOCAL_PORT          = 29105
 MCP_TEXT_PORT           = 29106
 MCP_INVOCABLE_APIS_PORT = 29107
+# Not in MCP_PORTS below: repo_pulse runs as a stdio subprocess of CUGA (build/github_demo), not in the umbrella stack.
+MCP_REPO_PULSE_PORT     = 29108
 
 MCP_PORTS: dict[str, int] = {
     "web":            MCP_WEB_PORT,

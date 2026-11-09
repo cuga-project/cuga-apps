@@ -22,3 +22,5 @@ cuga-apps/ui/node_modules
 **/.cuga_*
 cuga-apps/apps/dependency_drift_watcher/drift.db
 cuga-apps/apps/dependency_drift_watcher/.repos
+cuga-apps/apps/web_researcher/research.db
+cuga-apps/apps/web_researcher/.store.json

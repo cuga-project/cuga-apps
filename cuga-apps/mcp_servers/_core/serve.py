@@ -4,7 +4,10 @@ from __future__ import annotations
 import logging
 import os
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP  # mcp 1.x — the cuga-apps stack pins this
+except ImportError:  # mcp 2.x renamed it; CUGA >= 0.4.5 ships mcp 2.x plus standalone fastmcp,
+    from fastmcp import FastMCP  # so a server run as a stdio child of CUGA uses that one
 
 
 def make_server(name: str) -> FastMCP:

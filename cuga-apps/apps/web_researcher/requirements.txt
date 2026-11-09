@@ -9,6 +9,6 @@ uvicorn[standard]>=0.27
 pydantic>=2.0
 langchain-core>=0.3
 
-# MCP bridge — calls hosted `web` MCP for Tavily search + page fetch
-mcp>=1.0
+# MCP bridge — Tavily's hosted MCP server (streamable HTTP)
+mcp>=1.0,<2
 langchain-mcp-adapters

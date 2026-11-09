@@ -49,7 +49,7 @@ EXTRA_SERVICES = ["usage_collector"]
 
 # MCP servers bundled into this image (run on 127.0.0.1:<port> alongside the
 # apps). This is the subset the ship-ready apps actually call via load_tools():
-#   web → newsletter/web_researcher/youtube_research/arch_diagram/webpage_summarizer/
+#   web → newsletter/youtube_research/arch_diagram/webpage_summarizer/
 #         ibm_*/ouroboros/travel_planner/hiking_research/city_beat
 #   knowledge → movie_recommender/paper_scout/wiki_dive/travel_planner/city_beat
 #   geo → travel_planner/hiking_research/city_beat
@@ -57,8 +57,8 @@ EXTRA_SERVICES = ["usage_collector"]
 #   local → server_monitor
 # (text/code/invocable_apis serve only non-ship-ready apps and are not bundled;
 #  invocable_apis also needs external BIRD data.)
-# dependency_drift_watcher uses no bundled server: it reaches Tavily's hosted
-# MCP server over HTTPS (see REMOTE_MCP in _mcp_bridge.py).
+# web_researcher and dependency_drift_watcher use no bundled server: they reach
+# Tavily's hosted MCP server over HTTPS (see REMOTE_MCP in _mcp_bridge.py).
 MCP_SERVERS = ["web", "knowledge", "geo", "finance", "local"]
 
 
