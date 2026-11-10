@@ -1187,7 +1187,12 @@ def _render_mcp_server(db: str, tool_rows: list) -> str:
         import json, os, sqlite3, sys
         from pathlib import Path
 
-        from mcp.server.fastmcp import FastMCP
+        try:
+            from fastmcp import FastMCP          # fastmcp >= 4 (mcp 2.x stacks)
+            _STANDALONE = True
+        except ImportError:
+            from mcp.server.fastmcp import FastMCP   # mcp 1.x
+            _STANDALONE = False
 
         _SQLITE = os.environ.get("SQLITE_PATH")
         if not _SQLITE or not Path(_SQLITE).exists():
@@ -1232,10 +1237,15 @@ def _render_mcp_server(db: str, tool_rows: list) -> str:
     body_parts.append(textwrap.dedent('''
 
         if __name__ == "__main__":
-            mcp.settings.host = "0.0.0.0"
-            mcp.settings.port = int(os.environ.get("MCP_PORT", "8765"))
-            mcp.settings.transport_security.enable_dns_rebinding_protection = False
-            mcp.run(transport="streamable-http")
+            _port = int(os.environ.get("MCP_PORT", "8765"))
+            if _STANDALONE:
+                mcp.run(transport="http", host="0.0.0.0", port=_port, path="/mcp",
+                        show_banner=False)
+            else:
+                mcp.settings.host = "0.0.0.0"
+                mcp.settings.port = _port
+                mcp.settings.transport_security.enable_dns_rebinding_protection = False
+                mcp.run(transport="streamable-http")
     '''))
     return "\n".join(body_parts)
 

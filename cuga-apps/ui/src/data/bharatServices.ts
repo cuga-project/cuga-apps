@@ -21,6 +21,21 @@ export interface BharatService {
   path: string
   /** Where it runs on a laptop (`python main.py`) */
   localUrl: string
+  /** Fixed public URL. The service lives in its own Code Engine project, so it
+   *  must not be derived from wherever this gallery happens to be hosted. */
+  url: string
+}
+
+/** Bharat Core — IBM's AI stack for Bharat. Wording and numbers from its site. */
+export const BHARAT_CORE = {
+  url: 'https://www.ibmbharatcore.info/',
+  tagline: 'Optimized AI Stack for Bharat on IBM Sovereign Core',
+  stats: [
+    { value: '16+', label: 'Indic foundations' },
+    { value: '11+', label: 'Indic models' },
+    { value: '10+', label: 'Indic connectors' },
+    { value: '5+',  label: 'Indic templates' },
+  ],
 }
 
 export const BHARAT_SERVICES: BharatService[] = [
@@ -29,9 +44,10 @@ export const BHARAT_SERVICES: BharatService[] = [
     name: 'Farm Assistant (Voice agent)',
     description:
       "Ask by voice or text in Hindi, Tamil, Telugu or another Indian language about FAO's guide to how women pastoralists, fishers and farmers work with land and water. Hear the answer back in the same language, with the pages it came from.",
-    facts: ['11 languages', 'Sarvam speech', 'bring your Sarvam key'],
+    facts: ['Indic Voice Agent', '11 languages', 'Sarvam or open-source speech'],
     ceApp: 'bharat-core-cuga-agent-app',
     path: '/',
     localUrl: 'http://localhost:28831/',
+    url: 'https://bharat-core-cuga-agent-app.1gxwxi8kos9y.us-east.codeengine.appdomain.cloud/',
   },
 ]

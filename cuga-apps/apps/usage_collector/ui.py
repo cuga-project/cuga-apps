@@ -232,6 +232,7 @@ _BODY = r"""
     <button class="tab" data-tab="providers">API calls <span class="badge" id="cntProv"></span></button>
     <button class="tab" data-tab="mcp">MCP servers &amp; tools <span class="badge" id="cntMcp"></span></button>
     <button class="tab" data-tab="utterances">Utterances <span class="badge" id="cntUtt"></span></button>
+    <button class="tab" data-tab="clicks">Link clicks <span class="badge" id="cntClicks"></span></button>
     <input id="search" class="tabsearch" type="search" placeholder="Filter the current tab…" aria-label="Filter dashboard" />
   </div>
 
@@ -286,6 +287,19 @@ _BODY = r"""
       <span class="refresh-badge" id="refreshBadge">auto-refresh 15s</span>
     </div>
     <div id="tableWrap"><div class="empty">No usage recorded yet. Once apps receive traffic, they'll appear here.</div></div>
+  </section>
+
+  <!-- Outbound link clicks (GET /go/<link>?src=<button>) -->
+  <section class="panel" data-panel="clicks">
+    <div class="toolbar"><h2>Link clicks</h2>
+      <span class="segmented" id="clicksMetric" role="group" aria-label="Clicks metric">
+        <button type="button" class="on" data-metric="clicks">Clicks</button><button type="button" data-metric="visitors">Visitors</button>
+      </span>
+    </div>
+    <p class="muted" style="margin:0 0 var(--cds-sp-05)">Outbound buttons that go through
+      <code>/go/&lt;link&gt;?src=&lt;button&gt;</code>. The bold row is the link's total; the rows under it are
+      the individual buttons. Visitors are unique per day (anonymised, daily-salted).</p>
+    <div id="clicksWrap"><div class="empty">No link clicks recorded yet.</div></div>
   </section>
 
   <!-- API providers -->
@@ -668,6 +682,27 @@ _BODY = r"""
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
 
+  // ── Link clicks ─────────────────────────────────────────────────────────
+  let CLICKS_METRIC = 'clicks';
+  function renderClicks(rows) {
+    const wrap = document.getElementById('clicksWrap');
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="empty">' + (searching() ? 'No matching links.' : 'No link clicks recorded yet.') + '</div>';
+      return;
+    }
+    const body = rows.map(r => {
+      const total = r.src === '*';
+      const name = total
+        ? '<b>' + esc(r.link) + '</b>' + (r.url ? ' <a class="muted" href="' + esc(r.url) + '" target="_blank" rel="noopener">↗</a>' : '')
+        : '<span class="muted" style="padding-left:1.2rem">↳ ' + esc(r.src) + '</span>';
+      return '<tr' + (total ? ' style="font-weight:600"' : '') + '><td class="app-name">' + name + '</td>' +
+        winCells(r, CLICKS_METRIC + '_') + '<td class="muted">' + ago(r.last_ts) + '</td></tr>';
+    }).join('');
+    wrap.innerHTML = '<table><thead><tr><th>Link · button</th>' +
+      winHeaders(CLICKS_METRIC === 'clicks' ? 'Clicks' : 'Unique visitors') +
+      '<th>Last click</th></tr></thead><tbody>' + body + '</tbody></table>';
+  }
+
   function render(data) { LAST = data; draw(); }
 
   function draw() {
@@ -693,11 +728,16 @@ _BODY = r"""
     renderProviders(provs);
     renderMcp(servers);
     renderUtterances(data.utterances || {}, q);
+    let clicks = data.clicks || [];
+    if (q) clicks = clicks.filter(r => (r.link + ' ' + r.src).toLowerCase().includes(q));
+    renderClicks(clicks);
     // Tab count badges (unfiltered totals).
     document.getElementById('cntApps').textContent = (data.apps || []).length || '';
     document.getElementById('cntProv').textContent = (data.providers || []).length || '';
     document.getElementById('cntMcp').textContent  = (((data.mcp || {}).servers) || []).length || '';
     document.getElementById('cntUtt').textContent  = ((data.utterances || {}).windows || {}).total || '';
+    document.getElementById('cntClicks').textContent = (data.clicks || [])
+      .filter(r => r.src === '*').reduce((n, r) => n + (r.clicks_total || 0), 0) || '';
   }
 
   // ── Tabs ────────────────────────────────────────────────────────────────
@@ -714,6 +754,14 @@ _BODY = r"""
     const btn = e.target.closest('button'); if (!btn) return;
     APPS_METRIC = btn.dataset.metric;
     document.querySelectorAll('#appsMetric button').forEach(b => b.classList.toggle('on', b === btn));
+    draw();
+  });
+
+  // Link clicks metric toggle (Clicks / Visitors).
+  document.getElementById('clicksMetric').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    CLICKS_METRIC = btn.dataset.metric;
+    document.querySelectorAll('#clicksMetric button').forEach(b => b.classList.toggle('on', b === btn));
     draw();
   });
 

@@ -63,7 +63,18 @@ export USAGE_TOKEN=<same secret as the collector>     # if you set one
 | POST   | `/track`      | Receive a usage ping (token-guarded)                |
 | GET    | `/`           | Dashboard                                           |
 | GET    | `/api/stats`  | Rollup JSON the dashboard polls                     |
+| GET    | `/go/<link>?src=<button>` | Count an outbound link click, then 302 to its allow-listed URL (no token; see below) |
 | GET    | `/health`     | `{"ok": true}`                                      |
+
+### Link clicks
+
+`/go/<link>` counts clicks per link, per button (`src`, e.g. `hf-band`, `ce-card`)
+and per day, with the same anonymised daily visitor hashes, saves them in the
+snapshot, and shows them on the dashboard's **Link clicks** tab. Only links in
+`USAGE_LINKS` redirect (JSON `{"id": "https://…"}`, merged over the built-in
+`{"bharat-core": "https://www.ibmbharatcore.info/"}`); anything else is a 404, and
+the target can't be set from the request, so it is not an open redirect. In the UI,
+wrap a button's URL with `trackedLink(id, button, url)` (`ui/src/data/deployment.ts`).
 
 ## Code Engine
 

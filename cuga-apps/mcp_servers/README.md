@@ -27,7 +27,8 @@ Ports come from [apps/_ports.py](../apps/_ports.py).
 **Common to every server** (always install these):
 
 ```
-mcp>=1.0,<2
+mcp>=2.0,<3
+fastmcp>=4.1,<5
 httpx
 pydantic
 ```
@@ -53,7 +54,7 @@ From the repo root (`cuga-apps/`):
 # 1) one-time: create a venv and install common + the server's extras
 python3.13 -m venv .venv
 source .venv/bin/activate
-pip install "mcp>=1.0,<2" httpx pydantic
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic
 
 # 2) install just the extras for the server you want, e.g. mcp-web:
 pip install tavily-python beautifulsoup4 feedparser youtube-transcript-api
@@ -87,36 +88,36 @@ Or point the **MCP Tool Explorer** ([mcp_tool_explorer/](../mcp_tool_explorer/),
 
 ```bash
 # mcp-web (29100)
-pip install "mcp>=1.0,<2" httpx pydantic tavily-python beautifulsoup4 feedparser youtube-transcript-api
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic tavily-python beautifulsoup4 feedparser youtube-transcript-api
 python -m mcp_servers.web.server
 
 # mcp-knowledge (29101) — no extras
-pip install "mcp>=1.0,<2" httpx pydantic
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic
 python -m mcp_servers.knowledge.server
 
 # mcp-geo (29102) — no extras
-pip install "mcp>=1.0,<2" httpx pydantic
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic
 python -m mcp_servers.geo.server
 
 # mcp-finance (29103) — no extras
-pip install "mcp>=1.0,<2" httpx pydantic
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic
 python -m mcp_servers.finance.server
 
 # mcp-code (29104) — no extras
-pip install "mcp>=1.0,<2" httpx pydantic
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic
 python -m mcp_servers.code.server
 
 # mcp-local (29105)
 brew install ffmpeg libomp
-pip install "mcp>=1.0,<2" httpx pydantic psutil faster-whisper
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic psutil faster-whisper
 python -m mcp_servers.local.server
 
 # mcp-text (29106)
-pip install "mcp>=1.0,<2" httpx pydantic docling tiktoken
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic docling tiktoken
 python -m mcp_servers.text.server
 
 # mcp-invocable_apis (29107)
-pip install "mcp>=1.0,<2" httpx pydantic
+pip install "mcp>=2.0,<3" "fastmcp>=4.1,<5" httpx pydantic
 export BIRD_DEV_JSON=/path/to/dev.json
 export BIRD_DBS_DIR=/path/to/dbs
 python -m mcp_servers.invocable_apis.server

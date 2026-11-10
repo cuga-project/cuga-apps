@@ -4,7 +4,9 @@ Every app calls ``install_usage(app)`` (see _usage.py), which calls
 ``install_chrome(app)`` here. A single response middleware rewrites
 ``text/html`` GET responses to add, consistently across all ~33 apps:
 
-  • a privacy "heads up" banner pinned to the top (public demo; requests logged)
+  • a banner pinned to the top: a "← All CUGA Apps" link back to the gallery
+    (the Hugging Face Space by default; CUGA_APPS_HOME_URL overrides it) and the
+    privacy "heads up" (public demo; requests logged)
   • the LLM model the app runs on + an MCP Tool Explorer link, placed INSIDE the
     app's own tools row (the ``.app-intro__tools`` chip strip that 21 apps share)
     so they sit with the other tool pills — not in the top banner. Apps without
@@ -28,9 +30,13 @@ _TOOLS_ROW_RE = re.compile(r'(<div class="app-intro__tools">.*?)(</div>)',
 _BODY_RE = re.compile(r"<body[^>]*>", re.IGNORECASE)
 
 # Public MCP Tool Explorer (standalone Code Engine app). Override per deployment
-# with MCP_TOOL_EXPLORER_URL (e.g. a localhost port for local dev).
+# with MCP_TOOL_EXPLORER_URL (e.g. a localhost port for local dev). On Code Engine
+# the explorer in the app's own project is used (CE injects CE_SUBDOMAIN/CE_REGION).
 _DEFAULT_EXPLORER = ("https://cuga-apps-mcp-tool-explorer."
                      "1gxwxi8kos9y.us-east.codeengine.appdomain.cloud")
+
+# Where "← All CUGA Apps" leads: the public gallery on Hugging Face.
+_DEFAULT_HOME = "https://huggingface.co/spaces/ibm-research/cuga-apps"
 
 _PRIVACY = ("Heads up: these are public demo apps. Your requests are logged for "
             "usage analytics — please don't enter confidential information, "
@@ -47,19 +53,34 @@ def _model_label() -> str:
 
 
 def _explorer_url() -> str:
-    return (os.getenv("MCP_TOOL_EXPLORER_URL") or _DEFAULT_EXPLORER).rstrip("/")
+    explicit = os.getenv("MCP_TOOL_EXPLORER_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    sub, region = os.getenv("CE_SUBDOMAIN"), os.getenv("CE_REGION")
+    if sub and region:
+        return f"https://cuga-apps-mcp-tool-explorer.{sub}.{region}.codeengine.appdomain.cloud"
+    return _DEFAULT_EXPLORER
 
 
-# ── Top banner — privacy notice only (compliance; stays pinned at the top) ──
+def _home_url() -> str:
+    return (os.getenv("CUGA_APPS_HOME_URL") or _DEFAULT_HOME).rstrip("/")
+
+
+# ── Top banner — back to the gallery + privacy notice (stays pinned at the top) ──
 def _banner_fragment() -> str:
     privacy = _html.escape(_PRIVACY)
+    home = _html.escape(_home_url())
     return (
         "<style>"
         "body{padding-top:40px !important}"
         f"#{_MARKER}{{position:fixed;top:0;left:0;right:0;z-index:2147483600;"
         "padding:6px 14px;background:#fcf4d6;border-bottom:1px solid #e8c95a;"
         "color:#5b4a14;font:500 12px/1.35 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif}"
-        f"#{_MARKER} .cc-msg{{display:block}}"
+        f"#{_MARKER}{{display:flex;align-items:center;gap:14px}}"
+        f"#{_MARKER} .cc-msg{{display:block;flex:1;min-width:0}}"
+        f"#{_MARKER} .cc-home{{flex-shrink:0;color:#0f62fe;font-weight:600;"
+        "text-decoration:none;white-space:nowrap;padding-right:14px;border-right:1px solid #e8c95a}"
+        f"#{_MARKER} .cc-home:hover{{text-decoration:underline}}"
         # Pills injected into the app's tools row (mostly inherit .tool-pill;
         # these rules just guarantee a sane look if the app styles it loosely).
         ".cuga-tool-pill{text-decoration:none;color:inherit;white-space:nowrap}"
@@ -71,7 +92,9 @@ def _banner_fragment() -> str:
         "font:500 11px/1.3 ui-monospace,Menlo,monospace}"
         f".{_MARKER}-badge a{{color:#0f62fe;font-weight:600;text-decoration:none}}"
         "</style>"
-        f'<div id="{_MARKER}"><span class="cc-msg">{privacy}</span></div>'
+        f'<div id="{_MARKER}"><a class="cc-home" href="{home}" target="_top" '
+        f'title="Back to the CUGA Apps gallery">← All CUGA Apps</a>'
+        f'<span class="cc-msg">{privacy}</span></div>'
     )
 
 

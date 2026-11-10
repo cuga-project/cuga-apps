@@ -30,8 +30,26 @@ import type { UseCase } from './usecases'
 // These two strings are stable for the life of the project. Change them
 // if you redeploy in a different CE project. Public information — safe
 // to ship in client-side bundles.
-export const CE_PROJECT_HASH = '1gxwxi8kos9y'
-export const CE_REGION       = 'us-east'
+//
+// When the UI itself is served from a Code Engine host (the all-in-one), the
+// project and region are read from that hostname, so the same build links to
+// the right MCP servers / services in whichever project it is deployed to
+// (e.g. ce-cugaplusplus in eu-gb). Elsewhere (local dev, Hugging Face) the
+// defaults below apply.
+const DEFAULT_CE_PROJECT_HASH = '1gxwxi8kos9y'
+const DEFAULT_CE_REGION       = 'us-east'
+// A hosted UI that is NOT on Code Engine (the Hugging Face Space) links to the
+// all-in-one at VITE_ALLINONE_BASE — read the project from that URL instead.
+const _CE_HOST_RE = /^[^.]+\.([a-z0-9]+)\.([a-z0-9-]+)\.codeengine\.appdomain\.cloud$/
+const _allinoneHost = (() => {
+  const base = ((import.meta as any).env?.VITE_ALLINONE_BASE as string | undefined) || ''
+  try { return base ? new URL(base).hostname : '' } catch { return '' }
+})()
+const _ceHost =
+  (typeof window !== 'undefined' ? window.location.hostname.match(_CE_HOST_RE) : null)
+  || (_allinoneHost ? _allinoneHost.match(_CE_HOST_RE) : null)
+export const CE_PROJECT_HASH = _ceHost ? _ceHost[1] : DEFAULT_CE_PROJECT_HASH
+export const CE_REGION       = _ceHost ? _ceHost[2] : DEFAULT_CE_REGION
 
 
 // ── Apps actually deployed to CE (tier 1 + tier 2 = 26) ────────────────
@@ -91,9 +109,10 @@ const ceAppUrl = (ceName: string): string =>
  * all-in-one's own UI, per-app remote — that is the app's CE URL plus `path`;
  * locally it is `localUrl`, with localhost rewritten to the page's host.
  */
-export function resolveServiceUrl(ceApp: string, path: string, localUrl: string): string {
+export function resolveServiceUrl(ceApp: string, path: string, localUrl: string, fixedUrl?: string): string {
   const hosted = TARGET === 'remote' || BUILD_TARGET === 'remote-allinone' || BUILD_TARGET === 'single'
   if (hosted) {
+    if (fixedUrl) return fixedUrl
     return ceAppUrl(ceApp) + (path.startsWith('/') ? path : '/' + path)
   }
   if (typeof window !== 'undefined') {
@@ -238,4 +257,23 @@ export function statsDashboardUrl(): string | null {
   }
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
   return `http://${host}:28827/`
+}
+
+
+/**
+ * Outbound link that is counted by the stats collector before redirecting:
+ *   <collector>/go/<link>?src=<where>-<button>   (where = hf | ce)
+ * The collector only redirects allow-listed links (USAGE_LINKS), so `link`
+ * must exist there. Falls back to the direct URL when no collector is reachable
+ * (local dev), so the button always works.
+ */
+export function trackedLink(link: string, button: string, directUrl: string): string {
+  const buildTarget = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET
+  if (buildTarget !== 'single' && buildTarget !== 'remote-allinone') return directUrl
+  const base = statsDashboardUrl()
+  if (!base) return directUrl
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  const where = host.endsWith('.hf.space') || host.endsWith('huggingface.co') ? 'hf' : 'ce'
+  const sep = base.endsWith('/') ? '' : '/'
+  return `${base}${sep}go/${encodeURIComponent(link)}?src=${encodeURIComponent(`${where}-${button}`)}`
 }

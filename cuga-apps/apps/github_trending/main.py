@@ -35,6 +35,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# One CUGA store per app (policies included). CUGA's default store is shared by
+# every app on this Python install, so one app's policies would fire in another.
+os.environ.setdefault("CUGA_DBS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cuga", "dbs"))
+os.makedirs(os.environ["CUGA_DBS_DIR"], exist_ok=True)
+
 # ── Path bootstrap — must come before local imports ─────────────────────
 _DIR       = Path(__file__).parent
 _DEMOS_DIR = _DIR.parent
@@ -360,11 +365,12 @@ async def _attach_policies(agent) -> None:
         await agent.policies.add_output_formatter(
             name="repo_board_formatter",
             format_config=(
-                "Before replying, ALWAYS call save_repos with the full board "
-                "(each repo needs full_name, url, stars, language, a grounded "
-                "summary, an offers list, and why_trending). Then reply with a "
-                "tight numbered list — each repo as a markdown link with its "
-                "star count and a one-line description. No preamble."
+                # A formatter rewrites the final text; it cannot call tools.
+                # save_repos is required by the system prompt instead.
+                "Reply with a tight numbered list — each repo as a markdown "
+                "link with its star count and a one-line description. No "
+                "preamble. Never include code, tool calls or function names "
+                "in the reply."
             ),
             format_type="markdown",
             keywords=["trending", "repos", "repositories", "stars", "github"],

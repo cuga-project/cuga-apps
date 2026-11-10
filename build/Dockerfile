@@ -60,7 +60,7 @@ COPY build/constraints.allinone.txt ./constraints.txt
 # which lacks some pinned versions (e.g. setuptools==81.0.0). Keep in step with constraints.allinone.txt.
 RUN pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.12.0 torchvision==0.27.0
+        torch==2.15.0 torchvision==0.29.1
 
 # App deps (cuga + sqlite-vec + feedparser + playwright + the LangChain stack).
 # The ship-ready set does NOT include video_qa/deck_forge, so the heavy file

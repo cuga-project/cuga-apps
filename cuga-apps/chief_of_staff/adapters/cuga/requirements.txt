@@ -1,4 +1,4 @@
-# Adapter assumes the cuga-apps environment (cuga.sdk, langchain, langchain-mcp-adapters)
+# Adapter assumes the cuga-apps environment (cuga.sdk, langchain with langchain.mcp, fastmcp)
 # is already installed in the active Python interpreter. These are the only
 # additional deps the HTTP wrapper needs.
 fastapi>=0.115

@@ -41,6 +41,11 @@ import urllib.parse
 import uuid
 from pathlib import Path
 
+# One CUGA store per app (policies included). CUGA's default store is shared by
+# every app on this Python install, so one app's policies would fire in another.
+os.environ.setdefault("CUGA_DBS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cuga", "dbs"))
+os.makedirs(os.environ["CUGA_DBS_DIR"], exist_ok=True)
+
 # ── Path bootstrap — must come before local imports ─────────────────────
 _DIR       = Path(__file__).parent
 _DEMOS_DIR = _DIR.parent
@@ -531,12 +536,13 @@ async def _attach_policies(agent) -> None:
         await agent.policies.add_output_formatter(
             name="doctor_board_formatter",
             format_config=(
-                "Before replying, ALWAYS call save_doctors with the ranked "
-                "board — each doctor needs rating_summary, pros, cons (grounded "
-                "in reviews), and sources. In prose give a short ranked rundown "
-                "with each doctor's standout pro and any caveat, citing sources "
-                "as markdown links, and END with a one-line reminder that this "
-                "is informational only — not medical advice or a referral."
+                # A formatter rewrites the final text; it cannot call tools.
+                # save_doctors is required by the system prompt instead.
+                "In prose give a short ranked rundown with each doctor's "
+                "standout pro and any caveat, citing sources as markdown "
+                "links, and END with a one-line reminder that this is "
+                "informational only — not medical advice or a referral. Never "
+                "include code, tool calls or function names in the reply."
             ),
             format_type="markdown",
             keywords=["doctor", "physician", "specialist", "cardiologist",

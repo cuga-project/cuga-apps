@@ -4,7 +4,7 @@
 # (Box auth, OpenAPI parsers, chromadb embeddings, etc.).
 
 # ── cuga framework ───────────────────────────────────────────────────────
-cuga
+cuga>=0.4.5,<0.5
 
 # ouroboros — CugaSupervisor policy embedding store. sqlite-vec loads as a
 # SQLite extension, so the runtime Python must have enable_load_extension
@@ -12,8 +12,9 @@ cuga
 sqlite-vec>=0.1.6
 
 # ── MCP client (for _mcp_bridge.py) ──────────────────────────────────────
-mcp>=1.0,<2
-langchain-mcp-adapters
+mcp>=2.0,<3
+fastmcp>=4.1,<5
+langchain[mcp]>=1.4.6,<1.5
 
 # ── Web framework ────────────────────────────────────────────────────────
 fastapi

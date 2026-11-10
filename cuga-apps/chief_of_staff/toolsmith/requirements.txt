@@ -1,5 +1,5 @@
 # Toolsmith service deps. Assumes the cuga-apps base image (cuga, langchain,
-# langchain-mcp-adapters) is already installed — that's how the parent stack
+# langchain.mcp + fastmcp) is already installed — that's how the parent stack
 # works. These are the additional packages Toolsmith needs.
 fastapi>=0.115
 uvicorn[standard]>=0.30

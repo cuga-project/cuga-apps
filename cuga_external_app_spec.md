@@ -191,7 +191,7 @@ pip install --upgrade pip
 pip install fastapi 'uvicorn[standard]' pydantic httpx
 
 # LangChain core + MCP adapter (for the bridge in §6)
-pip install langchain langchain-core langchain-mcp-adapters mcp
+pip install langchain 'langchain[mcp]>=1.4.6,<1.5' langchain-core 'mcp>=2.0,<3' 'fastmcp>=4.1,<5'
 
 # Pick exactly the LLM provider(s) you actually use:
 pip install langchain-anthropic   # if LLM_PROVIDER=anthropic
@@ -624,218 +624,37 @@ def create_llm(
 
 ## 6. `_mcp_bridge.py` — copy verbatim
 
-This is the bridge from your CUGA app to the hosted MCP servers. Copy it
-as-is. It handles three real-world quirks that bite if you write your own
-naive client:
+This is the bridge from your CUGA app to the hosted MCP servers. **Copy the current
+file, `cuga-apps/apps/_mcp_bridge.py`, as-is** (it imports `_ports.py`; copy that
+too). It is the single source of truth — don't paste an old copy from a doc. It
+handles the real-world quirks that bite a naive client:
 
 1. **URL resolution** — CE / docker / localhost precedence + `MCP_<NAME>_URL`
-   override, so your app code is the same in dev and prod.
-2. **Tuple unwrap** — `langchain-mcp-adapters` returns `(content, artifact)`
-   tuples; CUGA's executor expects a plain dict. We unwrap.
-3. **args_schema shim** — CUGA calls `.schema()` / `.model_json_schema()`
-   on each tool's args schema; the adapter exposes a plain dict. We wrap
-   it so both calls succeed.
+   override, so your app code is the same in dev and prod. Remote servers we
+   don't run (Tavily's hosted MCP) are in `REMOTE_MCP` and get a bearer token.
+2. **Tuple unwrap** — the LangChain MCP adapter returns `(content, artifact)`
+   tuples; CUGA's executor expects a plain value. We unwrap.
+3. **args_schema shim** — CUGA calls `.schema()` / `.model_json_schema()` /
+   `.model_fields` on each tool's args schema; the adapter exposes a plain dict.
+   We wrap it so all of them work.
+
+Since cuga 0.4.5 (MCP 2.x) the bridge uses **LangChain's own MCP adapter over
+fastmcp** — `langchain-mcp-adapters` is archived and can't install next to MCP 2.
+The core of `load_tools` is now:
 
 ```python
-"""
-LangChain ↔ MCP bridge for CUGA apps.
+from fastmcp import Client
+from fastmcp.client.transports import StreamableHttpTransport
+from langchain.mcp import MCPAdapter
 
-Usage:
-    from _mcp_bridge import load_tools
-    tools = load_tools(["web", "knowledge", "geo", "finance"])
-    # → list[StructuredTool] you can pass to CugaAgent(tools=...)
-
-URL resolution (per server name):
-    1. MCP_<NAME>_URL env var if set (explicit override; always wins)
-    2. Code Engine public URL when CE_APP / CE_REVISION are set,
-       or when CUGA_TARGET=ce
-    3. http://mcp-<name>:<port>/mcp inside docker-compose
-    4. http://localhost:<port>/mcp on bare metal
-"""
-from __future__ import annotations
-
-import asyncio
-import logging
-import os
-from pathlib import Path
-from typing import List
-
-log = logging.getLogger(__name__)
-
-# ── Hosted MCP servers ───────────────────────────────────────────────────
-# Default ports for local / docker runs. Update if your private deployment
-# uses different ports. The Code Engine path doesn't use these.
-MCP_PORTS: dict[str, int] = {
-    "web":            29100,
-    "knowledge":      29101,
-    "geo":            29102,
-    "finance":        29103,
-    "code":           29104,
-    "local":          29105,
-    "text":           29106,
-    "invocable_apis": 29107,
-}
-
-_IN_DOCKER = Path("/.dockerenv").exists() or os.getenv("CUGA_IN_DOCKER") == "1"
-_ON_CE = bool(
-    os.getenv("CE_APP")
-    or os.getenv("CE_REVISION")
-    or (os.getenv("CUGA_TARGET", "") or "").lower() == "ce"
-)
-
-# Code Engine project hash + region. Override via env if you redeployed
-# in a different CE project.
-_CE_PROJECT_HASH_DEFAULT = "1gxwxi8kos9y"
-_CE_REGION_DEFAULT       = "us-east"
-
-
-def _ce_url(name: str) -> str:
-    h = os.getenv("CE_SUBDOMAIN") or os.getenv("CE_PROJECT_HASH") or _CE_PROJECT_HASH_DEFAULT
-    r = os.getenv("CE_REGION") or _CE_REGION_DEFAULT
-    return f"https://cuga-apps-mcp-{name}.{h}.{r}.codeengine.appdomain.cloud/mcp"
-
-
-def _default_url(name: str, port: int) -> str:
-    if _ON_CE:    return _ce_url(name)
-    if _IN_DOCKER: return f"http://mcp-{name}:{port}/mcp"
-    return f"http://localhost:{port}/mcp"
-
-
-def _resolved_urls(names: List[str]) -> dict[str, str]:
-    out = {}
-    for name in names:
-        if name not in MCP_PORTS:
-            raise ValueError(f"Unknown MCP server: {name!r}. Known: {list(MCP_PORTS)}")
-        out[name] = os.getenv(f"MCP_{name.upper()}_URL") or _default_url(name, MCP_PORTS[name])
-    return out
-
-
-# ── (content, artifact) unwrap ───────────────────────────────────────────
-
-def _unwrap(raw):
-    """langchain-mcp-adapters wraps tools so direct `await tool(...)` returns
-    a (content, artifact) tuple. CUGA's executor expects a normal value.
-    Unwrap to the underlying `data` payload of the {ok, data} envelope."""
-    import json as _json
-
-    if not (isinstance(raw, tuple) and len(raw) == 2):
-        return raw
-
-    content_list, artifact = raw
-    parsed = None
-
-    if isinstance(artifact, dict) and "structured_content" in artifact:
-        sc = artifact["structured_content"]
-        if isinstance(sc, dict) and "result" in sc:
-            r = sc["result"]
-            if isinstance(r, str):
-                try: parsed = _json.loads(r)
-                except _json.JSONDecodeError: pass
-            elif isinstance(r, (dict, list)):
-                parsed = r
-
-    if parsed is None and isinstance(content_list, list) and content_list:
-        first = content_list[0]
-        if isinstance(first, dict) and "text" in first:
-            txt = first["text"]
-            try: parsed = _json.loads(txt)
-            except _json.JSONDecodeError: return txt
-
-    if isinstance(parsed, dict) and "ok" in parsed:
-        if not parsed["ok"]:
-            err  = parsed.get("error", "tool error")
-            code = parsed.get("code", "")
-            return f"ERROR: {err}" + (f" (code={code})" if code else "")
-        return parsed.get("data", parsed)
-
-    return parsed if parsed is not None else raw
-
-
-# ── args_schema shim ─────────────────────────────────────────────────────
-
-class _ArgsSchemaShim(dict):
-    """Make a plain JSON-Schema dict quack like a Pydantic model class so
-    cuga's prompt builder can call .schema() / .model_json_schema()."""
-    def schema(self) -> dict:                return dict(self)
-    def model_json_schema(self) -> dict:     return dict(self)
-    @property
-    def model_fields(self) -> dict:          return self.get("properties", {}) or {}
-
-
-_RETURN_HINT = (
-    "\n\nReturn shape: this tool always returns the parsed `data` object "
-    "from the cuga tool_result envelope. Use Python dict access on the "
-    "documented field names (e.g. `result['results']`, `result['extract']`). "
-    "Do NOT slice with `result[:N]` or index numerically — the top-level "
-    "value is a dict, list, or scalar, never a tuple."
-)
-
-
-def _wrap(tool):
-    """Patch a StructuredTool so it works with CUGA's executor + prompts."""
-    import functools as _ft
-
-    original = getattr(tool, "coroutine", None)
-    if original is not None:
-        @_ft.wraps(original)
-        async def _wrapped(*args, **kwargs):
-            return _unwrap(await original(*args, **kwargs))
-        tool.coroutine = _wrapped
-
-    schema = getattr(tool, "args_schema", None)
-    if isinstance(schema, dict) and not isinstance(schema, _ArgsSchemaShim):
-        try: tool.args_schema = _ArgsSchemaShim(schema)
-        except Exception: pass
-
-    desc = getattr(tool, "description", None)
-    if isinstance(desc, str) and _RETURN_HINT not in desc:
-        try: tool.description = desc + _RETURN_HINT
-        except Exception: pass
-
-    return tool
-
-
-# ── Public API ───────────────────────────────────────────────────────────
-
-def load_tools(servers: List[str]) -> list:
-    """Connect to the named MCP servers and return their tools as
-    LangChain StructuredTool instances ready to pass to CugaAgent(tools=…).
-
-    Blocks until handshakes complete (or error out). Safe to call at app
-    startup before uvicorn is running.
-    """
-    try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
-    except ImportError as exc:
-        raise ImportError(
-            "Install langchain-mcp-adapters: pip install langchain-mcp-adapters"
-        ) from exc
-
-    urls = _resolved_urls(servers)
-    connections = {
-        name: {"transport": "streamable_http", "url": url}
-        for name, url in urls.items()
-    }
-    log.info("MCP: %s", ", ".join(f"{n}={u}" for n, u in urls.items()))
-
-    client = MultiServerMCPClient(connections)
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop is None or not loop.is_running():
-        tools = asyncio.run(client.get_tools())
-    else:
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            tools = ex.submit(lambda: asyncio.run(client.get_tools())).result()
-
-    return [_wrap(t) for t in tools]
+client = Client(StreamableHttpTransport(url, headers=headers or None), timeout=300)
+for t in await MCPAdapter(client).list_tools():
+    t.handle_tool_error = False          # raise MCP errors to cuga's executor
+    tools.append(_wrap_tool_for_cuga(t, server=name))
 ```
 
----
+Each returned tool reconnects through its client when called, so nothing has to
+stay open after discovery.
 
 ## 7. `main.py` — canonical template
 
@@ -1374,8 +1193,9 @@ httpx>=0.27
 
 langchain>=0.3
 langchain-core>=0.3
-langchain-mcp-adapters>=0.1
-mcp>=1.0
+langchain[mcp]>=1.4.6,<1.5
+fastmcp>=4.1,<5
+mcp>=2.0,<3
 
 # Pick exactly the providers you support. The `_llm.py` factory imports
 # these lazily inside each branch, so leaving extras commented out is fine —

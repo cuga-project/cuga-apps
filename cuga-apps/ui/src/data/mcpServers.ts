@@ -28,10 +28,18 @@ export interface McpServer {
   accent: 'blue' | 'emerald' | 'amber' | 'pink' | 'cyan' | 'violet' | 'rose'
   /** example questions an app could ask that exercise this server's tools */
   examples: string[]
+  /** set for third-party servers we connect to but don't run (e.g. Tavily) */
+  hostedBy?: string
+  /** public endpoint for hosted servers */
+  endpoint?: string
+  /** env var holding the bearer token a hosted server needs */
+  tokenEnv?: string
 }
 
 /** Public Code Engine `/mcp` endpoint for a deployed server. */
 export function mcpServerUrl(id: string): string {
+  const hosted = MCP_SERVERS.find((s) => s.id === id && s.endpoint)
+  if (hosted?.endpoint) return hosted.endpoint
   return `https://cuga-apps-mcp-${id}.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud/mcp`
 }
 
@@ -40,6 +48,22 @@ export const TOOL_EXPLORER_URL =
   `https://cuga-apps-mcp-tool-explorer.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud`
 
 export const MCP_SERVERS: McpServer[] = [
+  {
+    id: 'tavily',
+    name: 'Tavily',
+    port: 0,
+    blurb: 'Web search built for agents — search, extract, map, crawl and cited research, from Tavily\'s hosted MCP server.',
+    sources: ['mcp.tavily.com', 'bearer TAVILY_API_KEY'],
+    tools: ['tavily_search', 'tavily_extract', 'tavily_map', 'tavily_crawl', 'tavily_research'],
+    accent: 'violet',
+    examples: [
+      'Who is the current CEO of IBM? Quote the source.',
+      'Map docs.tavily.com and explain how crawl differs from map',
+    ],
+    hostedBy: 'Tavily',
+    endpoint: 'https://mcp.tavily.com/mcp/',
+    tokenEnv: 'TAVILY_API_KEY',
+  },
   {
     id: 'web',
     name: 'Web',

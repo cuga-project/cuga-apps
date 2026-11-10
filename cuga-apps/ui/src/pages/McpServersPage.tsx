@@ -1,102 +1,114 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { MCP_SERVERS, mcpServerUrl, TOOL_EXPLORER_URL, type McpServer } from '../data/mcpServers'
+import { CE_REGION } from '../data/deployment'
 import CodeBlock from '../components/CodeBlock'
 
-// Copy-pasteable snippet: connect to THIS server's public /mcp endpoint over
-// streamable HTTP and pull its tools into any LangChain/LangGraph agent.
+// Copy-pasteable snippet: connect to this server's /mcp endpoint over streamable
+// HTTP with LangChain's own MCP adapter (what cuga >= 0.4.5 uses) and get tools
+// for any LangChain / LangGraph / CUGA agent.
 function usageSnippet(s: McpServer): string {
   const preview = s.tools.slice(0, 4).join(', ') + (s.tools.length > 4 ? ', …' : '')
-  return `# pip install langchain-mcp-adapters
-from langchain_mcp_adapters.client import MultiServerMCPClient
+  if (s.tokenEnv) {
+    return `# pip install "langchain[mcp]" fastmcp
+import os
+from fastmcp import Client
+from fastmcp.client.transports import StreamableHttpTransport
+from langchain.mcp import MCPAdapter
 
-client = MultiServerMCPClient({
-    "${s.id}": {
-        "transport": "streamable_http",
-        "url": "${mcpServerUrl(s.id)}",
-    },
-})
-tools = await client.get_tools()
+transport = StreamableHttpTransport(
+    "${mcpServerUrl(s.id)}",
+    headers={"Authorization": f"Bearer {os.environ['${s.tokenEnv}']}"},
+)
+tools = await MCPAdapter(Client(transport)).list_tools()
+# → ${preview}`
+  }
+  return `# pip install "langchain[mcp]" fastmcp
+from langchain.mcp import MCPAdapter
+
+tools = await MCPAdapter("${mcpServerUrl(s.id)}").list_tools()
 # → ${preview}`
 }
 
-const ACCENT: Record<McpServer['accent'], { bar: string; text: string; chip: string }> = {
-  blue:    { bar: 'bg-indigo-600', text: 'text-indigo-600', chip: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25' },
-  emerald: { bar: 'bg-emerald-500', text: 'text-emerald-600', chip: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25' },
-  amber:   { bar: 'bg-amber-500', text: 'text-amber-600', chip: 'bg-amber-500/10 text-amber-600 border-amber-500/25' },
-  pink:    { bar: 'bg-pink-500', text: 'text-pink-600', chip: 'bg-pink-500/10 text-pink-600 border-pink-500/25' },
-  cyan:    { bar: 'bg-sky-600', text: 'text-sky-700', chip: 'bg-sky-500/10 text-sky-700 border-sky-500/30' },
-  violet:  { bar: 'bg-violet-500', text: 'text-violet-600', chip: 'bg-violet-500/10 text-violet-600 border-violet-500/25' },
-  rose:    { bar: 'bg-rose-500', text: 'text-rose-600', chip: 'bg-rose-500/10 text-rose-600 border-rose-500/25' },
+const ACCENT: Record<McpServer['accent'], { dot: string; text: string; chip: string; glow: string }> = {
+  blue:    { dot: 'bg-indigo-600',  text: 'text-indigo-600',  chip: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20',   glow: 'from-indigo-500/15' },
+  emerald: { dot: 'bg-emerald-500', text: 'text-emerald-600', chip: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20', glow: 'from-emerald-500/15' },
+  amber:   { dot: 'bg-amber-500',   text: 'text-amber-600',   chip: 'bg-amber-500/10 text-amber-700 border-amber-500/20',       glow: 'from-amber-500/15' },
+  pink:    { dot: 'bg-pink-500',    text: 'text-pink-600',    chip: 'bg-pink-500/10 text-pink-700 border-pink-500/20',          glow: 'from-pink-500/15' },
+  cyan:    { dot: 'bg-sky-600',     text: 'text-sky-700',     chip: 'bg-sky-500/10 text-sky-700 border-sky-500/20',             glow: 'from-sky-500/15' },
+  violet:  { dot: 'bg-violet-500',  text: 'text-violet-600',  chip: 'bg-violet-500/10 text-violet-700 border-violet-500/20',    glow: 'from-violet-500/15' },
+  rose:    { dot: 'bg-rose-500',    text: 'text-rose-600',    chip: 'bg-rose-500/10 text-rose-700 border-rose-500/20',          glow: 'from-rose-500/15' },
 }
 
 function ServerCard({ s }: { s: McpServer }) {
   const a = ACCENT[s.accent]
   const url = mcpServerUrl(s.id)
   return (
-    <div id={`mcp-${s.id}`} className="bg-tsurf border border-tborder flex flex-col overflow-hidden scroll-mt-24">
-      <div className="flex items-stretch">
-        <div className={`w-1 ${a.bar}`} />
-        <div className="flex-1 p-5">
-          <div className="flex items-center gap-2.5 mb-1">
-            <h3 className="text-lg font-semibold text-t1">{s.name}</h3>
-            <span className="font-mono text-xs text-t4">mcp-{s.id}</span>
-            <span className="ml-auto font-mono text-xs text-t4">:{s.port}</span>
+    <div id={`mcp-${s.id}`} className="scroll-mt-24 flex flex-col bg-tsurf border border-tborder rounded hover:border-indigo-600 transition-colors overflow-hidden">
+      <div className={`px-6 pt-5 pb-4 bg-gradient-to-b ${a.glow} to-transparent`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${a.dot}`} />
+              <h3 className="font-display text-xl font-medium text-t1">{s.name}</h3>
+              <code className="text-xs font-mono text-t4">mcp-{s.id}</code>
+            </div>
+            <p className="text-sm text-t2 mt-1.5 leading-relaxed">{s.blurb}</p>
           </div>
-          <p className="text-sm text-t2 leading-relaxed mb-4">{s.blurb}</p>
-
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-t4 mb-1.5">Sources</div>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {s.sources.map((src) => (
-              <span key={src} className={`text-xs px-2 py-0.5 border ${a.chip}`}>{src}</span>
-            ))}
-          </div>
-
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-t4 mb-1.5">
+          <span className={`shrink-0 text-xs font-semibold px-2 py-1 rounded-full border ${a.chip}`}>
             {s.tools.length} tools
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {s.tools.map((t) => (
-              <span key={t} className="text-xs font-mono px-2 py-0.5 bg-tsurf2 text-t3 border border-tborder">{t}</span>
-            ))}
-          </div>
-
-          {s.examples.length > 0 && (
-            <>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-t4 mt-4 mb-1.5">Try asking</div>
-              <div className="flex flex-col gap-1.5">
-                {s.examples.map((ex) => (
-                  <span key={ex} className={`text-xs px-2 py-1 border ${a.chip} italic`}>“{ex}”</span>
-                ))}
-              </div>
-            </>
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {s.hostedBy && (
+            <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-t1 text-tsurf">
+              Hosted by {s.hostedBy}
+            </span>
           )}
-
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-t4 mt-4 mb-1.5">Use it</div>
-          <CodeBlock code={usageSnippet(s)} language="python" />
+          {s.sources.map((src) => (
+            <span key={src} className="text-xs px-2 py-0.5 rounded-full bg-tsurf border border-tborder text-t3">{src}</span>
+          ))}
         </div>
       </div>
 
-      <div className="mt-auto border-t border-tborder px-5 py-3 bg-tsurf2/40 flex items-center justify-between gap-3">
+      <div className="px-6 pb-5 flex flex-col gap-4">
+        <div className="flex flex-wrap gap-1.5">
+          {s.tools.map((t) => (
+            <span key={t} className="text-xs font-mono px-2 py-0.5 rounded-md bg-tsurf2 text-t2 border border-tborder">{t}</span>
+          ))}
+        </div>
+
+        {s.examples.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {s.examples.map((ex) => (
+              <span key={ex} className="text-sm text-t2 pl-3 border-l-2 border-tborder italic">“{ex}”</span>
+            ))}
+          </div>
+        )}
+
+        <CodeBlock code={usageSnippet(s)} language="python" />
+        {s.tokenEnv && (
+          <p className="text-xs text-t3 -mt-2">
+            Needs a <code className="font-mono">{s.tokenEnv}</code> sent as a bearer token. CUGA apps add it for you
+            (<code className="font-mono">load_tools(["{s.id}"])</code>).
+          </p>
+        )}
+      </div>
+
+      <div className="mt-auto border-t border-tborder px-6 py-3 flex items-center justify-between gap-3 bg-tsurf2/50">
         <code className="text-xs text-t3 font-mono truncate" title={url}>{url.replace('https://', '')}</code>
-        <div className="flex items-center gap-3 shrink-0">
-          <a
-            href={TOOL_EXPLORER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Browse & invoke mcp-${s.id} tools in the MCP Tool Explorer`}
-            className="text-xs font-semibold text-t3 hover:text-t1 hover:underline whitespace-nowrap"
-          >
-            Tool Explorer ↗
+        <div className="flex items-center gap-4 shrink-0">
+          <a href={TOOL_EXPLORER_URL} target="_blank" rel="noopener noreferrer"
+             title={`Browse & invoke mcp-${s.id} tools in the MCP Tool Explorer`}
+             className="text-xs font-semibold text-t3 hover:text-t1 whitespace-nowrap">
+            Try in Tool Explorer ↗
           </a>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`text-xs font-semibold ${a.text} hover:underline whitespace-nowrap`}
-          >
-            Open endpoint ↗
-          </a>
+          {!s.tokenEnv && (
+            <a href={url} target="_blank" rel="noopener noreferrer"
+               className={`text-xs font-semibold ${a.text} hover:underline whitespace-nowrap`}>
+              Endpoint ↗
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -104,60 +116,59 @@ function ServerCard({ s }: { s: McpServer }) {
 }
 
 export default function McpServersPage() {
+  const ours = MCP_SERVERS.filter((s) => !s.hostedBy)
+  const hosted = MCP_SERVERS.filter((s) => s.hostedBy)
   const totalTools = MCP_SERVERS.reduce((n, s) => n + s.tools.length, 0)
   const location = useLocation()
-  // Deep-link support: when arriving with #mcp-<id> (e.g. from a Tools badge on
-  // the Apps page), scroll that server's card into view once it's rendered.
+  // Deep-link support: arriving with #mcp-<id> (from a server chip on the Apps
+  // page) scrolls that server's card into view.
   useEffect(() => {
     if (!location.hash) return
     const el = document.getElementById(location.hash.slice(1))
     if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }, [location.hash])
+
   return (
-    <div className="p-6 md:p-8 max-w-screen-2xl mx-auto">
-      {/* Hero */}
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 mb-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-500/10 border border-indigo-500/25 px-2 py-0.5">
-            Code Engine
-          </span>
-          <span className="text-xs text-t4">IBM Cloud · us-east</span>
+    <div className="px-4 md:px-14 py-14">
+      <div className="mb-8 max-w-3xl">
+        <div className="eyebrow text-indigo-600 mb-5">
+          MCP Servers · IBM Cloud Code Engine · {CE_REGION}
         </div>
-        <h2 className="text-3xl md:text-4xl font-semibold text-t1 mb-2 tracking-tight">MCP Servers</h2>
-        <p className="text-base text-t2 max-w-3xl leading-relaxed">
-          Every shared tool primitive lives in its own <strong className="text-t1">MCP server</strong> —
-          apps connect over streamable HTTP through a LangChain↔MCP bridge, so a REST API, a custom
-          server, and a Python function all bind the same way. Seven servers are hosted on
-          IBM Cloud Code Engine, exposing <strong className="text-t1">{totalTools} tools</strong> across
-          web, knowledge, geo, finance, code, host and text domains.
+        <h1 className="font-display font-medium tracking-[-0.02em] leading-[1.02] text-[40px] md:text-[56px] mb-5">The tools behind every app.<br /><span className="text-t3">One bridge to all of them.</span></h1>
+        <p className="text-base text-t2 leading-relaxed">
+          Every shared tool lives in an <strong className="text-t1">MCP server</strong>. Apps connect over
+          streamable HTTP through one bridge, so a REST API, a custom server and a hosted service like Tavily
+          all bind the same way — <strong className="text-t1">{MCP_SERVERS.length} servers, {totalTools} tools</strong>.
         </p>
       </div>
 
-      {/* Tool explorer callout */}
-      <a
-        href={TOOL_EXPLORER_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group flex items-center gap-4 mb-8 p-4 bg-tsurf border border-tborder hover:border-indigo-500 transition-colors"
-      >
-        <div className="w-10 h-10 bg-indigo-600 text-white flex items-center justify-center text-lg shrink-0">⛭</div>
+      <a href={TOOL_EXPLORER_URL} target="_blank" rel="noopener noreferrer"
+         className="group flex items-center gap-4 mb-12 p-5 rounded bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
+        <div className="w-11 h-11 rounded bg-white/15 flex items-center justify-center text-xl shrink-0">⛭</div>
         <div className="flex-1">
-          <div className="text-sm font-semibold text-t1">MCP Tool Explorer</div>
-          <div className="text-sm text-t3">Browse and invoke every tool across all seven servers from one UI.</div>
+          <div className="text-base font-semibold">MCP Tool Explorer</div>
+          <div className="text-sm text-white/80">Browse and call every tool on every server — including Tavily — from one page.</div>
         </div>
-        <span className="text-sm font-semibold text-indigo-600 group-hover:underline whitespace-nowrap">Open ↗</span>
+        <span className="text-sm font-semibold whitespace-nowrap group-hover:translate-x-0.5 transition-transform">Open ↗</span>
       </a>
 
-      {/* Server grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {MCP_SERVERS.map((s) => (
-          <ServerCard key={s.id} s={s} />
-        ))}
+      {hosted.length > 0 && (
+        <>
+          <h2 className="eyebrow text-t3 mb-4">01 · Hosted partners</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-10">
+            {hosted.map((s) => <ServerCard key={s.id} s={s} />)}
+          </div>
+        </>
+      )}
+
+      <h2 className="eyebrow text-t3 mb-4">02 · Run by CUGA Apps</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {ours.map((s) => <ServerCard key={s.id} s={s} />)}
       </div>
 
-      <p className="mt-6 text-sm text-t4">
-        Hosted at <code className="font-mono text-t3">cuga-apps-mcp-&lt;name&gt;.…codeengine.appdomain.cloud/mcp</code>.
-        Run locally on ports 29100–29106 — see <code className="font-mono text-t3">mcp_servers/README.md</code>.
+      <p className="mt-8 text-sm text-t4">
+        Ours are hosted at <code className="font-mono text-t3">cuga-apps-mcp-&lt;name&gt;.…codeengine.appdomain.cloud/mcp</code>{' '}
+        and run locally on ports 29100–29106 — see <code className="font-mono text-t3">mcp_servers/README.md</code>.
       </p>
     </div>
   )

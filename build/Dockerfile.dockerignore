@@ -3,7 +3,7 @@
 # Keeps the build context small — without it the context would include the
 # multi-GB .venv dirs and node_modules.
 **/.git
-**/.venv
+**/.venv*
 .venv
 **/node_modules
 **/__pycache__

@@ -2,7 +2,7 @@
 # Install: pip install -r requirements.txt
 
 # cuga agent framework (every app builds a CugaAgent)
-cuga
+cuga>=0.4.5,<0.5
 
 fastapi>=0.110
 uvicorn[standard]>=0.27
@@ -13,5 +13,6 @@ pyyaml
 packaging          # version specs vs PyPI releases
 
 # MCP bridge — Tavily's hosted MCP server (streamable HTTP)
-mcp>=1.0,<2
-langchain-mcp-adapters
+mcp>=2.0,<3
+fastmcp>=4.1,<5
+langchain[mcp]>=1.4.6,<1.5

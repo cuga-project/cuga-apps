@@ -216,10 +216,15 @@ def gen_start(ports: dict, mcp_ports: dict) -> str:
             continue
         port = ports[app]
         lines.append(f'log "starting {app} on :{port}"')
-        if app in PORT_VIA_ENV:
-            lines.append(f'PORT={port} python -u {app}/main.py &')
-        else:
-            lines.append(f'python -u {app}/main.py --port {port} &')
+        # Each app runs in its own directory with its own CUGA store
+        # (CUGA_DBS_DIR), as launch.py does locally. CUGA's default store
+        # (policies included) and its .cuga folder are otherwise shared by every
+        # app in the container, and one app's policies fire in another.
+        dbs = f"/app/apps/{app}/.cuga/dbs"
+        run = f'PORT={port} exec python -u main.py' if app in PORT_VIA_ENV \
+            else f'exec python -u main.py --port {port}'
+        lines.append(f'mkdir -p {dbs}')
+        lines.append(f'(cd {app} && CUGA_DBS_DIR="${{CUGA_DBS_DIR_{app.upper()}:-{dbs}}}" {run}) &')
         lines.append("")
     lines += [
         'log "all ship-ready apps launched; starting nginx on :8080"',

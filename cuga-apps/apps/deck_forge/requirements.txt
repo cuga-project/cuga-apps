@@ -6,7 +6,7 @@
 # transcription — install will be ~+700 MB on top of the base cuga venv.
 
 # cuga agent framework (every app builds a CugaAgent)
-cuga
+cuga>=0.4.5,<0.5
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

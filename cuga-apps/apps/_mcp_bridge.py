@@ -133,6 +133,26 @@ def server_endpoint(name: str) -> tuple[str, dict[str, str]]:
     return _resolved_urls([name])[name], _server_headers(name)
 
 
+# Per-request timeout for MCP calls, in seconds. Tavily research and crawls
+# can run for minutes, so the default is generous.
+_MCP_TIMEOUT = float(os.getenv("MCP_TOOL_TIMEOUT", "300"))
+
+
+def mcp_client(name: str, timeout: float | None = None):
+    """A fastmcp Client for one server (streamable HTTP, with its auth headers).
+
+    fastmcp is the MCP client cuga >= 0.4.5 itself uses (mcp 2.x no longer has
+    the 1.x `streamablehttp_client` helper). Clients are reentrant: use
+    `async with mcp_client("web") as c: await c.call_tool(...)`.
+    """
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    url, headers = server_endpoint(name)
+    transport = StreamableHttpTransport(url, headers=headers or None)
+    return Client(transport, timeout=timeout or _MCP_TIMEOUT)
+
+
 def _resolved_urls(names: List[str]) -> dict[str, str]:
     out = {}
     for name in names:
@@ -149,7 +169,7 @@ def _resolved_urls(names: List[str]) -> dict[str, str]:
 
 
 def _unwrap_mcp_tool_result(raw):
-    """langchain-mcp-adapters wraps every MCP tool with
+    """LangChain's MCP adapter (langchain.mcp) wraps every MCP tool with
     `response_format="content_and_artifact"`, so awaiting the tool's
     coroutine directly returns a (content_list, artifact) tuple. cuga's
     code-execution agent expects a normal value (e.g. dict / list / str)
@@ -211,7 +231,7 @@ def _unwrap_mcp_tool_result(raw):
 
 
 class _ArgsSchemaShim(dict):
-    """Make a JSON-Schema dict (what langchain-mcp-adapters now sets on
+    """Make a JSON-Schema dict (what the LangChain MCP adapter sets on
     StructuredTool.args_schema) quack like a Pydantic model class.
 
     cuga 0.2.x calls `tool.args_schema.schema()` and `.model_json_schema()`
@@ -295,7 +315,7 @@ def _wrap_tool_for_cuga(tool, server: str | None = None):
 
       1. Wrap the async coroutine so direct `await tool(...)` returns a
          plain dict (cuga's code-execution agent crashes on the
-         (content, artifact) tuple langchain-mcp-adapters returns).
+         (content, artifact) tuple the MCP adapter returns).
       2. Wrap the JSON-Schema dict with `_ArgsSchemaShim` so cuga's
          prompt utilities can call `.schema()` / `.model_json_schema()`
          without AttributeError.
@@ -375,7 +395,7 @@ def load_tools(servers: List[str]) -> list:
     StructuredTool instances ready to pass to `CugaAgent(tools=…)`.
 
     Tools are wrapped via `_wrap_tool_for_cuga` so the (content, artifact)
-    tuple from langchain-mcp-adapters is unwrapped before cuga's executor
+    tuple from the MCP adapter is unwrapped before cuga's executor
     sees it — see _unwrap_mcp_tool_result for details.
 
     Blocks until the server handshakes (or errors out). Safe to call at
@@ -386,38 +406,37 @@ def load_tools(servers: List[str]) -> list:
                  (web | knowledge | geo | finance | code | local) or
                  REMOTE_MCP keys (tavily).
     """
+    import warnings
+
     try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
+        from langchain_core._api import LangChainBetaWarning
+        warnings.filterwarnings("ignore", category=LangChainBetaWarning)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from langchain.mcp import MCPAdapter
     except ImportError as exc:
         raise ImportError(
-            "langchain-mcp-adapters not installed — `pip install langchain-mcp-adapters`."
+            "langchain.mcp not available — install `langchain[mcp]>=1.4.6` (ships with cuga >= 0.4.5)."
         ) from exc
 
     urls = _resolved_urls(servers)
-    connections = {}
-    for name, url in urls.items():
-        conn = {"transport": "streamable_http", "url": url}
-        headers = _server_headers(name)
-        if headers:
-            conn["headers"] = headers
-        connections[name] = conn
     log.info("Connecting to MCP servers: %s", ", ".join(f"{n}={u}" for n, u in urls.items()))
 
-    client = MultiServerMCPClient(connections)
-
     async def _get_tagged_tools() -> list:
-        """Fetch tools server-by-server so each carries its origin server name
-        (for per-server/per-tool usage tracking). Falls back to one flat
-        get_tools() if per-server loading isn't supported by the adapter."""
+        """Discover each server's tools separately so every tool carries its
+        origin server name (per-server/per-tool usage tracking). Each tool
+        reconnects through its own client when called, so nothing has to stay
+        open after discovery."""
         out: list = []
-        try:
-            for name in urls:
-                server_tools = await client.get_tools(server_name=name)
-                out.extend(_wrap_tool_for_cuga(t, server=name) for t in server_tools)
-            return out
-        except TypeError:
-            # Older adapter without server_name kwarg — load all, untagged.
-            return [_wrap_tool_for_cuga(t) for t in await client.get_tools()]
+        for name in urls:
+            adapter = MCPAdapter(mcp_client(name))
+            for t in await adapter.list_tools():
+                # Raise MCP errors to the caller like the old adapter did; cuga's
+                # executor reports them to the model itself.
+                t.handle_tool_error = False
+                out.append(_wrap_tool_for_cuga(t, server=name))
+        return out
 
     try:
         loop = asyncio.get_running_loop()
@@ -448,34 +467,28 @@ def call_tool(server: str, tool: str, args: dict | None = None, timeout: float =
         args:   Tool arguments (default empty dict).
         timeout: Wall-clock timeout in seconds (default 180).
     """
-    url = _resolved_urls([server])[server]
-    headers = _server_headers(server)
-
     async def _go():
-        from mcp.client.session import ClientSession
-        from mcp.client.streamable_http import streamablehttp_client
-        async with streamablehttp_client(url, headers=headers or None) as (read, write, _close):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(tool, args or {})
-                if result.isError:
-                    raise RuntimeError(f"{server}.{tool} returned an error result")
-                # Concatenate text blocks (most tools return a single text block).
-                text = "".join(getattr(b, "text", "") for b in (result.content or []))
-                if not text:
-                    return None
-                import json as _json
-                try:
-                    payload = _json.loads(text)
-                except _json.JSONDecodeError:
-                    return text
-                if isinstance(payload, dict) and "ok" in payload:
-                    if not payload["ok"]:
-                        raise RuntimeError(
-                            f"{server}.{tool}: {payload.get('error', 'unknown error')}"
-                        )
-                    return payload.get("data")
-                return payload
+        async with mcp_client(server, timeout=timeout) as client:
+            result = await client.call_tool(tool, args or {}, raise_on_error=False)
+            if result.is_error:
+                detail = "".join(getattr(b, "text", "") for b in (result.content or []))
+                raise RuntimeError(f"{server}.{tool} returned an error result: {detail[:300]}")
+            # Concatenate text blocks (most tools return a single text block).
+            text = "".join(getattr(b, "text", "") for b in (result.content or []))
+            if not text:
+                return None
+            import json as _json
+            try:
+                payload = _json.loads(text)
+            except _json.JSONDecodeError:
+                return text
+            if isinstance(payload, dict) and "ok" in payload:
+                if not payload["ok"]:
+                    raise RuntimeError(
+                        f"{server}.{tool}: {payload.get('error', 'unknown error')}"
+                    )
+                return payload.get("data")
+            return payload
 
     def _run() -> object:
         coro = asyncio.wait_for(_go(), timeout=timeout)

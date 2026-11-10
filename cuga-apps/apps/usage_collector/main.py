@@ -18,6 +18,12 @@ It also records three extra event kinds on the same /track endpoint:
                        append-only daily batches (so a COS lifecycle rule can
                        expire it — see build/DEPLOYMENT.md).
 
+It also counts outbound link clicks: GET /go/<link>?src=<button> records the
+click (per link, per button, per day, with daily-salted unique visitors) and
+302-redirects to the link's allow-listed URL (USAGE_LINKS). No token needed —
+the redirect target is fixed per link, so it can't be used as an open redirect.
+Surfaced on the dashboard's "Link clicks" tab.
+
 Bucket layout (when USAGE_S3_BUCKET is set):
   rollup/usage_db.json          aggregate snapshot (set USAGE_S3_KEY to this)
   utterances/<day>/<batch>.jsonl  append-only utterance text
@@ -86,6 +92,17 @@ from ui import _HTML
 
 _TOKEN = os.getenv("USAGE_TOKEN", "").strip()
 _DASH_TOKEN = os.getenv("USAGE_DASHBOARD_TOKEN", "").strip()
+
+# Outbound links counted by GET /go/<link>. Only these ids redirect, and only to
+# these URLs. Override/extend with USAGE_LINKS='{"id": "https://…", …}'.
+_LINKS: dict[str, str] = {"bharat-core": "https://www.ibmbharatcore.info/"}
+try:
+    _LINKS.update({str(k)[:40]: str(v) for k, v in
+                   json.loads(os.getenv("USAGE_LINKS", "") or "{}").items()
+                   if str(v).startswith("https://")})
+except Exception:  # noqa: BLE001
+    pass
+_SALT = os.getenv("USAGE_SALT", "cuga-usage")
 _DB_PATH = os.getenv("USAGE_DB_PATH", "/tmp/usage_db.json")
 _S3_BUCKET = os.getenv("USAGE_S3_BUCKET", "").strip()
 _S3_ENDPOINT = os.getenv("USAGE_S3_ENDPOINT", "").strip()
@@ -189,6 +206,9 @@ class _Store:
             lambda: defaultdict(lambda: defaultdict(lambda: {"calls": 0, "errors": 0, "last_ts": 0.0})))
         # utt_counts[app][day] = int  (persisted totals; text is NOT kept here)
         self._utt_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        # clicks[day][link][src] = {"clicks": int, "uniques": set[str], "last_ts": float}
+        self._clicks: dict[str, dict[str, dict[str, dict]]] = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(self._blank_click)))
         self._utt_recent: deque = deque(maxlen=_UTT_RECENT)   # live view, in-memory
         # id -> recent item, so a later provider call can attribute to its
         # utterance. Bounded to the deque (evicted ids are dropped).
@@ -201,6 +221,53 @@ class _Store:
     @staticmethod
     def _blank() -> dict:
         return {"requests": 0, "uniques": set(), "statuses": defaultdict(int), "last_ts": 0.0}
+
+    @staticmethod
+    def _blank_click() -> dict:
+        return {"clicks": 0, "uniques": set(), "last_ts": 0.0}
+
+    def record_click(self, link: str, src: str, day: str, visitor: str, ts: float) -> None:
+        with self._lock:
+            rec = self._clicks[day][link][src]
+            rec["clicks"] += 1
+            if visitor and len(rec["uniques"]) < _MAX_VISITORS:
+                rec["uniques"].add(visitor)
+            rec["last_ts"] = max(rec["last_ts"], ts)
+            self._dirty = True
+
+    def _clicks_rollup(self, ctx: tuple) -> list[dict]:
+        """One row per link (src="*") followed by one row per button. Visitor
+        counts sum daily uniques (exact: hashes are daily-salted)."""
+        agg: dict[tuple, dict] = {}
+
+        def bucket(key):
+            return agg.setdefault(key, {"clicks": _zero_windows(),
+                                        "visitors": _zero_windows(), "last_ts": 0.0})
+        for day, by_link in self._clicks.items():
+            wins = _windows_for(day, ctx)
+            for link, by_src in by_link.items():
+                day_uniques: set = set()          # a visitor clicking two buttons counts once
+                for src, rec in by_src.items():
+                    day_uniques |= rec["uniques"]
+                    for key in ((link, "*"), (link, src)):
+                        a = bucket(key)
+                        for w in wins:
+                            a["clicks"][w] += rec["clicks"]
+                            if key[1] != "*":
+                                a["visitors"][w] += len(rec["uniques"])
+                        a["last_ts"] = max(a["last_ts"], rec["last_ts"])
+                tot = bucket((link, "*"))
+                for w in wins:
+                    tot["visitors"][w] += len(day_uniques)
+        rows = []
+        for (link, src), a in agg.items():
+            row = {"link": link, "src": src, "url": _LINKS.get(link, ""), "last_ts": a["last_ts"]}
+            for w in WINDOW_KEYS:
+                row[f"clicks_{w}"] = a["clicks"][w]
+                row[f"visitors_{w}"] = a["visitors"][w]
+            rows.append(row)
+        rows.sort(key=lambda r: (r["link"], r["src"] != "*", -r["clicks_total"]))
+        return rows
 
     def record(self, app: str, day: str, visitor: str, status: int, ts: float) -> None:
         with self._lock:
@@ -472,6 +539,7 @@ class _Store:
                 "apps": apps,
                 "providers": providers,
                 "mcp": {"servers": mcp_servers, "series": mcp_series},
+                "clicks": self._clicks_rollup(ctx),
                 "utterances": {"total": utt_total, "today": utt_today,
                                "windows": utt_w, "recent": recent_utts},
                 "series": {"api_calls": series_api, "visits": series_visits,
@@ -670,7 +738,13 @@ class _Store:
                                   for srv, by_tool in by_srv.items()}
                             for day, by_srv in self._mcp.items()},
                     "utt_counts": {app: dict(by_day)
-                                   for app, by_day in self._utt_counts.items()}}
+                                   for app, by_day in self._utt_counts.items()},
+                    "clicks": {day: {link: {src: {"clicks": r["clicks"],
+                                                  "uniques": sorted(r["uniques"]),
+                                                  "last_ts": r["last_ts"]}
+                                            for src, r in by_src.items()}
+                                     for link, by_src in by_link.items()}
+                               for day, by_link in self._clicks.items()}}
 
     def from_snapshot(self, snap: dict) -> None:
         with self._lock:
@@ -700,6 +774,13 @@ class _Store:
             for app, by_day in (snap.get("utt_counts") or {}).items():
                 for day, n in by_day.items():
                     self._utt_counts[app][day] = int(n)
+            self._clicks = defaultdict(lambda: defaultdict(lambda: defaultdict(self._blank_click)))
+            for day, by_link in (snap.get("clicks") or {}).items():
+                for link, by_src in by_link.items():
+                    for src, r in by_src.items():
+                        self._clicks[day][link][src] = {"clicks": int(r.get("clicks", 0)),
+                                                        "uniques": set(r.get("uniques", [])),
+                                                        "last_ts": float(r.get("last_ts", 0.0))}
             self._dirty = False
 
     @property
@@ -952,6 +1033,24 @@ def _web(port: int) -> None:
                 status = 0
             STORE.record(app_name, day, visitor, status, ts)
         return JSONResponse(status_code=202, content={"ok": True})
+
+    @app.get("/go/{link}")
+    async def go(link: str, request: Request):
+        """Count an outbound link click, then redirect to its allow-listed URL."""
+        from fastapi.responses import RedirectResponse
+        import hashlib
+        import re as _re
+        target = _LINKS.get(link)
+        if not target:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "unknown link"})
+        src = (request.query_params.get("src") or "other").lower()
+        src = src if _re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,31}", src) else "other"
+        fwd = request.headers.get("x-forwarded-for", "")
+        ip = (fwd.split(",")[0].strip() if fwd else "") or (request.client.host if request.client else "")
+        day = _today()
+        visitor = hashlib.sha256(f"{_SALT}|{day}|{ip}".encode()).hexdigest()[:16] if ip else ""
+        STORE.record_click(link, src, day, visitor, time.time())
+        return RedirectResponse(target, status_code=302, headers={"Cache-Control": "no-store"})
 
     def _dash_authed(request: Request) -> bool:
         return (not _DASH_TOKEN) or request.query_params.get("token", "") == _DASH_TOKEN

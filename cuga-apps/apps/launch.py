@@ -360,13 +360,21 @@ def cmd_start(filter_names: Optional[list[str]], env_file: Path) -> None:
         if not _claim_port(port):
             print(f"  [ERROR]  {name:20s} could not free port {port}")
             continue
-        command = proc["cmd"](port, merged_env)
+        proc_env = dict(merged_env)
+        command = proc["cmd"](port, proc_env)
+        if proc["kind"] == "app":
+            # One CUGA store per app. CUGA's default DB (policies included) is
+            # <cuga package>/dbs/cuga.db, shared by every app on this Python, so
+            # one app's output formatters were rewriting another app's answers.
+            dbs = Path(proc["cwd"]) / ".cuga" / "dbs"
+            dbs.mkdir(parents=True, exist_ok=True)
+            proc_env.setdefault("CUGA_DBS_DIR", str(dbs))
         log_path = HERE / f".{name}.log"
         with open(log_path, "w") as log_fh:
             popen = subprocess.Popen(
                 command,
                 cwd=str(proc["cwd"]),
-                env=merged_env,
+                env=proc_env,
                 stdout=log_fh,
                 stderr=subprocess.STDOUT,
                 start_new_session=True,

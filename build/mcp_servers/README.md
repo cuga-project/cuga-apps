@@ -80,6 +80,23 @@ Full operator runbook:
 URL resolution in
 [../../cuga-apps/apps/_mcp_bridge.py](../../cuga-apps/apps/_mcp_bridge.py)).
 
+### Build in Code Engine, deploy with guards
+
+```bash
+IMAGE_TAG=<tag> ./ce_build_mcp.sh                      # builds mcp + mcp-tool-explorer in CE (no local Docker)
+EXPECT_PROJECT=ce-project-routing IMAGE_TAG=<tag> ./deploy_mcp.sh web knowledge geo finance code local text
+EXPECT_PROJECT=ce-project-routing IMAGE_TAG=<tag> ./deploy_mcp.sh tool-explorer
+```
+
+* `EXPECT_PROJECT` aborts if the selected CE project is anything else (checked
+  before every app). Other projects: `REGISTRY_SECRET=` / `ENV_SECRET=` (the env
+  secret must contain an `app.env` file; defaults `icr-secret-1` / `app-env`).
+* The servers run on **standalone FastMCP 4 / MCP 2.x** and still serve MCP 1.x clients.
+* The **tool explorer** mounts the same env secret, so with `TAVILY_API_KEY` in it
+  it also lists **Tavily's hosted MCP server** (5 tools). Tavily calls from the
+  public explorer share an hourly budget (`EXPLORER_TAVILY_CALLS_PER_HOUR`, default 30).
+* `deploy_mcp.sh` runs on macOS's bash 3.2.
+
 ## Connect an MCP client
 
 The deployed servers speak streamable-HTTP at `/mcp`. Paste the `mcpServers:`

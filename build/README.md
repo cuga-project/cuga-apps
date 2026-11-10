@@ -8,6 +8,10 @@ locally, and the same image deploys to **Code Engine as one microservice**.
 Everything here is self-contained — **no existing repo files are modified** and
 **no external MCP deployment is required.**
 
+> **Releasing?** Follow [RELEASE.md](RELEASE.md) — upgrade pins, test every app
+> (`probe_apps.py`), build in Code Engine, deploy prod, publish the Hugging Face
+> Space. It records the cuga 0.4.5 / MCP 2.x move of 2026-11-09/10.
+
 ## What's inside the image
 
 ```
@@ -57,6 +61,10 @@ Everything here is self-contained — **no existing repo files are modified** an
 | `generate.py` | emits `nginx` conf + `run_all.sh` (apps **+ MCP**) from `_ports.py` |
 | `patch-deployment.cjs` | injects the `single` URL mode into the UI build |
 | `.env.example` | LLM provider + MCP service keys |
+| `constraints.allinone.txt` | exact versions for the image (cuga 0.4.5, mcp 2.x; regenerate per RELEASE.md §1) |
+| `probe_apps.py` | asks every app a real question on a local stack or a deployed URL (PASS/FAIL) |
+| `RELEASE.md` | the upgrade + release runbook |
+| `ce/ce_build.sh` | build this image in Code Engine (no local Docker) |
 
 ## Run locally
 

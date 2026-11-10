@@ -24,6 +24,9 @@ ENV PYTHONPATH=/app
 COPY apps/__init__.py ./apps/__init__.py
 COPY apps/_ports.py   ./apps/_ports.py
 
+# The explorer's MCP session helper (works across MCP SDK versions).
+COPY mcp_servers/__init__.py ./mcp_servers/__init__.py
+COPY mcp_servers/_core/ ./mcp_servers/_core/
 COPY mcp_tool_explorer/ ./mcp_tool_explorer/
 
 EXPOSE 28900

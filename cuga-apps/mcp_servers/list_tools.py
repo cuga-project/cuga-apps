@@ -14,8 +14,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp_servers._core.client import open_session
 
 _CONFIG = Path(__file__).resolve().parent / "mcp.client.json"
 
@@ -23,9 +22,7 @@ _CONFIG = Path(__file__).resolve().parent / "mcp.client.json"
 async def list_server_tools(name: str, url: str) -> None:
     print(f"\n── {name} ──  {url}")
     try:
-        async with streamablehttp_client(url) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
+        async with open_session(url) as session:
                 result = await session.list_tools()
                 if not result.tools:
                     print("  (no tools)")
