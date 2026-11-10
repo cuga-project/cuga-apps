@@ -16,7 +16,7 @@ makes the planner backend swappable.
 ## Run
 
 The adapter assumes the **cuga-apps Python environment** is active — i.e.
-`cuga.sdk`, `langchain`, `langchain-mcp-adapters` are importable. That's the
+`cuga.sdk`, `langchain` (with `langchain.mcp`) and `fastmcp` are importable. That's the
 same env your existing `apps/*` use. The MCP servers under `mcp_servers/*`
 must also be running (start them via `python apps/launch.py`).
 

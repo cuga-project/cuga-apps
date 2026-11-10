@@ -9,24 +9,26 @@
 
 :root,
 [data-theme="warm"] {
-  --t-bg:      #f4f4f4;   /* Gray 10  — page background */
-  --t-surface: #ffffff;   /* White    — layer / cards   */
-  --t-s2:      #f4f4f4;   /* Gray 10  — hover / sublayer */
-  --t-border:  #e0e0e0;   /* Gray 20  — subtle border   */
-  --t-b2:      #c6c6c6;   /* Gray 30  — strong border   */
-  --t-1:       #161616;   /* Gray 100 — primary text    */
-  --t-2:       #525252;   /* Gray 70  — secondary text  */
-  --t-3:       #6f6f6f;   /* Gray 60  — helper text     */
-  --t-4:       #8d8d8d;   /* Gray 50  — faint text      */
+  /* Light — matches cuga.dev: white page, cool gray sublayers, ink text. */
+  --t-bg:      #ffffff;
+  --t-surface: #ffffff;
+  --t-s2:      #f5f7fa;   /* sublayer / hover */
+  --t-border:  #e2e6ec;   /* hairline */
+  --t-b2:      #c9d0da;
+  --t-1:       #16181d;   /* ink */
+  --t-2:       #3e4553;
+  --t-3:       #5d6677;   /* slate — second headline line, helper text */
+  --t-4:       #8b93a2;
+  --t-grid:    rgba(15, 98, 254, 0.06);
 
-  --badge-enterprise:   #0f62fe;   /* Blue 60   */
-  --badge-productivity: #198038;   /* Green 60  */
-  --badge-developer:    #8a3ffc;   /* Purple 60 */
-  --badge-researcher:   #8e6a00;   /* Yellow 70 */
+  --badge-enterprise:   #0f62fe;
+  --badge-productivity: #198038;
+  --badge-developer:    #8a3ffc;
+  --badge-researcher:   #8e6a00;
 
-  --scrollbar-track: #f4f4f4;
-  --scrollbar-thumb: #c6c6c6;
-  --scrollbar-hover: #a8a8a8;
+  --scrollbar-track: #f5f7fa;
+  --scrollbar-thumb: #c9d0da;
+  --scrollbar-hover: #a8b1bf;
 }
 
 /* ── Carbon "Gray 100" theme (dark) ──────────────────────────────────────────
@@ -34,6 +36,7 @@
    Gray 60 #6f6f6f · Gray 50 #8d8d8d · Gray 30 #c6c6c6 · Gray 10 #f4f4f4. */
 
 [data-theme="dark"] {
+  --t-grid:    rgba(120, 169, 255, 0.07);
   --t-bg:      #161616;   /* Gray 100 — page background */
   --t-surface: #262626;   /* Gray 90  — layer-01        */
   --t-s2:      #393939;   /* Gray 80  — layer-02 / hover */
@@ -52,6 +55,34 @@
   --scrollbar-track: #262626;
   --scrollbar-thumb: #525252;
   --scrollbar-hover: #6f6f6f;
+}
+
+/* Accent text used on tinted chips: lift the 700 shades in dark mode so they
+   stay readable on Gray 90 surfaces. */
+[data-theme="dark"] .text-indigo-700  { color: #78a9ff; }
+[data-theme="dark"] .text-indigo-600  { color: #4589ff; }
+[data-theme="dark"] .text-emerald-700 { color: #42be65; }
+[data-theme="dark"] .text-violet-700  { color: #be95ff; }
+[data-theme="dark"] .text-amber-700   { color: #f1c21b; }
+[data-theme="dark"] .text-pink-700    { color: #ff7eb6; }
+[data-theme="dark"] .text-sky-700     { color: #33b1ff; }
+
+/* ── cuga.dev building blocks ─────────────────────────────────────────────── */
+
+/* Faint blueprint grid behind hero sections. */
+.bg-blueprint {
+  background-image:
+    linear-gradient(var(--t-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--t-grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Small spaced-out mono label: "OPEN SOURCE. ENTERPRISE READY." */
+.eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */

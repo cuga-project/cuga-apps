@@ -7,7 +7,7 @@
 # JSON-LD / Next.js data, so no API keys.
 
 # cuga agent framework (every app builds a CugaAgent)
-cuga
+cuga>=0.4.5,<0.5
 
 fastapi>=0.110
 uvicorn[standard]>=0.27

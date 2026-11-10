@@ -195,6 +195,7 @@ services:
       - "28825:28825"   # find_a_doctor
       - "28826:28826"   # meetup_finder (Playwright/Chromium — baked into Dockerfile.apps)
       - "28827:28827"   # usage_collector (cross-app usage dashboard)
+      - "28843:28843"   # dependency_drift_watcher (Tavily + GitHub hosted MCP)
     # First mount: secrets are read at runtime (sourced by entrypoint.sh)
     # instead of being injected via env_file: — keeps them out of `docker
     # inspect` and out of the image. See entrypoint.sh.

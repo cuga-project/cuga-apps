@@ -39,6 +39,8 @@ cuga-apps/apps/*/research.db
 cuga-apps/apps/arch_diagram/diagrams.db
 cuga-apps/apps/ibm_whats_new/.store.json
 cuga-apps/apps/web_researcher/.store.json
+cuga-apps/apps/dependency_drift_watcher/drift.db
+cuga-apps/apps/dependency_drift_watcher/.repos/
 CUGA_OpenClaw_NemoClaw_DeepAgents_Smolagents_Hermes_Comparison_Revised.docx
 .terminal
 cuga-apps/docs/architecture_app_anatomy_cloud_advisor.png

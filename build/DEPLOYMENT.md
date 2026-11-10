@@ -19,7 +19,7 @@ There are **three deployment targets**, built from the same source tree:
    ┌──────────────────────────┐        ┌────────────────────────────────────────┐
    │  Hugging Face Space       │ links  │  Code Engine: ONE all-in-one service    │
    │  (static umbrella UI)     │ ─────▶ │  nginx :8080                            │
-   │  no backend — just a       │        │   /a/<app>/         → 21 ship-ready apps │
+   │  no backend — just a       │        │   /a/<app>/         → 22 ship-ready apps │
    │  public "front door"       │        │   /a/usage-collector/ → stats dashboard │
    └──────────────────────────┘        │   5 MCP servers (loopback)              │
                                          └────────────────────────────────────────┘
@@ -337,6 +337,24 @@ Optional tuning env (sensible defaults; set in `build/.env` if needed):
 `USAGE_UTTERANCE_MAXLEN` (default 2000 — text truncation), `USAGE_UTTERANCE_RECENT`
 (default 200 — how many recent utterances the live dashboard shows),
 `USAGE_UTTERANCE_PREFIX` (default `utterances`).
+
+---
+
+## 2c. External apps — their own Code Engine app
+
+Apps whose source lives in **another repo** (e.g. Farm Assistant) aren't in the all-in-one image.
+Each runs as its own CE app in this project — own origin, own secret, own restarts — and the
+umbrella UI links straight to it. Config and scripts live in [external/](external/README.md):
+
+```bash
+cd build/external
+cp apps/bharat-core-cuga-agent-app.env.example apps/bharat-core-cuga-agent-app.env            # fill in (gitignored)
+./build_external.sh bharat-core-cuga-agent-app /path/to/CUGA-Voice-RAG-Agent       # → prints <tag>
+./deploy_external.sh bharat-core-cuga-agent-app <tag>                               # → prints the URL
+```
+
+Redeploying an external app never touches `cuga-agent-apps`. Rebuild the UIs (§3, and §2 for the
+all-in-one's own UI) only when its tile or link changes.
 
 ---
 

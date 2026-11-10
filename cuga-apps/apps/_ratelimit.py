@@ -101,6 +101,10 @@ class _Config:
                         os.getenv("RL_METHODS", "POST").split(",") if m.strip()}
         self.exempt = tuple(p.strip() for p in
                             os.getenv("RL_EXEMPT_PATHS", "/health").split(",") if p.strip())
+        # Optional callable(request) -> str|None: the key for the per-client limits.
+        # None/"" falls back to the client IP. Set via install_rate_limit(app, key_func=...),
+        # e.g. to limit per signed-in user instead of per IP.
+        self.key_func = None
         # Per-call overrides win over env (lets an app tighten/loosen itself).
         for k, v in kw.items():
             setattr(self, k, v)
@@ -206,8 +210,15 @@ class _Limiter:
                 return self._deny(413, "Your request is too large. "
                                   "Please shorten your message.", None), False
 
-        # 2–4. Per-IP + global counters (under lock).
-        ip = _client_ip(request, cfg.trust_forwarded)
+        # 2–4. Per-IP (or per-key_func) + global counters (under lock).
+        ip = None
+        if cfg.key_func is not None:
+            try:
+                ip = cfg.key_func(request)
+            except Exception:  # noqa: BLE001 — a bad key_func must not break limiting
+                ip = None
+        if not ip:
+            ip = _client_ip(request, cfg.trust_forwarded)
         with self._lock:
             denied = self._check_counters(ip)
         if denied is not None:
@@ -234,6 +245,8 @@ def install_rate_limit(app, **overrides) -> None:
     Call once, before serving (e.g. right before uvicorn.run(app, ...)). Pass
     keyword overrides (e.g. per_min=30) to override the env defaults for a
     specific app — useful for a heavier app that wants a tighter cap.
+    key_func=callable(request) -> str|None keys the per-client limits on something
+    other than the client IP (e.g. the signed-in user); None falls back to the IP.
     """
     if getattr(app.state, "_rate_limit_installed", False):
         return

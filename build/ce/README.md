@@ -12,6 +12,13 @@ the 5 MCP servers + the stats dashboard, all in one instance behind port 8080.
 | --- | --- |
 | `build_and_push.sh` | Build `build/Dockerfile` (context = repo root) for `linux/amd64` and push `icr.io/<ns>/cuga-agent-apps:<tag>` |
 | `deploy.sh` | Sync `build/.env` → a CE secret, then `ce app create/update` the single service |
+| `ce_build.sh` | Build the image **in Code Engine** (native amd64, no local Docker): stages git-tracked files only, aborts on secret-looking files, pushes to ICR. `IMAGE_NAME=… IMAGE_TAG=… ce_build.sh` |
+
+**Prod** (`cuga-agent-apps`): both scripts refuse the prod name without `CONFIRM_PROD=1`.
+Deploy prod with `SKIP_ENV_SYNC=1` so its secret (incl. the stats bucket keys) is
+untouched — e.g. `CONFIRM_PROD=1 SKIP_ENV_SYNC=1 APP_NAME=cuga-agent-apps
+IMAGE_NAME=cuga-agent-apps-1 IMAGE_TAG=<tag> CPU=12 MEMORY=48G ./deploy.sh`.
+Full procedure: [../RELEASE.md](../RELEASE.md).
 
 ## One-time prerequisites
 
@@ -63,7 +70,7 @@ use the in-container MCP servers (never set it to `ce` for this image).
 ## Sizing
 
 Defaults: `--cpu 12 --memory 48G --ephemeral-storage 5G --min-scale 1
---max-scale 1`. The image runs ~26 Python processes (21 apps + 5 MCP) plus
+--max-scale 1`. The image runs ~27 Python processes (22 apps + 5 MCP) plus
 nginx; measured idle footprint is ~8 GB, and **12 vCPU / 48 GB** (the platform
 maximum) leaves ample headroom for request load and Chromium (`meetup_finder`).
 Ephemeral storage must be ≤ memory; 5 GB covers build/scratch space. Keep **one
@@ -93,7 +100,9 @@ CPU=6 MEMORY=24G EPHEMERAL_STORAGE=2G ./deploy.sh
 ## Gotchas
 
 - **Project is global**: deploys go to whatever `ibmcloud ce project current`
-  shows. Select the right one first.
+  shows — and another terminal/session can change it mid-run. Use a private CLI
+  config per job: `export IBMCLOUD_HOME=$(mktemp -d); cp -R ~/.bluemix
+  $IBMCLOUD_HOME/`, then target and `ce project select` in it.
 - **Session expiry**: `ibmcloud login --sso` times out after hours — re-login and
   re-`ce project select`, then re-run. Both scripts are idempotent.
 - **Registry secret**: if the ICR API key is rotated, pulls fail with

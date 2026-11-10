@@ -42,8 +42,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-from mcp.client.session import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp_servers._core.client import open_session
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,7 +64,62 @@ _CE_PROJECT_HASH_DEFAULT = "1gxwxi8kos9y"
 _CE_REGION_DEFAULT       = "us-east"
 
 
+# Secrets: on Code Engine the explorer mounts the same env-file secret as the
+# MCP servers (CUGA_SECRETS_FILE=<mount>/app.env). Load it without overriding
+# anything already set in the environment.
+def _load_secrets_file() -> None:
+    path = os.getenv("CUGA_SECRETS_FILE")
+    if not path or not Path(path).is_file():
+        return
+    for line in Path(path).read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+_load_secrets_file()
+
+# Third-party MCP servers we don't run (mirrors REMOTE_MCP in apps/_mcp_bridge.py).
+# Listed only when their token is configured; the token stays server-side.
+REMOTE_MCP: dict[str, dict[str, str]] = {
+    "tavily": {"url": "https://mcp.tavily.com/mcp/", "token_env": "TAVILY_API_KEY"},
+}
+
+# Calls to a remote server spend real credits from a public page, so they share
+# a global hourly budget (listing tools is free and not counted).
+_REMOTE_CALLS_PER_HOUR = int(os.getenv("EXPLORER_TAVILY_CALLS_PER_HOUR", "30"))
+_remote_calls: list[float] = []
+
+
+def _remote_enabled() -> list[str]:
+    return [n for n, spec in REMOTE_MCP.items() if os.getenv(spec["token_env"])]
+
+
+def _known(name: str) -> bool:
+    return name in MCP_PORTS or name in _remote_enabled()
+
+
+def _headers(name: str) -> dict[str, str] | None:
+    spec = REMOTE_MCP.get(name)
+    token = os.getenv(spec["token_env"]) if spec else None
+    return {"Authorization": f"Bearer {token}"} if token else None
+
+
+def _take_remote_budget() -> bool:
+    import time
+    now = time.time()
+    _remote_calls[:] = [t for t in _remote_calls if now - t < 3600]
+    if len(_remote_calls) >= _REMOTE_CALLS_PER_HOUR:
+        return False
+    _remote_calls.append(now)
+    return True
+
+
 def _server_url(name: str) -> str:
+    if name in REMOTE_MCP:
+        return os.getenv(f"MCP_{name.upper()}_URL") or REMOTE_MCP[name]["url"]
     # 1. Per-server explicit override always wins.
     env_override = os.getenv(f"MCP_{name.upper()}_URL")
     if env_override:
@@ -103,16 +157,14 @@ def _tcp_reachable(host: str, port: int, timeout: float = 0.4) -> bool:
 
 
 @asynccontextmanager
-async def _session(url: str):
-    async with streamablehttp_client(url) as (read, write, _close):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            yield session
+async def _session(url: str, headers: dict[str, str] | None = None):
+    async with open_session(url, headers=headers) as session:
+        yield session
 
 
 async def _list_tools(name: str) -> list[dict]:
     url = _server_url(name)
-    async with _session(url) as session:
+    async with _session(url, _headers(name)) as session:
         result = await session.list_tools()
         tools: list[dict] = []
         for tool in result.tools:
@@ -126,7 +178,7 @@ async def _list_tools(name: str) -> list[dict]:
 
 async def _call_tool(server: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
     url = _server_url(server)
-    async with _session(url) as session:
+    async with _session(url, _headers(server)) as session:
         result = await session.call_tool(tool, args)
         blocks: list[dict] = []
         for block in result.content or []:
@@ -169,11 +221,20 @@ def make_app() -> FastAPI:
                 "url": url,
                 "online": _tcp_reachable(host, probe_port),
             })
+        for name in _remote_enabled():
+            url = _server_url(name)
+            host = url.split("://", 1)[-1].split("/", 1)[0]
+            out.append({
+                "name": name,
+                "port": "hosted",
+                "url": url,
+                "online": _tcp_reachable(host, 443, timeout=2.0),
+            })
         return out
 
     @app.get("/api/servers/{name}/tools")
     async def api_tools(name: str):
-        if name not in MCP_PORTS:
+        if not _known(name):
             raise HTTPException(404, f"Unknown server: {name}")
         try:
             tools = await asyncio.wait_for(_list_tools(name), timeout=10.0)
@@ -187,8 +248,15 @@ def make_app() -> FastAPI:
 
     @app.post("/api/servers/{name}/tools/{tool}/call")
     async def api_call(name: str, tool: str, req: CallReq):
-        if name not in MCP_PORTS:
+        if not _known(name):
             raise HTTPException(404, f"Unknown server: {name}")
+        if name in REMOTE_MCP and not _take_remote_budget():
+            return JSONResponse(
+                {"error": f"The {name} demo budget ({_REMOTE_CALLS_PER_HOUR} calls/hour) is used up — "
+                          "try again later, or run the explorer locally with your own key.",
+                 "is_error": True, "content": []},
+                status_code=429,
+            )
         try:
             result = await asyncio.wait_for(
                 _call_tool(name, tool, req.args), timeout=120.0,

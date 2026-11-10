@@ -2,7 +2,7 @@
 # Install: pip install -r requirements.txt
 
 # cuga agent framework (every app builds a CugaAgent)
-cuga
+cuga>=0.4.5,<0.5
 
 fastapi>=0.110
 uvicorn[standard]>=0.27
@@ -10,5 +10,6 @@ pydantic>=2.0
 langchain-core>=0.3
 
 # MCP bridge — calls hosted `web` MCP for fetch_feed and fetch_webpage
-mcp>=1.0
-langchain-mcp-adapters
+mcp>=2.0,<3
+fastmcp>=4.1,<5
+langchain[mcp]>=1.4.6,<1.5

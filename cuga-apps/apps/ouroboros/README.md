@@ -35,18 +35,17 @@ cd <repo-root>/cuga-apps/apps/ouroboros
 /opt/homebrew/bin/python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
 
-# 2. CUGA SDK — latest release from PyPI.
-#    0.2.28+ ships CugaSupervisor + skills + policies on mainline, so the
-#    old skills-branch editable install is no longer needed. (Loops /
+# 2. CUGA SDK — the gallery runs cuga 0.4.5 (MCP 2.x).
+#    CugaSupervisor + skills + policies are on mainline. (Loops /
 #    scheduling were skills-branch-only and have been removed from this app.)
-.venv/bin/pip install -U 'cuga>=0.2.28'
+.venv/bin/pip install -U 'cuga>=0.4.5,<0.5'
 
 # 3. App-level deps (CUGA pulls most of these transitively, but be
 #    explicit so a future `pip install -r requirements.txt` works
 #    standalone if cuga is already present)
 .venv/bin/pip install langchain-anthropic 'fastapi>=0.110' \
     'uvicorn[standard]>=0.27' 'pydantic>=2.0' 'httpx>=0.27' \
-    langchain-mcp-adapters sqlite-vec
+    'langchain[mcp]>=1.4.6,<1.5' 'fastmcp>=4.1,<5' sqlite-vec
 ```
 
 ### Verify

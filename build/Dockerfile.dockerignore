@@ -3,7 +3,7 @@
 # Keeps the build context small — without it the context would include the
 # multi-GB .venv dirs and node_modules.
 **/.git
-**/.venv
+**/.venv*
 .venv
 **/node_modules
 **/__pycache__
@@ -16,3 +16,11 @@ cuga-skills-ui
 # the UI is rebuilt in-image; don't ship its prebuilt dist or local env
 cuga-apps/ui/dist
 cuga-apps/ui/node_modules
+# runtime state from local runs — the image must start clean (and never ship
+# someone's findings, cached repo snapshots or policy stores)
+**/.cuga
+**/.cuga_*
+cuga-apps/apps/dependency_drift_watcher/drift.db
+cuga-apps/apps/dependency_drift_watcher/.repos
+cuga-apps/apps/web_researcher/research.db
+cuga-apps/apps/web_researcher/.store.json

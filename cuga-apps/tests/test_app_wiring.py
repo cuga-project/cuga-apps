@@ -93,6 +93,13 @@ ENDPOINTS = [
     # webpage_summarizer — health
     ("webpage_summarizer", "/health", "json_obj"),
 
+    # dependency_drift_watcher — packs, connection status, findings, suggested fixes
+    ("dependency_drift_watcher", "/health",      "json_obj"),
+    ("dependency_drift_watcher", "/status",      "json_obj"),
+    ("dependency_drift_watcher", "/packs",       "json_list"),
+    ("dependency_drift_watcher", "/findings",    "json_list"),
+    ("dependency_drift_watcher", "/suggestions", "json_list"),
+
     # youtube_research — research log + settings
     ("youtube_research", "/reports",  "json_list"),
     ("youtube_research", "/settings", "json_obj"),

@@ -33,13 +33,13 @@ if [[ "${1:-}" == "--ask" ]]; then
   [[ $# -ge 1 ]] && ASK_PROMPT="$1" && shift
 fi
 
-# The 21 ship-ready path segments (must match build/generate.py).
+# The 22 ship-ready path segments (must match build/generate.py).
 APPS=(
   stock-alert server-monitor newsletter web-researcher travel-planner
   youtube-research arch-diagram hiking-research movie-recommender
   webpage-summarizer paper-scout wiki-dive ibm-cloud-advisor ibm-docs-qa
   recipe-composer city-beat ouroboros github-trending ai-labs-news
-  find-a-doctor meetup-finder
+  find-a-doctor meetup-finder dependency-drift-watcher
 )
 
 pass=0; fail=0

@@ -49,10 +49,22 @@ RETRY_BACKOFF_SECONDS=15
 # the kube mount and the container fails to start.
 SECRET_MOUNT_DIR="${SECRET_MOUNT_DIR:-/etc/cuga-secrets}"
 
-declare -A MCP_PORTS=(
-  [web]=29100  [knowledge]=29101  [geo]=29102  [finance]=29103
-  [code]=29104 [local]=29105      [text]=29106
-)
+# Registry-pull and env secrets in the target project (defaults: the
+# ce-project-routing names). For ce-cugaplusplus:
+#   REGISTRY_SECRET=icr-routing-pull ENV_SECRET=cuga-apps-mcp-env
+REGISTRY_SECRET="${REGISTRY_SECRET:-icr-secret-1}"
+ENV_SECRET="${ENV_SECRET:-app-env}"
+
+# Server → port (mirrors apps/_ports.py). A function rather than an
+# associative array so the script also runs on macOS's bash 3.2.
+KNOWN_MCPS="web knowledge geo finance code local text"
+mcp_port() {
+  case "$1" in
+    web) echo 29100 ;; knowledge) echo 29101 ;; geo) echo 29102 ;;
+    finance) echo 29103 ;; code) echo 29104 ;; local) echo 29105 ;;
+    text) echo 29106 ;; *) echo "" ;;
+  esac
+}
 
 EXPLORER_TOKEN="tool-explorer"
 EXPLORER_PORT=28900
@@ -78,9 +90,9 @@ else
 fi
 
 # Validate any user-supplied MCP names against the known set.
-for name in "${SERVERS[@]}"; do
-  if [[ -z "${MCP_PORTS[$name]:-}" ]]; then
-    echo "ERROR: unknown target '$name'. Known MCPs: ${!MCP_PORTS[*]} (or '$EXPLORER_TOKEN')" >&2
+for name in ${SERVERS[@]+"${SERVERS[@]}"}; do
+  if [[ -z "$(mcp_port "$name")" ]]; then
+    echo "ERROR: unknown target '$name'. Known MCPs: $KNOWN_MCPS (or '$EXPLORER_TOKEN')" >&2
     exit 1
   fi
 done
@@ -95,13 +107,13 @@ if ! ibmcloud ce project current >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! ibmcloud ce secret get --name app-env >/dev/null 2>&1; then
-  echo "ERROR: CE secret 'app-env' not found in this project." >&2
+if ! ibmcloud ce secret get --name "$ENV_SECRET" >/dev/null 2>&1; then
+  echo "ERROR: CE secret '$ENV_SECRET' not found in this project." >&2
   exit 1
 fi
 
-if ! ibmcloud ce registry get --name icr-secret-1 >/dev/null 2>&1; then
-  echo "ERROR: CE registry-secret 'icr-secret' not found in this project." >&2
+if ! ibmcloud ce registry get --name "$REGISTRY_SECRET" >/dev/null 2>&1; then
+  echo "ERROR: CE registry-secret '$REGISTRY_SECRET' not found in this project." >&2
   exit 1
 fi
 
@@ -114,7 +126,22 @@ echo "────────────────────────�
 echo
 
 # ── Deploy one MCP server, with retry on transient registry errors ─────
+# Optional guard: EXPECT_PROJECT=<name> aborts if the selected Code Engine project
+# is anything else — checked before EVERY app, because another process (a CE
+# build, another script) can switch the CLI's global project mid-run.
+assert_project() {
+  [[ -z "${EXPECT_PROJECT:-}" ]] && return 0
+  local cur
+  cur=$(ibmcloud ce project current --output json 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin).get("name",""))' 2>/dev/null || true)
+  if [[ "$cur" != "$EXPECT_PROJECT" ]]; then
+    echo "ABORT: selected Code Engine project is '$cur', expected '$EXPECT_PROJECT'." >&2
+    exit 1
+  fi
+}
+assert_project
+
 deploy_mcp() {
+  assert_project
   local name=$1
   local port=$2
   local app_name="cuga-apps-mcp-$name"
@@ -140,11 +167,11 @@ deploy_mcp() {
       ibmcloud ce app create \
         --name "$app_name" \
         --image "$IMAGE" \
-        --registry-secret icr-secret-1 \
+        --registry-secret "$REGISTRY_SECRET" \
         --port "$port" \
         --command /entrypoint.sh \
         --argument python --argument -m --argument "mcp_servers.$name.server" \
-        --mount-secret "$SECRET_MOUNT_DIR=app-env" \
+        --mount-secret "$SECRET_MOUNT_DIR=$ENV_SECRET" \
         --env "CUGA_SECRETS_FILE=$SECRET_MOUNT_DIR/app.env" \
         --cpu 1 --memory 2G \
         --min-scale 1 --max-scale 1 \
@@ -194,18 +221,21 @@ deploy_mcp() {
 #     MCP servers (locally it relies on docker compose service DNS, which
 #     CE doesn't have)
 deploy_tool_explorer() {
+  assert_project
   local app_name="$EXPLORER_APP_NAME"
   local image="$EXPLORER_IMAGE"
 
   # Build --env flags pointing at the deployed MCPs. Skip any that aren't
   # up yet; the explorer's UI will show those as offline.
+  # The explorer mounts the same env-file secret as the MCP servers, so hosted
+  # servers that need a token (Tavily: TAVILY_API_KEY) are listed and callable.
   local -a env_args=()
   local missing=()
   for name in web knowledge geo finance code local text; do
     local url
     url=$(ibmcloud ce app get --name "cuga-apps-mcp-$name" --output url 2>/dev/null || true)
     if [[ -n "$url" ]]; then
-      env_args+=(--env "MCP_${name^^}_URL=$url/mcp")
+      env_args+=(--env "MCP_$(echo "$name" | tr "[:lower:]" "[:upper:]")_URL=$url/mcp")
     else
       missing+=("$name")
     fi
@@ -239,9 +269,11 @@ deploy_tool_explorer() {
       ibmcloud ce app create \
         --name "$app_name" \
         --image "$image" \
-        --registry-secret icr-secret-1 \
+        --registry-secret "$REGISTRY_SECRET" \
         --port "$EXPLORER_PORT" \
         "${env_args[@]}" \
+        --mount-secret "$SECRET_MOUNT_DIR=$ENV_SECRET" \
+        --env "CUGA_SECRETS_FILE=$SECRET_MOUNT_DIR/app.env" \
         --cpu 0.5 --memory 1G \
         --min-scale 0 --max-scale 1 \
         2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
@@ -253,6 +285,8 @@ deploy_tool_explorer() {
         --image "$image" \
         --force \
         "${env_args[@]}" \
+        --mount-secret "$SECRET_MOUNT_DIR=$ENV_SECRET" \
+        --env "CUGA_SECRETS_FILE=$SECRET_MOUNT_DIR/app.env" \
         2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
     fi
 
@@ -285,8 +319,8 @@ deploy_tool_explorer() {
 declare -a SUCCEEDED=()
 declare -a FAILED=()
 
-for name in "${SERVERS[@]}"; do
-  port=${MCP_PORTS[$name]}
+for name in ${SERVERS[@]+"${SERVERS[@]}"}; do
+  port=$(mcp_port "$name")
   if deploy_mcp "$name" "$port"; then
     SUCCEEDED+=("$name")
   else
@@ -333,6 +367,6 @@ for name in "${SUCCEEDED[@]}"; do
     printf "    TOOL_EXPLORER_URL=%s\n" "$url"
   else
     url=$(ibmcloud ce app get --name "cuga-apps-mcp-$name" --output url 2>/dev/null || echo '?')
-    printf "    MCP_%s_URL=%s/mcp\n" "${name^^}" "$url"
+    printf "    MCP_%s_URL=%s/mcp\n" "$(echo "$name" | tr "[:lower:]" "[:upper:]")" "$url"
   fi
 done

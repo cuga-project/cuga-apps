@@ -27,14 +27,14 @@ import argparse
 import sys
 from pathlib import Path
 
-# The 21 ship-ready apps (dir names). Mirrors launch.py SHIP_READY and the
+# The 22 ship-ready apps (dir names). Mirrors launch.py SHIP_READY and the
 # umbrella UI's ship-ready set.
 SHIP_READY = [
     "stock_alert", "server_monitor", "newsletter", "web_researcher", "travel_planner",
     "youtube_research", "arch_diagram", "hiking_research", "movie_recommender",
     "webpage_summarizer", "paper_scout", "wiki_dive", "ibm_cloud_advisor", "ibm_docs_qa",
     "recipe_composer", "city_beat", "ouroboros", "github_trending", "ai_labs_news",
-    "find_a_doctor", "meetup_finder",
+    "find_a_doctor", "meetup_finder", "dependency_drift_watcher",
 ]
 
 # travel_planner is served via uvicorn.run("main:app") and reads PORT from the
@@ -49,7 +49,7 @@ EXTRA_SERVICES = ["usage_collector"]
 
 # MCP servers bundled into this image (run on 127.0.0.1:<port> alongside the
 # apps). This is the subset the ship-ready apps actually call via load_tools():
-#   web → newsletter/web_researcher/youtube_research/arch_diagram/webpage_summarizer/
+#   web → newsletter/youtube_research/arch_diagram/webpage_summarizer/
 #         ibm_*/ouroboros/travel_planner/hiking_research/city_beat
 #   knowledge → movie_recommender/paper_scout/wiki_dive/travel_planner/city_beat
 #   geo → travel_planner/hiking_research/city_beat
@@ -57,6 +57,8 @@ EXTRA_SERVICES = ["usage_collector"]
 #   local → server_monitor
 # (text/code/invocable_apis serve only non-ship-ready apps and are not bundled;
 #  invocable_apis also needs external BIRD data.)
+# web_researcher and dependency_drift_watcher use no bundled server: they reach
+# Tavily's hosted MCP server over HTTPS (see REMOTE_MCP in _mcp_bridge.py).
 MCP_SERVERS = ["web", "knowledge", "geo", "finance", "local"]
 
 
@@ -214,10 +216,15 @@ def gen_start(ports: dict, mcp_ports: dict) -> str:
             continue
         port = ports[app]
         lines.append(f'log "starting {app} on :{port}"')
-        if app in PORT_VIA_ENV:
-            lines.append(f'PORT={port} python -u {app}/main.py &')
-        else:
-            lines.append(f'python -u {app}/main.py --port {port} &')
+        # Each app runs in its own directory with its own CUGA store
+        # (CUGA_DBS_DIR), as launch.py does locally. CUGA's default store
+        # (policies included) and its .cuga folder are otherwise shared by every
+        # app in the container, and one app's policies fire in another.
+        dbs = f"/app/apps/{app}/.cuga/dbs"
+        run = f'PORT={port} exec python -u main.py' if app in PORT_VIA_ENV \
+            else f'exec python -u main.py --port {port}'
+        lines.append(f'mkdir -p {dbs}')
+        lines.append(f'(cd {app} && CUGA_DBS_DIR="${{CUGA_DBS_DIR_{app.upper()}:-{dbs}}}" {run}) &')
         lines.append("")
     lines += [
         'log "all ship-ready apps launched; starting nginx on :8080"',

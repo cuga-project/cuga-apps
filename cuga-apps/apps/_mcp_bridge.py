@@ -10,6 +10,13 @@ The server URL for each name is resolved from:
   2. Default based on whether we're inside docker:
      - docker:  http://mcp-<name>:<port>/mcp    (compose service DNS)
      - local:   http://localhost:<port>/mcp
+
+Remote servers (REMOTE_MCP below) are third-party MCP servers we don't run,
+such as Tavily's. They resolve to their public URL (overridable with
+MCP_<NAME>_URL) and send `Authorization: Bearer $<TOKEN_ENV>`. Their calls are
+counted twice in the usage collector: as MCP tool calls (server/tool) and as
+provider API calls under the server's name, since each one spends that
+provider's credits directly (local servers count their own provider calls).
 """
 from __future__ import annotations
 
@@ -101,18 +108,68 @@ def _default_url(name: str, port: int) -> str:
     return _ce_url(name)
 
 
+# Third-party MCP servers, reached over HTTPS with a bearer token. Not in
+# MCP_PORTS because we don't run them (nothing to launch, bundle or port-map).
+REMOTE_MCP: dict[str, dict[str, str]] = {
+    "tavily": {"url": "https://mcp.tavily.com/mcp/", "token_env": "TAVILY_API_KEY"},
+}
+
+
+def remote_mcp_configured(name: str) -> bool:
+    """True if the remote server's token env var is set (the server will accept us)."""
+    spec = REMOTE_MCP.get(name)
+    return bool(spec and os.getenv(spec["token_env"]))
+
+
+def _server_headers(name: str) -> dict[str, str]:
+    spec = REMOTE_MCP.get(name)
+    token = os.getenv(spec["token_env"]) if spec else None
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def server_endpoint(name: str) -> tuple[str, dict[str, str]]:
+    """(url, headers) for one server — for app code that opens its own MCP
+    session (e.g. to read resource blocks, which call_tool drops)."""
+    return _resolved_urls([name])[name], _server_headers(name)
+
+
+# Per-request timeout for MCP calls, in seconds. Tavily research and crawls
+# can run for minutes, so the default is generous.
+_MCP_TIMEOUT = float(os.getenv("MCP_TOOL_TIMEOUT", "300"))
+
+
+def mcp_client(name: str, timeout: float | None = None):
+    """A fastmcp Client for one server (streamable HTTP, with its auth headers).
+
+    fastmcp is the MCP client cuga >= 0.4.5 itself uses (mcp 2.x no longer has
+    the 1.x `streamablehttp_client` helper). Clients are reentrant: use
+    `async with mcp_client("web") as c: await c.call_tool(...)`.
+    """
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    url, headers = server_endpoint(name)
+    transport = StreamableHttpTransport(url, headers=headers or None)
+    return Client(transport, timeout=timeout or _MCP_TIMEOUT)
+
+
 def _resolved_urls(names: List[str]) -> dict[str, str]:
     out = {}
     for name in names:
-        if name not in MCP_PORTS:
-            raise ValueError(f"Unknown MCP server name: {name}. Known: {list(MCP_PORTS)}")
         env_key = f"MCP_{name.upper()}_URL"
+        if name in REMOTE_MCP:
+            out[name] = os.getenv(env_key) or REMOTE_MCP[name]["url"]
+            continue
+        if name not in MCP_PORTS:
+            raise ValueError(
+                f"Unknown MCP server name: {name}. Known: {list(MCP_PORTS) + list(REMOTE_MCP)}"
+            )
         out[name] = os.getenv(env_key) or _default_url(name, MCP_PORTS[name])
     return out
 
 
 def _unwrap_mcp_tool_result(raw):
-    """langchain-mcp-adapters wraps every MCP tool with
+    """LangChain's MCP adapter (langchain.mcp) wraps every MCP tool with
     `response_format="content_and_artifact"`, so awaiting the tool's
     coroutine directly returns a (content_list, artifact) tuple. cuga's
     code-execution agent expects a normal value (e.g. dict / list / str)
@@ -174,7 +231,7 @@ def _unwrap_mcp_tool_result(raw):
 
 
 class _ArgsSchemaShim(dict):
-    """Make a JSON-Schema dict (what langchain-mcp-adapters now sets on
+    """Make a JSON-Schema dict (what the LangChain MCP adapter sets on
     StructuredTool.args_schema) quack like a Pydantic model class.
 
     cuga 0.2.x calls `tool.args_schema.schema()` and `.model_json_schema()`
@@ -244,6 +301,11 @@ def _track_mcp(server: str | None, tool_name: str, ok: bool, code: str | None = 
     try:
         from _usage import track_mcp
         track_mcp(server, tool_name, ok=ok, code=code)
+        if server in REMOTE_MCP:
+            # A hosted server spends the provider's credits directly; count it on
+            # the dashboard's API-calls tab too, next to mcp-web's own calls.
+            from _usage import track_call
+            track_call(server, ok=ok, code=code)
     except Exception:  # noqa: BLE001 — tracking must never break a tool call
         pass
 
@@ -253,7 +315,7 @@ def _wrap_tool_for_cuga(tool, server: str | None = None):
 
       1. Wrap the async coroutine so direct `await tool(...)` returns a
          plain dict (cuga's code-execution agent crashes on the
-         (content, artifact) tuple langchain-mcp-adapters returns).
+         (content, artifact) tuple the MCP adapter returns).
       2. Wrap the JSON-Schema dict with `_ArgsSchemaShim` so cuga's
          prompt utilities can call `.schema()` / `.model_json_schema()`
          without AttributeError.
@@ -309,8 +371,10 @@ def _wrap_tool_for_cuga(tool, server: str | None = None):
             pass
 
     # ── 3. Return-shape hint in description ────────────────────────────
+    # Only our own servers use the tool_result envelope; remote servers
+    # (Tavily, GitHub) return their own text/JSON, so the hint would mislead.
     desc = getattr(tool, "description", None)
-    if isinstance(desc, str) and _RETURN_SHAPE_HINT not in desc:
+    if server not in REMOTE_MCP and isinstance(desc, str) and _RETURN_SHAPE_HINT not in desc:
         try:
             tool.description = desc + _RETURN_SHAPE_HINT
         except Exception:
@@ -331,7 +395,7 @@ def load_tools(servers: List[str]) -> list:
     StructuredTool instances ready to pass to `CugaAgent(tools=…)`.
 
     Tools are wrapped via `_wrap_tool_for_cuga` so the (content, artifact)
-    tuple from langchain-mcp-adapters is unwrapped before cuga's executor
+    tuple from the MCP adapter is unwrapped before cuga's executor
     sees it — see _unwrap_mcp_tool_result for details.
 
     Blocks until the server handshakes (or errors out). Safe to call at
@@ -339,37 +403,40 @@ def load_tools(servers: List[str]) -> list:
 
     Args:
         servers: List of MCP server names from MCP_PORTS keys
-                 (web | knowledge | geo | finance | code | local).
+                 (web | knowledge | geo | finance | code | local) or
+                 REMOTE_MCP keys (tavily).
     """
+    import warnings
+
     try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
+        from langchain_core._api import LangChainBetaWarning
+        warnings.filterwarnings("ignore", category=LangChainBetaWarning)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from langchain.mcp import MCPAdapter
     except ImportError as exc:
         raise ImportError(
-            "langchain-mcp-adapters not installed — `pip install langchain-mcp-adapters`."
+            "langchain.mcp not available — install `langchain[mcp]>=1.4.6` (ships with cuga >= 0.4.5)."
         ) from exc
 
     urls = _resolved_urls(servers)
-    connections = {
-        name: {"transport": "streamable_http", "url": url}
-        for name, url in urls.items()
-    }
     log.info("Connecting to MCP servers: %s", ", ".join(f"{n}={u}" for n, u in urls.items()))
 
-    client = MultiServerMCPClient(connections)
-
     async def _get_tagged_tools() -> list:
-        """Fetch tools server-by-server so each carries its origin server name
-        (for per-server/per-tool usage tracking). Falls back to one flat
-        get_tools() if per-server loading isn't supported by the adapter."""
+        """Discover each server's tools separately so every tool carries its
+        origin server name (per-server/per-tool usage tracking). Each tool
+        reconnects through its own client when called, so nothing has to stay
+        open after discovery."""
         out: list = []
-        try:
-            for name in urls:
-                server_tools = await client.get_tools(server_name=name)
-                out.extend(_wrap_tool_for_cuga(t, server=name) for t in server_tools)
-            return out
-        except TypeError:
-            # Older adapter without server_name kwarg — load all, untagged.
-            return [_wrap_tool_for_cuga(t) for t in await client.get_tools()]
+        for name in urls:
+            adapter = MCPAdapter(mcp_client(name))
+            for t in await adapter.list_tools():
+                # Raise MCP errors to the caller like the old adapter did; cuga's
+                # executor reports them to the model itself.
+                t.handle_tool_error = False
+                out.append(_wrap_tool_for_cuga(t, server=name))
+        return out
 
     try:
         loop = asyncio.get_running_loop()
@@ -395,40 +462,33 @@ def call_tool(server: str, tool: str, args: dict | None = None, timeout: float =
     or raises RuntimeError if the tool returned an error.
 
     Args:
-        server: One of MCP_PORTS keys.
+        server: One of MCP_PORTS or REMOTE_MCP keys.
         tool:   Tool name as exposed by the server.
         args:   Tool arguments (default empty dict).
         timeout: Wall-clock timeout in seconds (default 180).
     """
-    if server not in MCP_PORTS:
-        raise ValueError(f"Unknown MCP server name: {server}. Known: {list(MCP_PORTS)}")
-    url = os.getenv(f"MCP_{server.upper()}_URL") or _default_url(server, MCP_PORTS[server])
-
     async def _go():
-        from mcp.client.session import ClientSession
-        from mcp.client.streamable_http import streamablehttp_client
-        async with streamablehttp_client(url) as (read, write, _close):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(tool, args or {})
-                if result.isError:
-                    raise RuntimeError(f"{server}.{tool} returned an error result")
-                # Concatenate text blocks (most tools return a single text block).
-                text = "".join(getattr(b, "text", "") for b in (result.content or []))
-                if not text:
-                    return None
-                import json as _json
-                try:
-                    payload = _json.loads(text)
-                except _json.JSONDecodeError:
-                    return text
-                if isinstance(payload, dict) and "ok" in payload:
-                    if not payload["ok"]:
-                        raise RuntimeError(
-                            f"{server}.{tool}: {payload.get('error', 'unknown error')}"
-                        )
-                    return payload.get("data")
-                return payload
+        async with mcp_client(server, timeout=timeout) as client:
+            result = await client.call_tool(tool, args or {}, raise_on_error=False)
+            if result.is_error:
+                detail = "".join(getattr(b, "text", "") for b in (result.content or []))
+                raise RuntimeError(f"{server}.{tool} returned an error result: {detail[:300]}")
+            # Concatenate text blocks (most tools return a single text block).
+            text = "".join(getattr(b, "text", "") for b in (result.content or []))
+            if not text:
+                return None
+            import json as _json
+            try:
+                payload = _json.loads(text)
+            except _json.JSONDecodeError:
+                return text
+            if isinstance(payload, dict) and "ok" in payload:
+                if not payload["ok"]:
+                    raise RuntimeError(
+                        f"{server}.{tool}: {payload.get('error', 'unknown error')}"
+                    )
+                return payload.get("data")
+            return payload
 
     def _run() -> object:
         coro = asyncio.wait_for(_go(), timeout=timeout)

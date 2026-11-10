@@ -6,6 +6,8 @@ export default {
       fontFamily: {
         sans: ['IBM Plex Sans', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['IBM Plex Mono', 'Fira Code', 'Consolas', 'monospace'],
+        // Display face for headlines — matches cuga.dev.
+        display: ['Space Grotesk', 'IBM Plex Sans', 'Helvetica Neue', 'Arial', 'sans-serif'],
       },
       colors: {
         // Semantic theme tokens — driven by CSS variables in index.css
@@ -38,19 +40,17 @@ export default {
           950: '#001d6c',  // Blue 100
         },
       },
-      // ── Carbon is square. Flatten Tailwind's radius scale so every
-      //    rounded-lg / rounded-xl / rounded-2xl / rounded-full reads as a
-      //    crisp 2px corner instead of the previous pill/card softness. ──────
+      // Crisp corners, as on cuga.dev: 4px controls, slightly rounder panels.
       borderRadius: {
         none:    '0',
-        sm:      '0',
-        DEFAULT: '2px',
-        md:      '2px',
-        lg:      '2px',
-        xl:      '2px',
-        '2xl':   '2px',
-        '3xl':   '4px',
-        full:    '2px',
+        sm:      '2px',
+        DEFAULT: '4px',
+        md:      '4px',
+        lg:      '4px',
+        xl:      '6px',
+        '2xl':   '8px',
+        '3xl':   '12px',
+        full:    '9999px',
       },
     },
   },

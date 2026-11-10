@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Reuse the parent stack's deps file. cuga + langchain + langchain-mcp-adapters
+# Reuse the parent stack's deps file. cuga + langchain (langchain.mcp) + fastmcp
 # all come from here. We don't modify it — read-only.
 COPY requirements.apps.txt ./
 RUN pip install --no-cache-dir -r requirements.apps.txt

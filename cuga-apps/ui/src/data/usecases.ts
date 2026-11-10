@@ -13,8 +13,8 @@ export type UseCaseType = 'event-driven' | 'document-intelligence' | 'audio-vide
 
 /** MCP server usage — which tools an app consumes from each shared server. */
 export interface McpServerUsage {
-  /** mcp-server name (matches keys in apps/_ports.MCP_PORTS) */
-  server: 'web' | 'knowledge' | 'geo' | 'finance' | 'code' | 'local' | 'text' | 'invocable_apis'
+  /** mcp-server name (keys in apps/_ports.MCP_PORTS, or a hosted REMOTE_MCP server) */
+  server: 'web' | 'knowledge' | 'geo' | 'finance' | 'code' | 'local' | 'text' | 'invocable_apis' | 'tavily'
   /** tools from that server the app actually uses */
   tools: string[]
 }
@@ -402,15 +402,15 @@ CugaAgent → answer`,
   {
     id: 'web-researcher',
     name: 'Web Researcher',
-    tagline: 'Schedule recurring web research — results land in the in-UI Research Log',
-    type: 'event-driven',
-    surface: 'pipeline',
+    tagline: 'Research you can check — every claim quoted from its source, every quote checked',
+    type: 'other',
+    surface: 'gateway',
     description:
-      'A browser UI for scheduling recurring web research tasks. Add topics with hourly / daily / weekly cadences — the background scheduler runs overdue topics every 5 minutes using Tavily and appends results to the Research Log panel (no email). Also supports ad-hoc searches via the chat panel. Research history persists across restarts in SQLite; the UI auto-refreshes every 30s so scheduled completions surface without a manual reload.',
-    category: 'personal',
+      'Research on the live web where every claim comes with the exact sentence from its source, and the app checks that sentence is really on the page. Five modes each put one Tavily strength to work through Tavily\'s hosted MCP server — all five of its tools: Quick answer (tavily_search), Deep dive (advanced search, then tavily_extract with a query for the exact passage), Site study (tavily_map lays out a website, tavily_crawl reads the relevant section), Report (tavily_research writes a cited report, then tavily_extract re-reads the key sources), and Watch topics that report only what\'s new since the last run. Source controls (trusted or blocked domains, time window, news) become Tavily parameters the app enforces. Two CUGA agents: a researcher answers, and a verifier checks every claim. Plain code confirms each quote is on a page the run read; the verifier judges whether the quote supports the claim and fixes failures — a better passage, a second source, a narrower claim — or marks it not verified or dropped. CUGA policies (intent guard, playbook, tool guide, output formatter) and code guards (egress, source rules, mode tools, read budget) govern every run.',
+    category: 'enterprise',
     status: 'working',
     channels: [],
-    tools: ['web_search()'],
+    tools: ['tavily_search', 'tavily_extract', 'tavily_map', 'tavily_crawl', 'tavily_research'],
     demoPath: 'apps/web_researcher',
     howToRun: {
       envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'TAVILY_API_KEY'],
@@ -418,48 +418,42 @@ CugaAgent → answer`,
         'cd apps/web_researcher',
         'pip install -r requirements.txt',
       ],
-      command: 'python main.py',
+      command: 'python main.py --port 28798',
     },
     architecture:
-      'FastAPI serves the single-page UI. Chat: POST /ask → CugaAgent calls web_search (Tavily) → answer. Scheduled topics: asyncio background scheduler checks every 5 minutes for overdue topics; when due, runs the agent and appends results to the in-UI Research Log (no email). Topic schedule persisted in .store.json.',
+      'FastAPI serves the single-page UI. POST /research starts a background job (the UI polls /jobs/{id} for live steps). The app picks the mode (auto: a URL → Site study, "report/overview" → Report, otherwise Deep dive), turns the source controls into Tavily parameters, and invokes a CugaAgent whose only tools are Tavily\'s hosted MCP tools, each wrapped in code guards: egress (no secrets, personal emails or internal names leave), source rules (domains, time window, news injected or enforced), mode tools (Site study must map first), read budget and size caps. The agent answers with a claims block; the app checks every quote against the pages the run read (re-reading a page with tavily_extract when needed), then a second CugaAgent, the verifier, judges each claim with four tools (find_passages, find_second_source, check_quote, record_verdict); record_verdict re-checks every quote in code, so a verdict can\'t rest on a quote that isn\'t on the page. Reports, claims, sources and receipts are saved in SQLite; watch topics run on a scheduler with start_date = the last run.',
     diagram: `python main.py  →  http://127.0.0.1:28798
 
-Chat panel (ad-hoc):
-User: "What's the latest news on quantum computing?"
-      │  POST /ask
+User: "How does crawl differ from map?"   [Site study · https://docs.tavily.com]
+      │  POST /research → job
       ▼
-CugaAgent + web_search()
-      │  web_search("quantum computing news 2026")
+CugaAgent  (policies: intent guard · playbook · tool guide · output formatter)
+      ├─ tavily_map(docs.tavily.com)          ─► Tavily MCP ┐ egress guard · source rules
+      ├─ tavily_crawl(section, instructions)  ─► Tavily MCP │ mode tools · read budget
+      ├─ tavily_extract(urls, query)          ─► Tavily MCP ┘
       ▼
-"IBM announced a 1000-qubit processor..."
-
-Scheduled topics panel:
-Topic: "AI agent frameworks"  Schedule: daily
-      │  asyncio scheduler fires (every 5 min — checks overdue)
+Answer + claims [{claim, quote, source_url}]
       ▼
-CugaAgent + web_search()
-      │  web_search("AI agent frameworks 2026")
+Code: quote on a page read?  →  Verifier agent: supports the claim? fix or flag
       ▼
-SQLite: log result in research.db
-      │
-      ▼
-Research Log panel (in-UI, auto-refreshed every 30s)`,
+Answer · Evidence (✓ verified / ⚠ not verified + closest passage) · Why · History`,
     cugaContribution: [
-      'CugaAgent synthesises multiple Tavily search results into a structured report — not just a list of links',
-      'Background scheduler checks overdue topics every 5 minutes without a cron daemon or external task runner',
-      'Persistent log in SQLite — all research results survive restarts and are viewable in the history panel',
-      'Results surface in-UI — no SMTP setup, no app passwords; the Research Log auto-refreshes',
+      'Uses all five tools of Tavily\'s hosted MCP server, one research mode each, with mode rules enforced in code',
+      'Two CUGA agents: a researcher answers, a verifier (own policy store, four tools) checks and fixes every claim; quotes are checked in code it can\'t override',
+      'Four CUGA policies registered in code: intent guard (no profiling private people), research playbook, quote-primary-sources tool guide, evidence output formatter',
+      'Code guards on every Tavily call: egress, source rules, mode tools, read budget, crawl/map size caps',
+      'Each answer carries its policy decisions, sources and a run receipt (Tavily calls by tool, tokens, LLM calls, time)',
     ],
     examples: [
-      "What's the latest news on quantum computing?",
-      'Search for Python 3.13 release notes',
-      'Find recent papers on RAG architectures',
-      'What are the top stories about climate policy this week?',
-      'Add topic: "AI agent frameworks" → daily',
+      'How does crawl differ from map, and when should I use each? (Site study · docs.tavily.com)',
+      'How do remote MCP servers handle authentication today?',
+      'How are enterprises governing AI agents in 2026? Main approaches and standards (Report)',
+      'Who maintains the Model Context Protocol specification?',
+      'Watch: "Model Context Protocol specification updates" → weekly',
     ],
     appUrl: 'http://localhost:28798',
     mcpUsage: [
-      { server: 'web', tools: ['web_search'] },
+      { server: 'tavily', tools: ['tavily_search', 'tavily_extract', 'tavily_map', 'tavily_crawl', 'tavily_research'] },
     ],
     inlineTools: [],
   },
@@ -734,7 +728,7 @@ SSE stream → browser: live progress per tool call`,
     surface: 'gateway',
     description:
       'A browser UI for topic research powered by YouTube content. Topic mode: type a subject and the agent searches the web for relevant YouTube videos, fetches their transcripts, and synthesises findings organised by theme with citations and timestamps. URL mode: paste one or more YouTube links directly for instant summaries with key moments. Research history stored in SQLite.',
-    category: 'personal',
+    category: 'enterprise',
     status: 'working',
     channels: [],
     tools: ['web_search()', 'get_video_info()', 'get_transcript()'],
@@ -1121,7 +1115,7 @@ CugaAgent (code injected as context) → refactoring walkthrough`,
     tagline: 'Research academic papers via arXiv and Semantic Scholar — no API key needed',
     description:
       'A browser UI for academic research. Type a topic and the agent searches both arXiv (CS, ML, physics, math, biology) and Semantic Scholar (broader coverage with citation counts), then synthesises findings across papers with inline citations. Paste an arXiv ID or URL directly for an instant structured summary: contributions, method, results, limitations. Ask follow-up questions like "what does this build on?" to fetch reference lists.',
-    category: 'personal',
+    category: 'enterprise',
     type: 'other',
     surface: 'gateway',
     status: 'working',
@@ -2163,7 +2157,7 @@ CugaSupervisor  (planner delegates to specialists)
     surface: 'gateway',
     description:
       'Ask what\'s trending on GitHub — overall, by language, or by topic — and the agent returns a ranked board of repositories, each with a plain-English summary of what the project offers: what it\'s for, who it\'s for, and why it\'s gaining attention. Live data comes from GitHub\'s public REST API via direct httpx calls — no MCP servers, no keys (set GITHUB_TOKEN to raise the rate limit). "Trending" is approximated as recently-created repos gaining the most stars in a daily/weekly/monthly window. The agent finds the repos, reads the top READMEs and language breakdowns, writes a summary + an "offers" bullet list + a why-trending line per repo, and renders them as cards in the right panel.',
-    category: 'personal',
+    category: 'enterprise',
     status: 'working',
     channels: [],
     tools: [
@@ -2222,7 +2216,7 @@ Right panel: ranked repo cards w/ summary + what each offers`,
     surface: 'gateway',
     description:
       'A curated, glanceable digest of the latest posts from the major AI labs and research groups — OpenAI, Anthropic, Google DeepMind, Google Research, Microsoft Research, IBM Research, Meta AI, Hugging Face, and Berkeley AI Research. Ask broadly ("what\'s new in AI this week?") or narrowly ("latest from Anthropic and OpenAI on agents"), and the agent pulls each lab\'s blog feed, merges newest-first, spots cross-lab themes, and summarizes. Live data comes from each lab\'s public RSS/Atom feed via httpx + feedparser — no MCP servers, no keys. Each lab has fallback feed URLs, so a moved/broken feed is reported rather than faked.',
-    category: 'personal',
+    category: 'enterprise',
     status: 'working',
     channels: [],
     tools: ['list_labs()', 'set_focus()', 'fetch_lab_news()', 'fetch_all_news()', 'save_digest()'],
@@ -2376,6 +2370,62 @@ Right panel: ranked event cards (date chip, venue, host, RSVP link)`,
     appUrl: 'http://localhost:28826',
     mcpUsage: [],
     inlineTools: ['set_search', 'build_event_urls', 'fetch_events', 'get_session_state', 'save_events'],
+  },
+  {
+    id: 'dependency-drift-watcher',
+    name: 'Dependency Drift Watcher',
+    tagline: 'Our code stays still. Its dependencies don\'t — point it at any public GitHub repo and find what drifted, with proof',
+    type: 'other',
+    surface: 'gateway',
+    description:
+      'Finds drift in any public GitHub repo: places where the outside world changed but the code still assumes the old state. Enter owner/repo (or a GitHub URL); the app downloads a public snapshot — no token — and inventories the model ids in code and config and the packages in requirements*.txt and pyproject.toml. PyPI\'s public API gives each package\'s latest release and flags pins or caps that block it; Tavily\'s hosted MCP server (search, extract, map, crawl, research) reads official sources for what changed and why. Every finding quotes the source sentence and links it. For a one-line fix the agent prepares a diff to copy; the app never writes to any repository. CUGA policies (intent guard, playbook, tool guide, output formatter) plus code guards on every Tavily call keep it governed: no secrets or internal names leave, and searches stay on each pack\'s official domains.',
+    category: 'enterprise',
+    status: 'partial',
+    channels: [],
+    tools: ['inventory_models()', 'inventory_packages()', 'check_pypi()', 'tavily_* [Tavily MCP]', 'suggest_fix()'],
+    demoPath: 'apps/dependency_drift_watcher',
+    howToRun: {
+      envVars: ['LLM_PROVIDER', 'LLM_MODEL', 'TAVILY_API_KEY'],
+      setup: ['cd apps/dependency_drift_watcher', 'pip install -r requirements.txt'],
+      command: 'python main.py --port 28843',
+    },
+    architecture:
+      'FastAPI serves the single-page UI. POST /ask (or /scan) with a repo (owner/repo, owner/repo@ref or a GitHub URL) and a watch pack (Models or Packages) → the app downloads the repo\'s public snapshot from GitHub (no token; size-capped, cached for an hour, unpacked safely) → CugaAgent inventories it with inline tools (inventory_models, inventory_packages), checks latest releases with check_pypi, and reads the world\'s side through Tavily\'s hosted MCP server (tavily_search, tavily_extract, tavily_map, tavily_crawl, tavily_research). Every Tavily call passes through code guards: an egress guard blocks secrets and internal host names, and a domain guard limits searches and URLs to the pack\'s official domains (injecting them when the agent omits include_domains). The agent ends with a JSON findings block the app stores in SQLite per repo; suggest_fix stores a diff for the user to copy. The Why panel shows CUGA policy decisions, the app guards that fired, the sources read and the run receipt. Tavily calls appear on the usage dashboard under both MCP and API calls.',
+    diagram: `python main.py  →  http://127.0.0.1:28843
+
+Repo: cuga-project/cuga-apps        [Packages pack]
+User: "Which pins or caps block the latest release of a dependency?"
+      │  POST /ask
+      ▼
+public snapshot (codeload.github.com, no token)  →  requirements*.txt · pyproject.toml · *.py
+      ▼
+CugaAgent  (policies: intent guard · playbook · tool guide · output formatter)
+      ├─ inventory_packages()              → 37 packages, specs, file paths
+      ├─ check_pypi([...])                 → mcp 2.3.0 blocked by ">=1.0,<2"
+      ├─ tavily_search / tavily_extract    ─► Tavily MCP   egress guard +
+      │                                                    official domains only
+      ├─ suggest_fix(file, find, replace)  → a diff to copy, nothing written
+      ▼
+Answer: table (dependency · where · quoted change · impact) + findings
+Right panel: Why (policies, sources, receipt) · Findings · Suggested fixes`,
+    cugaContribution: [
+      'Pairs inline tools for the repo\'s side (public snapshot inventory, PyPI) with a hosted, standard MCP server for the world\'s side (Tavily)',
+      'Four CUGA policies registered in code: an intent guard against exploit requests, a drift-triage playbook, an official-sources tool guide and an output formatter that keeps the findings block',
+      'Code guards on every Tavily call: secrets and internal names never leave; searches and URLs stay on the pack\'s official domains',
+      'Read-only by design: no tokens, no writes — fixes are diffs for a person to copy and apply',
+      'Each answer carries its policy decisions, sources and a run receipt (tokens, LLM calls, Tavily and PyPI calls)',
+    ],
+    examples: [
+      'Which models does this repo depend on, and has anything drifted?',
+      'Is any watsonx model this repo uses deprecated or scheduled for withdrawal?',
+      'Which pins or caps block the latest release of a dependency?',
+      'Any new vulnerabilities this month in packages this repo uses?',
+    ],
+    appUrl: 'http://localhost:28843',
+    mcpUsage: [
+      { server: 'tavily', tools: ['tavily_search', 'tavily_extract', 'tavily_map', 'tavily_crawl', 'tavily_research'] },
+    ],
+    inlineTools: ['inventory_models', 'inventory_packages', 'check_pypi', 'get_usage', 'get_watch_pack', 'list_accepted_risks', 'suggest_fix'],
   },
 ]
 

@@ -126,8 +126,13 @@ python ouroboros/main.py --port 28822 &
 log "Starting meetup_finder       on :28826"
 python meetup_finder/main.py --port 28826 &
 
+# dependency_drift_watcher reaches Tavily's hosted MCP server (TAVILY_API_KEY)
+# and public GitHub/PyPI endpoints — no local MCP server needed.
+log "Starting dependency_drift_watcher on :28843"
+python dependency_drift_watcher/main.py --port 28843 &
+
 # code_engine_deployer is local-only — needs host docker + ibmcloud CLI +
 # user's IBM auth. Run it from your workstation: `python code_engine_deployer/main.py --port 28818`.
 
-log "All 34 apps launched. Waiting..."
+log "All 35 apps launched. Waiting..."
 wait

@@ -33,7 +33,8 @@ def test_tool_explorer_lists_all_seven_servers(http):
     r = http.get(f"{explorer_url()}/api/servers", timeout=10)
     assert r.status_code == 200
     servers = r.json()
-    names = {s["name"] for s in servers}
+    # Our servers, plus hosted ones (Tavily) when their token is configured.
+    names = {s["name"] for s in servers} - {"tavily"}
     assert names == set(MCP_PORTS), f"expected {set(MCP_PORTS)}, got {names}"
     offline = [s["name"] for s in servers if not s["online"]]
     assert not offline, f"servers offline: {offline}"

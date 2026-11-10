@@ -1,0 +1,50 @@
+# Packages pack — Python dependency drift: vulnerabilities, breaking releases,
+# inactive projects, and pins or caps that block upgrades. Latest versions come
+# from PyPI's public API (check_pypi); Tavily calls are limited to `domains`.
+id: packages
+title: Packages
+summary: New vulnerabilities, breaking releases, inactive projects and blocking pins in the Python packages the repo installs.
+inventory: inventory_packages
+
+domains:
+  - github.com              # security advisories, release notes, changelogs
+  - osv.dev
+  - nvd.nist.gov
+  - cisa.gov                # Known Exploited Vulnerabilities catalog
+  - pypi.org
+  - python.org
+
+seeds:
+  - https://osv.dev/list?ecosystem=PyPI
+
+# Outside reads (Tavily calls) one check may make.
+tavily_budget: 8
+
+crawl_instructions: Only security advisories, release notes and changelogs.
+time_range: month
+
+# Checked first when the repo uses them: the agent stack most CUGA apps share.
+# Any other repo falls back to its most widely used and unpinned packages.
+priority:
+  - cuga
+  - mcp
+  - langchain-mcp-adapters
+  - langchain-core
+  - langgraph
+  - langchain-ibm
+  - fastapi
+  - uvicorn
+  - httpx
+  - pydantic
+  - tavily-python
+
+severity:
+  critical: A known or exploited vulnerability affects the versions the repo allows, or a pin blocks a required upgrade.
+  review: A breaking release, an inactive project, or a pin or cap that blocks the latest release.
+  fyi: A newer patch or minor release with no known impact.
+  none: Up to date with no advisories.
+
+examples:
+  - Any new vulnerabilities this month in packages this repo uses?
+  - Which pins or caps block the latest release of a dependency?
+  - Are any of the repo's dependencies inactive or far behind their latest release?

@@ -88,12 +88,9 @@ def explorer_url() -> str:
 @asynccontextmanager
 async def mcp_session(server: str):
     """Open an MCP streamable-http session to the named server."""
-    from mcp.client.session import ClientSession
-    from mcp.client.streamable_http import streamablehttp_client
-    async with streamablehttp_client(mcp_url(server)) as (read, write, _close):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            yield session
+    from mcp_servers._core.client import open_session
+    async with open_session(mcp_url(server)) as session:
+        yield session
 
 
 def call_mcp_tool(server: str, tool: str, args: dict | None = None, timeout: float = 60.0):

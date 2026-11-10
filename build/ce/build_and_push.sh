@@ -9,6 +9,8 @@
 #   ./build_and_push.sh                 # build + push icr.io/<ns>/cuga-agent-apps:latest
 #   NAMESPACE=myns IMAGE_TAG=v3 ./build_and_push.sh
 #   ./build_and_push.sh --no-push       # build only (local image)
+#   IMAGE_NAME=cuga-agent-apps-1 ./build_and_push.sh   # a side-by-side copy
+#   CONFIRM_PROD=1 ./build_and_push.sh  # required to push the production image
 #
 # Env overrides:
 #   NAMESPACE              ICR namespace        (default: routing_namespace)
@@ -52,6 +54,18 @@ if git_ rev-parse --git-dir >/dev/null; then
     [[ -n "$(git_ status --porcelain)" ]] && GIT_COMMIT="${GIT_COMMIT}-dirty"
 else
     GIT_SHA=""; GIT_COMMIT="unknown"; GIT_BRANCH=""; GIT_SUBJECT=""; GIT_COMMIT_TIME=""
+fi
+
+# ── Production guard ─────────────────────────────────────────────────────────
+# cuga-agent-apps is the LIVE gallery and these defaults push its :latest. Copies
+# (e.g. IMAGE_NAME=cuga-agent-apps-1) build freely; pushing production needs an
+# explicit CONFIRM_PROD=1. Exact-name match, so cuga-agent-apps-1 is never mistaken
+# for production.
+if [[ "$IMAGE_NAME" == "cuga-agent-apps" && $PUSH == 1 && "${CONFIRM_PROD:-0}" != "1" ]]; then
+    echo "✗ refusing to push the PRODUCTION image $IMAGE"
+    echo "  For a copy:            IMAGE_NAME=<name> $0"
+    echo "  To update production:  CONFIRM_PROD=1 $0"
+    exit 1
 fi
 
 echo "════════════════════════════════════════════════════════════════"

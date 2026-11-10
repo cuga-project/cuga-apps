@@ -47,6 +47,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+# One CUGA store per app (policies included). CUGA's default store is shared by
+# every app on this Python install, so one app's policies would fire in another.
+os.environ.setdefault("CUGA_DBS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cuga", "dbs"))
+os.makedirs(os.environ["CUGA_DBS_DIR"], exist_ok=True)
+
 # ── Path bootstrap — must come before local imports ─────────────────────
 _DIR       = Path(__file__).parent
 _DEMOS_DIR = _DIR.parent
@@ -639,11 +644,12 @@ async def _attach_policies(agent) -> None:
         await agent.policies.add_output_formatter(
             name="event_board_formatter",
             format_config=(
-                "Before replying, ALWAYS call save_events with the ranked board "
-                "(each event needs title, url, start, venue, source, and a one-"
-                "line why). Then reply with a tight ranked list — event title as "
-                "a markdown link, its date, and venue/host. Note any source that "
-                "returned nothing."
+                # A formatter rewrites the final text; it cannot call tools.
+                # save_events is required by the system prompt instead.
+                "Reply with a tight ranked list — event title as a markdown "
+                "link, its date, and venue/host. Note any source that returned "
+                "nothing. Never include code, tool calls or function names in "
+                "the reply."
             ),
             format_type="markdown",
             keywords=["meetup", "meetups", "events", "event", "happening", "near"],

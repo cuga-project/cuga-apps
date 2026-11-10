@@ -115,6 +115,10 @@ If no issues: "No issues found."
 Concrete, copy-paste-ready improvements ranked by impact:
 1. **Title** — explanation + example fix (code block if helpful)
 
+Example fixes go in a ```diff block (lines starting with - and +), never in a
+```python or ```py block: the agent runtime executes python blocks as code, so a
+python-fenced example fix would be run instead of shown.
+
 ### Insights
 2–4 observations about architecture, patterns, or style. Not bugs — observations
 that help the author understand the deeper implications of their design choices.
@@ -129,6 +133,8 @@ that help the author understand the deeper implications of their design choices.
 - For security issues always explain the attack vector.
 - Keep each section focused. No filler phrases.
 - If code is too short to review meaningfully, say so and ask for more.
+- Only write Python code to call your tools. The review itself is markdown text,
+  never Python that prints the review.
 """
 
 

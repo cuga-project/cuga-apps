@@ -15,7 +15,7 @@ export default function CodeBlock({ code, language = 'bash' }: Props) {
   }
 
   return (
-    <div className="relative group bg-[#161616] border border-[#393939] overflow-hidden">
+    <div className="relative group bg-[#161616] border border-[#393939] rounded-lg overflow-hidden">
       {/* Header — Carbon Gray 90 bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#393939] bg-[#262626]">
         <span className="text-xs text-[#8d8d8d] font-mono">{language}</span>

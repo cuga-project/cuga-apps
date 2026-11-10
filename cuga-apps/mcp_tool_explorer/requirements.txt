@@ -1,7 +1,9 @@
 # Dependencies for the MCP Tool Explorer.
 # Pure MCP client + FastAPI — no LangChain, no LLM providers.
 
-mcp>=1.0
+mcp>=2.0,<3
+fastmcp>=4.1,<5
 fastapi
 uvicorn[standard]
 pydantic
+httpx

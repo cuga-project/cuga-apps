@@ -5,8 +5,8 @@
 # all ship-ready apps, the 5 MCP servers, and the stats dashboard all run inside
 # this single instance (CUGA_TARGET=local; MCP servers on loopback).
 #
-#   ./deploy.sh                      # create or update the CE app
-#   APP_NAME=my-cuga ./deploy.sh
+#   CONFIRM_PROD=1 ./deploy.sh       # create or update the PRODUCTION app (guarded)
+#   APP_NAME=cuga-agent-apps-1 IMAGE_NAME=cuga-agent-apps-1 SKIP_ENV_SYNC=1 ./deploy.sh  # a copy
 #
 # Env overrides:
 #   NAMESPACE        ICR namespace        (default: routing_namespace)
@@ -55,7 +55,25 @@ ibmcloud ce project current >/dev/null 2>&1 || {
     echo "  Run: ibmcloud ce project select --name <project>"
     exit 1
 }
-[[ -f "$ENV_FILE" ]] || { echo "✗ env file not found: $ENV_FILE"; exit 1; }
+# ── Production guard ─────────────────────────────────────────────────────────
+# cuga-agent-apps is the LIVE gallery. Copies (APP_NAME=cuga-agent-apps-1) deploy
+# freely; touching production needs an explicit CONFIRM_PROD=1 (exact-name match).
+if [[ "$APP_NAME" == "cuga-agent-apps" && "${CONFIRM_PROD:-0}" != "1" ]]; then
+    echo "✗ refusing to deploy the PRODUCTION app $APP_NAME"
+    echo "  For a copy:            APP_NAME=<name> IMAGE_NAME=<name> $0"
+    echo "  To update production:  CONFIRM_PROD=1 $0"
+    exit 1
+fi
+
+# SKIP_ENV_SYNC=1 uses the existing secret <app>-env as-is (e.g. one made by
+# ./clone_secret.sh) instead of re-creating it from a local env file.
+SKIP_ENV_SYNC="${SKIP_ENV_SYNC:-0}"
+if [[ "$SKIP_ENV_SYNC" == "1" ]]; then
+    ibmcloud ce secret get --name "$ENV_SECRET" >/dev/null 2>&1 \
+        || { echo "✗ SKIP_ENV_SYNC=1 but secret '$ENV_SECRET' does not exist"; exit 1; }
+else
+    [[ -f "$ENV_FILE" ]] || { echo "✗ env file not found: $ENV_FILE"; exit 1; }
+fi
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  Deploy all-in-one → Code Engine (single service)"
@@ -63,10 +81,13 @@ echo "    project   : $(ibmcloud ce project current -o json 2>/dev/null | grep -
 echo "    app       : $APP_NAME"
 echo "    image     : $IMAGE"
 echo "    sizing    : ${CPU} vCPU / ${MEMORY} / ${EPHEMERAL_STORAGE} disk · scale ${MIN_SCALE}..${MAX_SCALE}"
-echo "    env from  : $ENV_FILE  → secret '$ENV_SECRET'"
+echo "    env from  : $([[ "${SKIP_ENV_SYNC:-0}" == 1 ]] && echo "existing secret '$ENV_SECRET' (SKIP_ENV_SYNC)" || echo "$ENV_FILE  → secret '$ENV_SECRET'")"
 echo "════════════════════════════════════════════════════════════════"
 
 # ── 1. Sync the env secret from the env file ─────────────────────────────────
+if [[ "$SKIP_ENV_SYNC" == "1" ]]; then
+    echo "→ SKIP_ENV_SYNC=1: using existing secret $ENV_SECRET unchanged"
+else
 # Build --from-literal args from KEY=VALUE lines (skip blanks/comments). The
 # values live in the CE secret, NOT on the app's command line / spec.
 literals=()
@@ -90,6 +111,7 @@ else
     ibmcloud ce secret create --name "$ENV_SECRET" "${literals[@]}" >/dev/null
 fi
 echo "✓ env secret synced"
+fi
 
 # ── 2. Create or update the CE application (with retry on transient errors) ───
 app_exists() { ibmcloud ce app get --name "$APP_NAME" >/dev/null 2>&1; }

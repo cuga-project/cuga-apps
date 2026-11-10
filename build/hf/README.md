@@ -10,7 +10,7 @@ Space. It pairs with the all-in-one image deployed to Code Engine ([build/ce/](.
    │ links →            │  travel    │  /a/travel-planner/ → travel_planner   │
    │  <ce>/a/<app>/      │  planner   │  /a/city-beat/      → city_beat        │
    │  <ce>/a/usage-..    │            │  /a/usage-collector/→ stats dashboard  │
-   └────────────────────┘            │  21 apps + 5 MCP (loopback) + stats   │
+   └────────────────────┘            │  22 apps + 5 MCP (loopback) + stats   │
      no backend                      └──────────────────────────────────────┘
 ```
 
@@ -78,6 +78,24 @@ the corresponding `<ce-host>/a/<app>/`; **Stats ↗** opens
 > - **Keep them** via Git LFS: `git lfs install && git lfs track "*.png" &&
 >   git add .gitattributes` before the first `git add -A`. HF serves LFS-stored
 >   images normally. Do this *before* committing so no raw blob enters history.
+
+### Publishing with LFS and a token (what works)
+
+The bundle has a PNG (the logo), so track PNGs with LFS **before** committing, and
+push with a one-off credential helper — an `Authorization` header is also sent to
+the LFS storage upload URL, which then fails:
+
+```bash
+cd /tmp/space && git lfs install --local && git lfs track "*.png"
+git rm -rq assets && cp -r <repo>/build/hf/dist/. . && rm -rf usecases && git add -A && git commit -m "…"
+git remote -v      # must be ONLY spaces/<org>/<space>
+export HF_TOK=$(cat ~/.cache/huggingface/token)
+git -c credential.helper= -c credential.helper='!f(){ echo username=<hf-user>; echo "password=$HF_TOK"; }; f' push origin HEAD:main
+```
+
+Check: the live Space loads the new `assets/index-*.js`, `/cuga-logo.png` is 200,
+and *Try it* opens `<ALLINONE_BASE>/a/<app>/`. The Bharat Core buttons are counted
+(as `hf-band|card|stats`) through `<ALLINONE_BASE>/a/usage-collector/go/bharat-core`.
 
 ## Deploy order
 

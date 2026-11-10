@@ -30,8 +30,26 @@ import type { UseCase } from './usecases'
 // These two strings are stable for the life of the project. Change them
 // if you redeploy in a different CE project. Public information — safe
 // to ship in client-side bundles.
-export const CE_PROJECT_HASH = '1gxwxi8kos9y'
-export const CE_REGION       = 'us-east'
+//
+// When the UI itself is served from a Code Engine host (the all-in-one), the
+// project and region are read from that hostname, so the same build links to
+// the right MCP servers / services in whichever project it is deployed to
+// (e.g. ce-cugaplusplus in eu-gb). Elsewhere (local dev, Hugging Face) the
+// defaults below apply.
+const DEFAULT_CE_PROJECT_HASH = '1gxwxi8kos9y'
+const DEFAULT_CE_REGION       = 'us-east'
+// A hosted UI that is NOT on Code Engine (the Hugging Face Space) links to the
+// all-in-one at VITE_ALLINONE_BASE — read the project from that URL instead.
+const _CE_HOST_RE = /^[^.]+\.([a-z0-9]+)\.([a-z0-9-]+)\.codeengine\.appdomain\.cloud$/
+const _allinoneHost = (() => {
+  const base = ((import.meta as any).env?.VITE_ALLINONE_BASE as string | undefined) || ''
+  try { return base ? new URL(base).hostname : '' } catch { return '' }
+})()
+const _ceHost =
+  (typeof window !== 'undefined' ? window.location.hostname.match(_CE_HOST_RE) : null)
+  || (_allinoneHost ? _allinoneHost.match(_CE_HOST_RE) : null)
+export const CE_PROJECT_HASH = _ceHost ? _ceHost[1] : DEFAULT_CE_PROJECT_HASH
+export const CE_REGION       = _ceHost ? _ceHost[2] : DEFAULT_CE_REGION
 
 
 // ── Apps actually deployed to CE (tier 1 + tier 2 = 26) ────────────────
@@ -62,12 +80,45 @@ const CE_APP_BY_ID: Record<string, string> = {
   'github-trending':    'cuga-apps-github-trending',
   'ai-labs-news':       'cuga-apps-ai-labs-news',
   'find-a-doctor':      'cuga-apps-find-a-doctor',
+  'dependency-drift-watcher': 'cuga-apps-dependency-drift-watcher',  // all-in-one route; no per-app CE app yet
 
   // Tier 2 — in-memory state
   'newsletter':         'cuga-apps-newsletter',
   'server-monitor':     'cuga-apps-server-monitor',
   'ouroboros':          'cuga-apps-ouroboros',
   'meetup-finder':      'cuga-apps-meetup-finder',  // browser image (Playwright)
+}
+
+
+// ── External apps (own repo + own Code Engine app — see build/external/) ──
+// Not part of the all-in-one image, so never routed via /a/<app>/: in every
+// hosted mode the tile links straight to the app's own CE URL; locally it uses
+// the tile's appUrl (http://localhost:<port>) like any other app.
+// Keep in sync with build/external/apps/<app>.conf (UI_ID → CE_APP).
+const EXTERNAL_APP_BY_ID: Record<string, string> = {
+  // (none yet — Farm Assistant is listed under Bharat Core Services; see bharatServices.ts)
+}
+
+const ceAppUrl = (ceName: string): string =>
+  `https://${ceName}.${CE_PROJECT_HASH}.${CE_REGION}.codeengine.appdomain.cloud`
+
+
+/**
+ * URL for a service that runs in its OWN Code Engine app (e.g. the Bharat Core
+ * Services in bharat-core-cuga-agent-app). In every hosted mode — Hugging Face, the
+ * all-in-one's own UI, per-app remote — that is the app's CE URL plus `path`;
+ * locally it is `localUrl`, with localhost rewritten to the page's host.
+ */
+export function resolveServiceUrl(ceApp: string, path: string, localUrl: string, fixedUrl?: string): string {
+  const hosted = TARGET === 'remote' || BUILD_TARGET === 'remote-allinone' || BUILD_TARGET === 'single'
+  if (hosted) {
+    if (fixedUrl) return fixedUrl
+    return ceAppUrl(ceApp) + (path.startsWith('/') ? path : '/' + path)
+  }
+  if (typeof window !== 'undefined') {
+    return localUrl.replace('localhost', window.location.hostname)
+  }
+  return localUrl
 }
 
 
@@ -138,6 +189,15 @@ function allinoneSeg(id: string): string | null {
  * Returns null when the app has no usable URL in the current context.
  */
 export function resolveAppUrl(uc: Pick<UseCase, 'id' | 'appUrl'>): string | null {
+  // External apps: their own CE app in every hosted mode — including the
+  // all-in-one's 'single' UI. Checked first so 'single' (injected below by
+  // build/patch-deployment.cjs) can't turn it into a dead /a/<app>/ route.
+  const external = EXTERNAL_APP_BY_ID[uc.id]
+  if (external && (TARGET === 'remote' || BUILD_TARGET === 'remote-allinone'
+                   || BUILD_TARGET === 'single')) {
+    return ceAppUrl(external)
+  }
+
   if (!uc.appUrl) return null
 
   // remote-allinone: link into the single CE all-in-one service's path route.
@@ -197,4 +257,23 @@ export function statsDashboardUrl(): string | null {
   }
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
   return `http://${host}:28827/`
+}
+
+
+/**
+ * Outbound link that is counted by the stats collector before redirecting:
+ *   <collector>/go/<link>?src=<where>-<button>   (where = hf | ce)
+ * The collector only redirects allow-listed links (USAGE_LINKS), so `link`
+ * must exist there. Falls back to the direct URL when no collector is reachable
+ * (local dev), so the button always works.
+ */
+export function trackedLink(link: string, button: string, directUrl: string): string {
+  const buildTarget = (import.meta as any).env?.VITE_DEPLOYMENT_TARGET
+  if (buildTarget !== 'single' && buildTarget !== 'remote-allinone') return directUrl
+  const base = statsDashboardUrl()
+  if (!base) return directUrl
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  const where = host.endsWith('.hf.space') || host.endsWith('huggingface.co') ? 'hf' : 'ce'
+  const sep = base.endsWith('/') ? '' : '/'
+  return `${base}${sep}go/${encodeURIComponent(link)}?src=${encodeURIComponent(`${where}-${button}`)}`
 }

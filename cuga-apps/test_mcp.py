@@ -211,13 +211,11 @@ async def probe_one_tool(session, probe: Probe) -> dict[str, Any]:
 
 # ── Probe one server ────────────────────────────────────────────────────
 async def probe_server(name: str, url: str) -> dict[str, Any]:
-    from mcp.client.session import ClientSession
-    from mcp.client.streamable_http import streamablehttp_client
+    from mcp_servers._core.client import open_session
 
     server_t0 = time.monotonic()
-    async with streamablehttp_client(url) as (read, write, _close):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
+    async with open_session(url) as session:
+        if True:  # keeps the original indentation of the block below
 
             tools_listing = await session.list_tools()
             advertised = {t.name for t in tools_listing.tools}

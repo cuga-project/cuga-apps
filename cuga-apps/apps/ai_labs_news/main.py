@@ -36,6 +36,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+# One CUGA store per app (policies included). CUGA's default store is shared by
+# every app on this Python install, so one app's policies would fire in another.
+os.environ.setdefault("CUGA_DBS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cuga", "dbs"))
+os.makedirs(os.environ["CUGA_DBS_DIR"], exist_ok=True)
+
 # ── Path bootstrap — must come before local imports ─────────────────────
 _DIR       = Path(__file__).parent
 _DEMOS_DIR = _DIR.parent
@@ -403,11 +408,12 @@ async def _attach_policies(agent) -> None:
         await agent.policies.add_output_formatter(
             name="digest_formatter",
             format_config=(
-                "Before replying, ALWAYS call save_digest with a one-line "
-                "headline, 2–4 cross-lab themes, and the items list. Then in "
-                "prose lead with the headline, give a short grouped rundown "
-                "citing posts as markdown links, and note any lab whose feed "
-                "was unreachable. Keep it tight."
+                # A formatter rewrites the final text; it cannot call tools.
+                # save_digest is required by the system prompt instead.
+                "Reply in prose only: lead with a one-line headline, give a "
+                "short grouped rundown citing posts as markdown links, and "
+                "note any lab whose feed was unreachable. Keep it tight. Never "
+                "include code, tool calls or function names in the reply."
             ),
             format_type="markdown",
             keywords=["news", "digest", "latest", "what's new", "posts", "labs"],

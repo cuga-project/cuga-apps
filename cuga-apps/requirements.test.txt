@@ -3,4 +3,5 @@
 pytest>=7
 pytest-xdist>=3
 httpx>=0.27
-mcp>=1.0
+mcp>=2.0,<3
+fastmcp>=4.1,<5
