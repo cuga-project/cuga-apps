@@ -121,7 +121,10 @@ def fetch_feed(url: str, max_items: int = 20) -> str:
     except ImportError:
         return tool_error("feedparser not installed on the MCP server.", code="missing_dep")
     try:
-        parsed = feedparser.parse(url)
+        # Fetch through the shared HTTP layer (timeout, UA, retry) and hand
+        # feedparser the body: its own URL fetching has no timeout, so a
+        # stalled feed host would hang the tool forever.
+        parsed = feedparser.parse(get_text(url))
         items = []
         for entry in parsed.entries[:max_items]:
             items.append({
@@ -156,7 +159,8 @@ def search_feeds(feed_urls: list[str], keywords: list[str], max_per_feed: int = 
     hits = []
     for url in feed_urls:
         try:
-            parsed = feedparser.parse(url)
+            # Same as fetch_feed: never let feedparser fetch the URL itself.
+            parsed = feedparser.parse(get_text(url))
             for entry in parsed.entries[:max_per_feed]:
                 title = getattr(entry, "title", "")
                 summary = getattr(entry, "summary", "")
