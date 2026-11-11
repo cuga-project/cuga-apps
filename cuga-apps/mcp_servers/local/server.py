@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -146,12 +147,24 @@ def list_top_processes(by: str = "cpu", n: int = 10) -> str:
     key = by.lower()
     if key not in ("cpu", "memory"):
         return tool_error("by must be 'cpu' or 'memory'", code="bad_input")
-    procs = []
-    for p in psutil.process_iter(["pid", "name", "username", "cpu_percent", "memory_percent"]):
+    # psutil reports 0.0 on a process's first cpu_percent read (it only sets
+    # the baseline), so prime every handle, wait, then read the real value.
+    handles = []
+    for p in psutil.process_iter(["pid", "name", "username", "memory_percent"]):
         try:
-            procs.append(p.info)
+            p.cpu_percent(interval=None)
         except psutil.Error:
             continue
+        handles.append(p)
+    time.sleep(0.5)
+    procs = []
+    for p in handles:
+        try:
+            info = dict(p.info)
+            info["cpu_percent"] = p.cpu_percent(interval=None)
+        except psutil.Error:
+            continue
+        procs.append(info)
     sort_key = "cpu_percent" if key == "cpu" else "memory_percent"
     procs.sort(key=lambda d: d.get(sort_key) or 0, reverse=True)
     return tool_result({"sort_by": key, "processes": procs[:min(n, 50)]})
